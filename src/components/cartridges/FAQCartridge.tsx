@@ -37,82 +37,66 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 1,
     category: 'GENERAL',
-    question: 'WHO CAN PARTICIPATE IN COGNITIA PIXEL HACKATHON?',
+    question: 'WHEN AND WHERE IS COGNITIA 2026 TAKING PLACE?',
     answer:
-      'Anyone! Students, indie developers, retro enthusiasts, AI researchers, and designers of all skill levels worldwide are welcome. Participation is 100% free and fully remote with global online tracks.',
-    highlights: ['100% free', 'Fully remote', 'Global eligibility'],
+      'Cognitia 2026 takes place on 11th and 12th September 2026 at the IEM Gurukul Building, Salt Lake Sector V, Kolkata. It is an intensive 24-hour offline hackathon sprint.',
+    highlights: ['11th-12th September 2026', 'IEM Gurukul Kolkata', '24-Hour Offline Sprint'],
   },
   {
     id: 2,
     category: 'GENERAL',
-    question: 'IS THERE ANY REGISTRATION OR PARTICIPATION FEE?',
+    question: 'IS THERE ANY REGISTRATION OR CONFIRMATION FEE?',
     answer:
-      'Zero! Cognitia Pixel Hackathon is completely free for all hackers. All official workshops, API credits, mentor office hours, and prize entries come at no cost to participants.',
-    highlights: ['Zero entry fee', 'Free API credits', 'Free workshops'],
+      'Initial team registration is completely free via our official Google Form. Selected teams are required to pay ₹250 to confirm their selection, and a cashback of ₹50 is provided to each selected team after payment (net ₹200).',
+    highlights: ['Free initial registration', '₹250 selection confirmation', '₹50 cashback provided'],
   },
   {
     id: 3,
     category: 'TEAMS',
-    question: 'DO I NEED A TEAM BEFORE REGISTERING?',
+    question: 'WHAT ARE THE TEAM SIZE REQUIREMENTS?',
     answer:
-      'Each team must consist of 2 to 4 members. You can register your team lead and use our in-app Hacker Matrix or official Discord #team-finder channel to form or join a team of 2 to 4 members before project submission.',
-    highlights: ['2 to 4 members per team', 'Team Matchmaking available', 'Hacker Matrix matchmaking'],
+      'Each participating team must consist of 2 to 4 members. Solo participation is not permitted. All team members must carry valid college IDs and official hackathon badges throughout the event.',
+    highlights: ['2 to 4 members per team', 'No solo participation', 'Mandatory College ID & Badge'],
   },
   {
     id: 4,
-    category: 'TEAMS',
-    question: 'CAN TEAM MEMBERS BE FROM DIFFERENT INSTITUTIONS OR COUNTRIES?',
+    category: 'TECHNICAL',
+    question: 'WHAT ARE THE 5 TRACKS AND WHEN ARE PROBLEM STATEMENTS RELEASED?',
     answer:
-      'Yes! Cross-institutional and international teams are strongly encouraged. We celebrate diverse teams combining designers, engineers, AI researchers, and audio artists.',
-    highlights: ['Cross-country allowed', 'Interdisciplinary teams encouraged'],
+      'The 5 official tracks are: 1) Natural Language Processing & Computer Vision, 2) Blockchain and Cybersecurity, 3) Geospatial Predictive Intelligence, 4) AI Autonomous Systems, and 5) FinTech. Specific Problem Statements (PS) will be officially released on the day of the hackathon in Phase 2.',
+    highlights: ['5 specialized tracks', 'PS released on day of hackathon', 'Phase 2 release'],
   },
   {
     id: 5,
-    category: 'TECHNICAL',
-    question: 'WHAT TOOLS, ENGINES, AND TECH STACKS ARE PERMITTED?',
+    category: 'PRIZES',
+    question: 'WHAT IS THE TOTAL PRIZE POOL AND BOUNTY STRUCTURE?',
     answer:
-      'Any technology stack is permitted! From HTML5 Canvas/WebGL to Rust WASM, Pygame, Phaser, Unity WebGL, or custom Gemini AI pipelines. Pre-existing engines (like Godot/Phaser) are permitted as long as game code is created during the sprint window.',
-    highlights: ['Any tech stack', 'Godot/Phaser/Unity allowed', 'HTML5/WebGL/WASM'],
+      'The total cash prize pool is ₹20,000! Winners receive ₹10,000 (1st Place), ₹5,000 (2nd Place), ₹3,000 (3rd Place), plus ₹2,000 in special domain bounties across competition tracks.',
+    highlights: ['₹20,000 Total Cash Pool', '₹10K Winner / ₹5K Runner-Up', '₹2K Domain Bounties'],
   },
   {
     id: 6,
     category: 'TECHNICAL',
-    question: 'WILL API KEYS AND COMPUTE CREDITS BE PROVIDED?',
+    question: 'WHAT ARE THE VENUE CONDUCT & DRESS CODE RULES?',
     answer:
-      'Yes! Registered teams will get access to Google Gemini API keys and partner cloud infrastructure credits via the Developer Console prior to the hacking sprint kick-off.',
-    highlights: ['Gemini API access', 'Cloud credits provided'],
+      'Participants must follow proper dress attire including full trousers at all times throughout the hackathon. Attendance is monitored including overnight hours. Smoking, vaping, alcohol, or prohibited substances are strictly banned with instant disqualification.',
+    highlights: ['Full trousers mandatory', 'Overnight attendance monitored', 'Strict zero-substance policy'],
   },
   {
     id: 7,
-    category: 'AI ETHICS',
-    question: 'CAN WE USE AI CODE GENERATION & COPILOTS?',
-    answer:
-      'Yes. Generative AI tools (Gemini, Copilot, ChatGPT, Midjourney) are encouraged. However, we mandate transparent disclosure in your project README explaining how AI was integrated into your workflow.',
-    highlights: ['Gemini/Copilot permitted', 'Mandatory README disclosure'],
-  },
-  {
-    id: 8,
     category: 'SUBMISSION',
     question: 'WHAT ARE THE MANDATORY SUBMISSION DELIVERABLES?',
     answer:
-      '1) A public GitHub/GitLab repository with open-source license, 2) A 2-minute raw demo video (YouTube/Loom link), and 3) A live working web deployment link or downloadable ROM binary.',
-    highlights: ['Public Git repository', '2-min demo video', 'Live link or ROM'],
+      'Teams must work on the officially released problem statements using their designated GitHub repository. All project code must be developed within the 24-hour sprint. Final submission includes open-source code, project demo, and project defense.',
+    highlights: ['Official Problem Statements', 'Designated GitHub repository', '24-Hour sprint duration'],
   },
   {
-    id: 9,
-    category: 'PRIZES',
-    question: 'HOW ARE CASH BOUNTIES AND PRIZES DISTRIBUTED?',
+    id: 8,
+    category: 'AI ETHICS',
+    question: 'CAN WE USE AI TOOLS AND THIRD-PARTY APIS?',
     answer:
-      'Cash prizes ($50,000 total pool) are distributed to winning team leads via direct bank wire transfer or USDC escrow within 7 business days following jury verification and ceremony announcement.',
-    highlights: ['$50,000 prize pool', 'Direct bank wire or USDC', '7-day fast payout'],
-  },
-  {
-    id: 10,
-    category: 'HARDWARE',
-    question: 'HOW DOES THE HARDWARE TRACK WORK REMOTELY?',
-    answer:
-      'If you do not possess physical hardware boards, you can submit a WebSerial/WebUSB simulation, emulator workspace, or virtual gamepad bridge. Hardware judges test on real hardware as well as browser bridges.',
-    highlights: ['WebSerial/WebUSB emulators', 'Virtual gamepad bridges'],
+      'Yes! Permitted AI tools, open-source libraries, and APIs can be used provided all AI code assistance is transparently cited and disclosed in your team submission. Core project work must be created within the official sprint.',
+    highlights: ['Permitted AI & APIs', 'Transparent AI citation', 'Original sprint code'],
   },
 ];
 
@@ -208,8 +192,8 @@ export function FAQCartridge() {
                 <BookOpen className="h-4.5 w-4.5 text-[#6fb3d9]" />
                 KNOWLEDGE BASE &amp; FAQ
               </span>
-              <span className="bg-[#1f2937] text-[#38bdf8] border border-[#0284c7] font-silkscreen text-[9.5px] px-2.5 py-0.5 rounded-full shadow-xs">
-                v2.4 LIVE
+              <span className="bg-[#142338] text-[#7ec7ff] border border-[#1f4066] font-silkscreen text-[9.5px] px-2 py-0.5 rounded-xs font-bold uppercase">
+                COGNITIA 2026 OFFICIAL
               </span>
             </div>
             <p className="font-silkscreen text-[10.5px] sm:text-[11.5px] text-[#9ca3af] mt-0.5">
