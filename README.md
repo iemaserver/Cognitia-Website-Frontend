@@ -52,7 +52,7 @@ Cognitia-Website-Frontend/
 ## Application architecture
 
 - `src/App.tsx` drives the retro console shell, cartridge switching, keyboard shortcuts, boot flow, and top-level UI state.
-- `src/components/cartridges/` contains feature screens such as dashboard, rules, tracks, timeline, sponsors, registration, login, FAQ, prizes, and admin.
+- `src/components/cartridges/` contains feature screens such as dashboard, rules, tracks, timeline, sponsors, members, registration, login, FAQ, prizes, and admin.
 - `src/services/awsService.ts` manages client-side team registration, login state, submission data, and upload handling using browser storage. It also reads optional `VITE_AWS_S3_BUCKET` and `VITE_AWS_REGION` values for upload-related configuration.
 - `public/sw.js` and `src/pwaRegister.ts` provide offline caching and install-prompt behavior for the PWA experience.
 
