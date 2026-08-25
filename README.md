@@ -60,7 +60,7 @@ Cognitia-Website-Frontend/
 
 ### Prerequisites
 
-- Node.js
+- Node.js (v22)
 - npm
 
 ### Install dependencies
@@ -94,17 +94,6 @@ Required GitHub secrets for deployment:
 
 - `FIREBASE_SERVICE_ACCOUNT`
 - `FIREBASE_PROJECT_ID`
-
-### Legacy/manual deployment artifacts
-
-The repository also contains older AWS deployment helpers:
-
-- `deploy.bat`
-- `scripts/deploy-to-aws.ps1`
-- `scripts/aws-bucket-policy.json`
-- `scripts/aws-cors-policy.json`
-
-These files describe an alternate S3-based static hosting flow, but the active automated deployment path in this repository is the Firebase workflow.
 
 ## Notes
 
