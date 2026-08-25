@@ -67,11 +67,11 @@ export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => sound.playClick()}
-        className="w-full max-w-lg mx-auto bg-[#182a1b] hover:bg-[#223d27] border-2 border-[#a7d38a] hover:border-[#86efac] text-[#a7d38a] hover:text-white font-pixel text-xs sm:text-sm uppercase py-3 px-5 rounded-xs shadow-[0_0_22px_rgba(167,211,138,0.45),3px_3px_0_0_#000] flex items-center justify-center gap-2.5 transition-all transform hover:scale-[1.02] cursor-pointer"
+        className="w-full max-w-lg mx-auto bg-[#182a1b] hover:bg-[#223d27] border-2 border-[#a7d38a] hover:border-[#86efac] text-[#a7d38a] hover:text-white font-pixel text-[11px] xs:text-xs sm:text-sm uppercase py-2.5 sm:py-3 px-3 sm:px-5 rounded-xs shadow-[0_0_22px_rgba(167,211,138,0.45),3px_3px_0_0_#000] flex items-center justify-center gap-2 sm:gap-2.5 transition-all transform hover:scale-[1.02] cursor-pointer whitespace-nowrap"
       >
-        <UserPlus className="w-5 h-5 text-[#86efac] animate-pulse shrink-0" />
+        <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-[#86efac] animate-pulse shrink-0" />
         <span>REGISTER YOUR TEAM NOW</span>
-        <ArrowRight className="w-4 h-4 text-[#86efac] shrink-0" />
+        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#86efac] shrink-0" />
       </a>
 
       {/* 2. Key Stat Metrics Grid (3 Main Cards) */}

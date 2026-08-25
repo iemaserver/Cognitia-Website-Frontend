@@ -15,6 +15,16 @@
   }
 }
 
+/* Phone Viewport Font Optimization (Scales down text strictly on mobile phones <= 640px) */
+@media (max-width: 640px) {
+  html {
+    font-size: 72% !important;
+  }
+  body {
+    font-size: 0.95rem !important;
+  }
+}
+
 /* 8-Bit Spider-Man Custom Cursors - Strictly Scoped INSIDE Console HUD */
 #pixel-console-hud-root,
 #pixel-console-hud-root * {
