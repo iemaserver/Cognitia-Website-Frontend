@@ -61,20 +61,18 @@ export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
         </div>
       </div>
 
-      {/* Prominent REGISTER / MANAGE YOUR TEAM NOW CTA Button */}
-      <button
-        onClick={() => handleNav('register')}
-        type="button"
+      {/* Prominent REGISTER YOUR TEAM NOW CTA Button */}
+      <a
+        href="https://forms.gle/ZZKRsiC9ejDJSw9A9"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => sound.playClick()}
         className="w-full max-w-lg mx-auto bg-[#182a1b] hover:bg-[#223d27] border-2 border-[#a7d38a] hover:border-[#86efac] text-[#a7d38a] hover:text-white font-pixel text-xs sm:text-sm uppercase py-3 px-5 rounded-xs shadow-[0_0_22px_rgba(167,211,138,0.45),3px_3px_0_0_#000] flex items-center justify-center gap-2.5 transition-all transform hover:scale-[1.02] cursor-pointer"
       >
-        {isLoggedIn ? (
-          <Users className="w-5 h-5 text-[#86efac] animate-pulse shrink-0" />
-        ) : (
-          <UserPlus className="w-5 h-5 text-[#86efac] animate-pulse shrink-0" />
-        )}
-        <span>{isLoggedIn ? 'MANAGE YOUR TEAM NOW' : 'REGISTER YOUR TEAM NOW'}</span>
+        <UserPlus className="w-5 h-5 text-[#86efac] animate-pulse shrink-0" />
+        <span>REGISTER YOUR TEAM NOW</span>
         <ArrowRight className="w-4 h-4 text-[#86efac] shrink-0" />
-      </button>
+      </a>
 
       {/* 2. Key Stat Metrics Grid (3 Main Cards) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 w-full">
@@ -131,7 +129,7 @@ export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
 
           <div className="w-full pt-2 border-t border-[#23272a]">
             <span className="font-silkscreen text-[11.5px] sm:text-[12.5px] text-[#9aa0b0]">
-              1 to 4 Members Per Team
+              2 to 4 Members Per Team
             </span>
           </div>
         </div>
@@ -182,7 +180,7 @@ export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
             </button>
           </div>
           <p className="font-silkscreen text-[11px] sm:text-[12px] text-gray-300 leading-relaxed">
-            Choose from <strong className="text-[#00f0ff]">Web3 Bounties</strong>, <strong className="text-[#a7d38a]">GenAI Agents</strong>, <strong className="text-[#ff77e9]">Retro 8-Bit Games</strong>, or <strong className="text-[#f4c151]">Open Innovation</strong>.
+            Choose from <strong className="text-[#00f0ff]">NLP &amp; Vision</strong>, <strong className="text-[#f4c151]">Blockchain &amp; Security</strong>, <strong className="text-[#a7d38a]">Geospatial Intelligence</strong>, <strong className="text-[#ff77e9]">Autonomous AI</strong>, or <strong className="text-[#ff5555]">FinTech</strong>.
           </p>
         </div>
 
@@ -200,7 +198,7 @@ export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
             </button>
           </div>
           <p className="font-silkscreen text-[11px] sm:text-[12px] text-gray-300 leading-relaxed">
-            All project code must be initiated within the 30-hour sprint window. Teams of 1–4 members permitted with original work.
+            All project code must be initiated within the 24-hour sprint window. Teams of 2–4 members permitted with original work.
           </p>
         </div>
       </div>

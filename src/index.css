@@ -7,7 +7,7 @@
   body {
     background-color: #0b132b;
     color: #ffffff;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Chakra Petch', 'Silkscreen', 'Share Tech Mono', sans-serif;
     overflow-x: hidden;
     cursor: auto;
     font-size: 1.15rem;
@@ -98,6 +98,10 @@ textarea::placeholder {
 .font-condensed {
   font-family: 'Chakra Petch', 'Oswald', sans-serif;
   font-weight: 600;
+}
+
+.font-sans {
+  font-family: 'Chakra Petch', 'Silkscreen', 'Share Tech Mono', sans-serif !important;
 }
 
 /* Scanlines overlay effect for CRT screen */

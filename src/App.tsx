@@ -216,13 +216,13 @@ export default function App() {
       case 'rules':
         return 'RULES & ETHICS PROTOCOL';
       case 'tracks':
-        return 'CHALLENGE TRACKS [TO BE ANNOUNCED]';
+        return 'CHALLENGE TRACKS // 5 SPECIALIZED SPRINT DOMAINS';
       case 'timeline':
         return 'SPRINT SCHEDULE [TO BE ANNOUNCED]';
       case 'sponsors':
         return 'SPONSORS & PARTNERS [TO BE ANNOUNCED]';
       case 'members':
-        return 'MEMBERS & JURY ROSTER [TO BE ANNOUNCED]';
+        return 'COGNITIA CORE TEAM & DIRECTORY';
       case 'prizes':
         return '₹20,000 TOTAL CASH PRIZE POOL';
       case 'faq':
@@ -318,7 +318,14 @@ export default function App() {
                     {currentCartridge === 'register' && <RegistrationCartridge defaultLoginMode={false} />}
                     {currentCartridge === 'login' && <LoginCartridge />}
                     {currentCartridge === 'rules' && <RulesCartridge />}
-                    {currentCartridge === 'tracks' && <TracksCartridge />}
+                    {currentCartridge === 'tracks' && (
+                      <TracksCartridge
+                        onNavigate={(id) => {
+                          handleSelectCartridge(id as any);
+                          setIsDeckOpen(false);
+                        }}
+                      />
+                    )}
                     {currentCartridge === 'timeline' && <TimelineCartridge />}
                     {currentCartridge === 'sponsors' && <SponsorsCartridge />}
                     {currentCartridge === 'members' && <MembersCartridge />}

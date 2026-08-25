@@ -55,8 +55,8 @@ const FAQ_ITEMS: FAQItem[] = [
     category: 'TEAMS',
     question: 'DO I NEED A TEAM BEFORE REGISTERING?',
     answer:
-      'No! You can register as an individual builder and use our in-app Hacker Matrix or official Discord #team-finder channel to form or join a team of 1 to 4 members before project submission.',
-    highlights: ['Solo builders welcome', '1 to 4 members', 'Hacker Matrix matchmaking'],
+      'Each team must consist of 2 to 4 members. You can register your team lead and use our in-app Hacker Matrix or official Discord #team-finder channel to form or join a team of 2 to 4 members before project submission.',
+    highlights: ['2 to 4 members per team', 'Team Matchmaking available', 'Hacker Matrix matchmaking'],
   },
   {
     id: 4,
