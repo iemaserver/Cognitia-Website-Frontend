@@ -6,7 +6,6 @@ import {
   Phone,
   ExternalLink,
   Instagram,
-  Linkedin,
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 
@@ -39,7 +38,7 @@ export function Footer() {
             </li>
             <li className="flex items-center gap-2.5">
               <Calendar className="h-4.5 w-4.5 text-[#6ec0ff] shrink-0" />
-              <span>18th-19th September 2025</span>
+              <span>11th-12th September 2026</span>
             </li>
             <li className="flex items-center gap-2.5">
               <Clock className="h-4.5 w-4.5 text-[#a7d38a] shrink-0" />
@@ -124,26 +123,16 @@ export function Footer() {
 
           <div className="flex items-center gap-3 pt-1">
             <a
-              href="https://instagram.com"
+              href="https://instagram.com/cognitia2k26"
               target="_blank"
               rel="noreferrer"
               onClick={() => sound.playBlip(650)}
-              className="p-2.5 rounded-lg bg-[#141d38] border border-[#2a3765] hover:border-[#6ec0ff] hover:text-[#6ec0ff] text-[#9aa0c8] transition-all hover:scale-105"
-              title="Instagram"
-              aria-label="Instagram"
+              className="px-3.5 py-2 rounded-lg bg-[#141d38] border border-[#2a3765] hover:border-[#6ec0ff] hover:text-white text-[#9aa0c8] transition-all hover:scale-105 flex items-center gap-2 font-condensed text-[14px] font-bold"
+              title="Instagram @cognitia2k26"
+              aria-label="Instagram @cognitia2k26"
             >
-              <Instagram className="h-5.5 w-5.5" />
-            </a>
-            <a
-              href="https://linkedin.com"
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => sound.playBlip(700)}
-              className="p-2.5 rounded-lg bg-[#141d38] border border-[#2a3765] hover:border-[#6ec0ff] hover:text-[#6ec0ff] text-[#9aa0c8] transition-all hover:scale-105"
-              title="LinkedIn"
-              aria-label="LinkedIn"
-            >
-              <Linkedin className="h-5.5 w-5.5" />
+              <Instagram className="h-5 w-5 text-[#e53935]" />
+              <span>@cognitia2k26</span>
             </a>
           </div>
         </div>

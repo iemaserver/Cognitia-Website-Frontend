@@ -7,11 +7,21 @@
   body {
     background-color: #0b132b;
     color: #ffffff;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Chakra Petch', 'Silkscreen', 'Share Tech Mono', sans-serif;
     overflow-x: hidden;
     cursor: auto;
     font-size: 1.15rem;
     line-height: 1.5;
+  }
+}
+
+/* Phone Viewport Font Optimization (Scales down text strictly on mobile phones <= 640px) */
+@media (max-width: 640px) {
+  html {
+    font-size: 72% !important;
+  }
+  body {
+    font-size: 0.95rem !important;
   }
 }
 
@@ -98,6 +108,10 @@ textarea::placeholder {
 .font-condensed {
   font-family: 'Chakra Petch', 'Oswald', sans-serif;
   font-weight: 600;
+}
+
+.font-sans {
+  font-family: 'Chakra Petch', 'Silkscreen', 'Share Tech Mono', sans-serif !important;
 }
 
 /* Scanlines overlay effect for CRT screen */

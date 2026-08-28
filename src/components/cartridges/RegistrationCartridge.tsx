@@ -44,39 +44,39 @@ import {
 
 const AVAILABLE_TRACKS = [
   {
-    id: 'ai-agents',
-    name: 'AI & Neural Agents',
-    tagline: 'Autonomous GenAI, LLM Agents & Multi-Modal Intelligence',
+    id: 'nlp-cv',
+    name: 'Natural Language Processing & Computer Vision',
+    tagline: 'LLM Architectures, Multi-Modal Vision & Speech Processing',
     bounty: '₹2,000 Special Bounty',
-    description: 'Build intelligent AI agents, automated reasoning tools, or multi-modal models that solve real-world complex problems.',
+    description: 'Develop cutting-edge NLP engines, multi-modal vision systems, optical recognition tools, image/video processing, or real-time neural translation frameworks.',
   },
   {
-    id: 'web3-arcade',
-    name: 'Web3 & Decentralized Arcade',
-    tagline: 'Blockchain Games, Zero-Knowledge & On-Chain Systems',
+    id: 'blockchain-cybersecurity',
+    name: 'Blockchain and Cybersecurity',
+    tagline: 'Decentralized Ledgers, Zero-Trust Defense & Cryptography',
     bounty: '₹2,000 Special Bounty',
-    description: 'Design zero-knowledge dApps, decentralized arcade experiences, or smart contract automation protocols.',
+    description: 'Build zero-knowledge smart contracts, decentralized security infrastructure, vulnerability detection tooling, automated threat intelligence, or privacy-preserving cryptography.',
   },
   {
-    id: 'cybersecurity-hud',
-    name: 'Cybersecurity & Zero-Trust HUD',
-    tagline: 'Threat Intelligence, Security Tools & Privacy HUD',
+    id: 'geospatial-intelligence',
+    name: 'Geospatial Predictive Intelligence',
+    tagline: 'GIS Data Analytics, Spatial Modeling & Remote Sensing AI',
     bounty: '₹2,000 Special Bounty',
-    description: 'Engineer zero-trust defense architectures, vulnerability scanners, or privacy-preserving cryptographic tools.',
+    description: 'Harness satellite telemetry, GIS mapping, spatial predictive ML, environmental monitoring, or real-time geographic data processing to predict and solve spatial challenges.',
   },
   {
-    id: 'open-innovation',
-    name: 'Open Innovation & Retro Tech',
-    tagline: '8-Bit Retro Experiences, Hardware & Open-Source Breakthroughs',
+    id: 'ai-autonomous-systems',
+    name: 'AI Autonomous Systems',
+    tagline: 'Robotics, Multi-Agent Swarms & Automated Decision Engines',
     bounty: '₹2,000 Special Bounty',
-    description: 'Build anything extraordinary! High-impact open source tools, retro computing, hardware integrations, or creative hacks.',
+    description: 'Engineer autonomous multi-agent networks, robotic pathfinding simulations, self-governing workflows, or automated reinforcement-learning agent swarms.',
   },
   {
-    id: 'fintech-autonomous',
-    name: 'FinTech & Autonomous Systems',
-    tagline: 'Algorithmic Systems, Payments & High-Speed Financial HUD',
+    id: 'fintech',
+    name: 'FinTech',
+    tagline: 'Algorithmic Payments, Fraud Intelligence & Automated Trading',
     bounty: '₹2,000 Special Bounty',
-    description: 'Create next-gen financial tools, fraud detection ML models, or automated trading & payment infrastructure.',
+    description: 'Architect next-gen financial engines, micro-payment routing, automated risk assessment algorithms, algorithmic trading strategies, or AI-powered fraud detection HUDs.',
   },
 ];
 import { awsService } from '../../services/awsService';
@@ -84,8 +84,8 @@ import { TeamRegistration, TeamMember } from '../../types';
 import { sound } from '../../utils/audio';
 import { RetroInput } from '../RetroInput';
 
-// Registration Deadline (e.g. Sept 1, 2026 23:59:59 IST)
-const REGISTRATION_DEADLINE = new Date('2026-09-01T23:59:59+05:30');
+// Registration Deadline (e.g. Sept 10, 2026 23:59:59 IST)
+const REGISTRATION_DEADLINE = new Date('2026-09-10T23:59:59+05:30');
 
 interface RegistrationCartridgeProps {
   defaultLoginMode?: boolean;
@@ -186,7 +186,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       if (activeLeadTeam.submission) {
         setProjectTitle(activeLeadTeam.submission.projectTitle || '');
         setTagline(activeLeadTeam.submission.tagline || '');
-        setTrackId(activeLeadTeam.submission.trackId || 'AI / Machine Learning');
+        setTrackId(activeLeadTeam.submission.trackId || 'Natural Language Processing & Computer Vision');
         setGithubRepoUrl(activeLeadTeam.submission.githubRepoUrl || '');
         setProposedSolution(activeLeadTeam.submission.proposedSolution || '');
         setTechStackJustification(activeLeadTeam.submission.techStackJustification || '');
@@ -197,7 +197,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       } else {
         setProjectTitle('');
         setTagline('');
-        setTrackId('AI / Machine Learning');
+        setTrackId('Natural Language Processing & Computer Vision');
         setGithubRepoUrl('');
         setProposedSolution('');
         setTechStackJustification('');
@@ -220,7 +220,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       setPaymentTxId('');
       setProjectTitle('');
       setTagline('');
-      setTrackId('AI / Machine Learning');
+      setTrackId('Natural Language Processing & Computer Vision');
       setGithubRepoUrl('');
       setProposedSolution('');
       setTechStackJustification('');
@@ -295,7 +295,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   // Submission Form State
   const [projectTitle, setProjectTitle] = useState('');
   const [tagline, setTagline] = useState('');
-  const [trackId, setTrackId] = useState('AI / Machine Learning');
+  const [trackId, setTrackId] = useState('Natural Language Processing & Computer Vision');
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
   const [proposedSolution, setProposedSolution] = useState('');
   const [techStackJustification, setTechStackJustification] = useState('');
@@ -347,7 +347,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       if (current.submission) {
         setProjectTitle(current.submission.projectTitle || '');
         setTagline(current.submission.tagline || '');
-        setTrackId(current.submission.trackId || 'AI / Machine Learning');
+        setTrackId(current.submission.trackId || 'Natural Language Processing & Computer Vision');
         setGithubRepoUrl(current.submission.githubRepoUrl || '');
         setProposedSolution(current.submission.proposedSolution || '');
         setTechStackJustification(current.submission.techStackJustification || '');
@@ -640,6 +640,10 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       return;
     }
     const nextState = !isMembersLocked;
+    if (nextState && members.length < 2) {
+      alert('⚠️ MINIMUM 2 MEMBERS REQUIRED: Each participating team must consist of 2 to 4 members before locking your roster.');
+      return;
+    }
     sound.playBlip(nextState ? 900 : 450);
     setIsMembersLocked(nextState);
     const res = await awsService.updateTeamDetails(activeLeadTeam.id, editableTeamName, members, nextState);
@@ -652,6 +656,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     if (targetTab === 'team') {
       sound.playBlip(400);
       setActiveTab('team');
+      return;
+    }
+    if (members.length < 2) {
+      sound.playBlip(300);
+      alert('⚠️ MINIMUM 2 MEMBERS REQUIRED: Your team must add at least 1 more member (2 to 4 members per team) before proceeding.');
       return;
     }
     if (!isRosterLockedEffective) {
@@ -2105,7 +2114,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   placeholder="Describe your proposed solution, core implementation features, data flow, and architecture (Max 4000 words)..."
                   value={proposedSolution}
                   onChange={(e) => handleAnswerChange(e.target.value, setProposedSolution)}
-                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-sans text-xs p-2.5 rounded-xs focus:border-[#f4c151] focus:outline-none leading-relaxed min-h-[110px]"
+                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-xs p-2.5 rounded-xs focus:border-[#f4c151] focus:outline-none leading-relaxed min-h-[110px]"
                 />
               </div>
 
@@ -2128,7 +2137,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   placeholder="List your programming languages, frameworks, databases, APIs, and explain why they were selected (Max 4000 words)..."
                   value={techStackJustification}
                   onChange={(e) => handleAnswerChange(e.target.value, setTechStackJustification)}
-                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-sans text-xs p-2.5 rounded-xs focus:border-[#00f0ff] focus:outline-none leading-relaxed min-h-[110px]"
+                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-xs p-2.5 rounded-xs focus:border-[#00f0ff] focus:outline-none leading-relaxed min-h-[110px]"
                 />
               </div>
 
@@ -2151,7 +2160,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   placeholder="Explain your cloud hosting, CI/CD pipeline, caching layers, containerization, and scaling strategy (Max 4000 words)..."
                   value={deploymentStrategy}
                   onChange={(e) => handleAnswerChange(e.target.value, setDeploymentStrategy)}
-                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-sans text-xs p-2.5 rounded-xs focus:border-[#a7d38a] focus:outline-none leading-relaxed min-h-[110px]"
+                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-xs p-2.5 rounded-xs focus:border-[#a7d38a] focus:outline-none leading-relaxed min-h-[110px]"
                 />
               </div>
             </div>
@@ -2441,7 +2450,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                                 <Building size={10} /> VENUE: Campus Main Auditorium, Hall B
                               </p>
                               <p className="flex items-center gap-1 text-[#f4c151]">
-                                <Calendar size={10} /> DATE: March 14, 2026
+                                <Calendar size={10} /> DATE: September 11–12, 2026
                               </p>
                               <p className="flex items-center gap-1 text-[#6fb3d9]">
                                 <Clock size={10} /> TIME: 09:00 AM IST

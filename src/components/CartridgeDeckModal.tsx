@@ -46,7 +46,7 @@ const CARTRIDGES: Cartridge[] = [
     romSize: '256 KB',
     genre: 'Bounty Domains',
     iconName: 'Code',
-    description: '5 specialized tracks covering Arcade, Neural AI, Web3, Hardware HUD, and Creative.',
+    description: '5 specialized tracks covering NLP & CV, Blockchain & Cybersecurity, Geospatial Intelligence, AI Autonomous Systems, and FinTech.',
   },
   {
     id: 'timeline',
@@ -73,7 +73,7 @@ const CARTRIDGES: Cartridge[] = [
     romSize: '512 KB',
     genre: 'Teams & Builders',
     iconName: 'Users',
-    description: 'Connect with 1,420 registered builders, find teammates, and recruit talent.',
+    description: 'Official patrons, faculty conveners, program coordinators, and student team leads.',
   },
   {
     id: 'prizes',

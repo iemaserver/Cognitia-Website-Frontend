@@ -29,8 +29,8 @@ export function ConsoleShell({
         - Heavily distorted & stepped 8-bit pixelated perimeter lines
       */}
       <div
-        className="w-full h-full max-h-full bg-[#2c85d8] border-[5px] sm:border-[7px] border-black p-2 sm:p-2.5 md:p-3.5
-                   shadow-[inset_5px_5px_0_0_#7ec7ff,inset_-5px_-5px_0_0_#104172,6px_8px_0_0_#000,8px_14px_0_0_rgba(0,0,0,0.5)]
+        className="w-full h-full max-h-full bg-[#2c85d8] border-[3px] sm:border-[7px] border-black p-1 xs:p-2 sm:p-2.5 md:p-3.5
+                   shadow-[inset_3px_3px_0_0_#7ec7ff,inset_-3px_-3px_0_0_#104172,4px_5px_0_0_#000,6px_10px_0_0_rgba(0,0,0,0.5)]
                    relative z-20 flex flex-col justify-between"
         style={{
           // Distorted, jagged 8-bit stepped pixel boundary

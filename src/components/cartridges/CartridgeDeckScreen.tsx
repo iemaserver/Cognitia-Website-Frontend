@@ -23,29 +23,16 @@ export function CartridgeDeckScreen({
   const activeLeadTeam = awsService.getActiveLeadTeam();
   const isLoggedIn = !!activeLeadTeam;
 
-  const menuPages: MenuPageItem[] = isLoggedIn
-    ? [
-        { id: 'dashboard', name: 'DASHBOARD' },
-        { id: 'register', name: 'TEAM DASHBOARD' },
-        { id: 'rules', name: 'RULES' },
-        { id: 'tracks', name: 'TRACKS' },
-        { id: 'timeline', name: 'SCHEDULE' },
-        { id: 'sponsors', name: 'SPONSORS' },
-        { id: 'members', name: 'MEMBERS' },
-        { id: 'prizes', name: 'PRIZES' },
-        { id: 'faq', name: 'FAQ' },
-      ]
-    : [
-        { id: 'dashboard', name: 'DASHBOARD' },
-        { id: 'login', name: 'TEAM LOGIN' },
-        { id: 'rules', name: 'RULES' },
-        { id: 'tracks', name: 'TRACKS' },
-        { id: 'timeline', name: 'SCHEDULE' },
-        { id: 'sponsors', name: 'SPONSORS' },
-        { id: 'members', name: 'MEMBERS' },
-        { id: 'prizes', name: 'PRIZES' },
-        { id: 'faq', name: 'FAQ' },
-      ];
+  const menuPages: MenuPageItem[] = [
+    { id: 'dashboard', name: 'DASHBOARD' },
+    { id: 'rules', name: 'RULES' },
+    { id: 'tracks', name: 'TRACKS' },
+    { id: 'timeline', name: 'SCHEDULE' },
+    { id: 'sponsors', name: 'SPONSORS' },
+    { id: 'members', name: 'MEMBERS' },
+    { id: 'prizes', name: 'PRIZES' },
+    { id: 'faq', name: 'FAQ' },
+  ];
 
   const handleSelect = (id: CartridgeId) => {
     sound.playBoot();
