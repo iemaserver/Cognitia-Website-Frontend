@@ -45,18 +45,14 @@ const TRACKS_LIST: TrackDefinition[] = [
     badgeBg: 'rgba(0, 240, 255, 0.15)',
     icon: Brain,
     description:
-      'Engineers neural systems capable of understanding, synthesizing, and reasoning with visual and textual data. Build multi-modal transformers, OCR pipelines, real-time video understanding, and LLM reasoning models.',
+      'Engineers neural systems capable of understanding, synthesizing, and reasoning with visual and textual data. Expect problems that challenge you to apply language models, vision algorithms, and multimodal reasoning in real-world contexts.',
     focusAreas: [
-      'Multi-Modal LLM Agents & Document Intelligence',
-      'Real-Time Object Detection & Video Stream Analysis',
-      'Neural Machine Translation & Speech Synthesis',
-      'Optical Character Recognition (OCR) & Document Layout Parsing',
+      'Concepts in large language models, prompt engineering & multi-modal reasoning',
+      'Image recognition, object detection & real-time video understanding',
+      'Natural language understanding, translation & speech-to-text systems',
+      'Document parsing, OCR & automated information extraction',
     ],
-    requirements: [
-      'Working inference pipeline with real-time/batch demo',
-      'Clear benchmark metric evaluation (Latency/Accuracy)',
-      'Clean API wrapper or responsive UI presentation layer',
-    ],
+    requirements: [],
   },
   {
     id: 'blockchain-cybersecurity',
@@ -64,24 +60,20 @@ const TRACKS_LIST: TrackDefinition[] = [
     tagline: 'Decentralized Ledgers, Zero-Trust Defense & Cryptography',
     tag: 'WEB3 / SECURITY',
     bounty: '₹2,000 Special Bounty',
-    color: '#f4c151',
-    borderColor: '#f4c151',
-    bgColor: 'rgba(244, 193, 81, 0.05)',
-    badgeBg: 'rgba(244, 193, 81, 0.15)',
+    color: '#ef4444',
+    borderColor: '#ef4444',
+    bgColor: 'rgba(239, 68, 68, 0.05)',
+    badgeBg: 'rgba(239, 68, 68, 0.15)',
     icon: ShieldCheck,
     description:
-      'Pioneer decentralized trust protocols and resilient security HUDs. Build zero-knowledge proofs, smart contract security analyzers, decentralized identity solutions, or automated threat intelligence platforms.',
+      'Pioneer decentralized trust protocols and resilient security systems. Expect problems that test your knowledge of cryptography, smart contracts, identity management, and network threat detection.',
     focusAreas: [
-      'Zero-Knowledge Proofs (zk-SNARKs/zk-STARKs) & Privacy dApps',
-      'Smart Contract Security Audit & Vulnerability Scanners',
-      'Decentralized Identity (DID) & Access Management HUD',
-      'Automated Threat Intelligence & Network Packet Scanners',
+      'Cryptography fundamentals, zero-knowledge proofs & privacy-preserving tech',
+      'Smart contract design, on-chain logic & decentralized application concepts',
+      'Network security, vulnerability detection & threat intelligence pipelines',
+      'Decentralized identity, access control & tamper-evident audit systems',
     ],
-    requirements: [
-      'Deployed smart contract on testnet OR live security scanner demo',
-      'Cryptographic proof verification or tamper-evident audit logs',
-      'Comprehensive vulnerability mitigation report',
-    ],
+    requirements: [],
   },
   {
     id: 'geospatial-intelligence',
@@ -89,24 +81,20 @@ const TRACKS_LIST: TrackDefinition[] = [
     tagline: 'GIS Data Analytics, Spatial Modeling & Remote Sensing AI',
     tag: 'GIS / PREDICTIVE',
     bounty: '₹2,000 Special Bounty',
-    color: '#a7d38a',
-    borderColor: '#a7d38a',
-    bgColor: 'rgba(167, 211, 138, 0.05)',
-    badgeBg: 'rgba(167, 211, 138, 0.15)',
+    color: '#38bdf8',
+    borderColor: '#38bdf8',
+    bgColor: 'rgba(56, 189, 248, 0.05)',
+    badgeBg: 'rgba(56, 189, 248, 0.15)',
     icon: Globe,
     description:
-      'Harness satellite imagery, telemetry, and spatial ML algorithms to predict real-world geographic phenomena—from disaster response and urban growth to climate risk and precision agriculture.',
+      'Harness satellite imagery, telemetry, and spatial ML algorithms to solve geographic real-world problems. Expect challenges around predictive modeling, spatial data processing, and environmental intelligence.',
     focusAreas: [
-      'Satellite Remote Sensing & Environmental Change Tracking',
-      'Urban Infrastructure & Traffic Flow Spatial Analytics',
-      'Disaster Response & Predictive Hazard Mapping',
-      'Climate Risk Modeling & Agricultural Telemetry',
+      'Satellite imagery analysis, remote sensing & change detection concepts',
+      'Spatial data modeling, GIS integration & geographic pattern recognition',
+      'Predictive risk mapping for climate, disaster or urban planning scenarios',
+      'Telemetry-driven dashboards & real-time spatial visualization',
     ],
-    requirements: [
-      'Integration of open-source GIS, OpenStreetMap, or Satellite data',
-      'Predictive spatial-temporal model or heatmap rendering',
-      'Interactive map view or dashboard interface layer',
-    ],
+    requirements: [],
   },
   {
     id: 'ai-autonomous-systems',
@@ -114,24 +102,20 @@ const TRACKS_LIST: TrackDefinition[] = [
     tagline: 'Robotics, Multi-Agent Swarms & Automated Decision Engines',
     tag: 'ROBOTICS / AGENTS',
     bounty: '₹2,000 Special Bounty',
-    color: '#ff77e9',
-    borderColor: '#ff77e9',
-    bgColor: 'rgba(255, 119, 233, 0.05)',
-    badgeBg: 'rgba(255, 119, 233, 0.15)',
+    color: '#f87171',
+    borderColor: '#f87171',
+    bgColor: 'rgba(248, 113, 113, 0.05)',
+    badgeBg: 'rgba(248, 113, 113, 0.15)',
     icon: Bot,
     description:
-      'Construct self-governing intelligent agents and robotic orchestration systems. Build multi-agent coordination protocols, autonomous pathfinding simulations, or automated workflow execution pipelines.',
+      'Construct self-governing intelligent agents and robotic orchestration systems. Expect problem statements focused on autonomous decision-making, reinforcement learning, agent coordination, and workflow automation.',
     focusAreas: [
-      'Multi-Agent Consensus & Task Allocation Swarms',
-      'Autonomous Drone / Robot Pathfinding Simulations',
-      'Self-Healing Code Execution & Workflow Orchestration',
-      'Reinforcement Learning Agents in Complex Environments',
+      'Autonomous agent design, decision loops & state-feedback systems',
+      'Multi-agent coordination, task allocation & swarm intelligence concepts',
+      'Reinforcement learning, environment simulation & policy optimization',
+      'Self-healing workflows, exception handling & automated execution pipelines',
     ],
-    requirements: [
-      'Autonomous decision loop with state-feedback visualization',
-      'Agent inter-communication protocol or simulation environment',
-      'Fail-safe exception recovery mechanism',
-    ],
+    requirements: [],
   },
   {
     id: 'fintech',
@@ -139,24 +123,20 @@ const TRACKS_LIST: TrackDefinition[] = [
     tagline: 'Algorithmic Payments, Fraud Intelligence & Automated Trading',
     tag: 'FINTECH / MARKETS',
     bounty: '₹2,000 Special Bounty',
-    color: '#ff5555',
-    borderColor: '#ff5555',
-    bgColor: 'rgba(255, 85, 85, 0.05)',
-    badgeBg: 'rgba(255, 85, 85, 0.15)',
+    color: '#0284c7',
+    borderColor: '#0284c7',
+    bgColor: 'rgba(2, 132, 199, 0.05)',
+    badgeBg: 'rgba(2, 132, 199, 0.15)',
     icon: Landmark,
     description:
-      'Architect financial tech systems, automated risk engines, and high-speed payment infrastructure. Build AI fraud detection, algorithmic trading bots, automated credit scoring, or micro-loan routing engines.',
+      'Architect financial tech systems, automated risk engines, and payment infrastructure. Expect problems related to fraud detection, algorithmic analysis, credit risk modeling, and real-time financial data processing.',
     focusAreas: [
-      'Real-Time Transaction Fraud Intelligence & Anomaly Scanners',
-      'Algorithmic Trading & Portfolio Optimization Bots',
-      'Micro-Payment Settlement & Cross-Border Routing Protocols',
-      'Automated Risk Assessment & Credit Scoring Models',
+      'Fraud detection concepts, anomaly scoring & transaction risk intelligence',
+      'Algorithmic trading logic, portfolio optimization & market simulation',
+      'Payment routing, settlement protocols & cross-border transfer concepts',
+      'Automated credit risk assessment & financial data modeling',
     ],
-    requirements: [
-      'Functional transaction routing or fraud evaluation engine',
-      'Real-time simulation dashboard with transaction stream UI',
-      'Security & rate-limiting protection mechanisms',
-    ],
+    requirements: [],
   },
 ];
 
@@ -170,36 +150,32 @@ export function TracksCartridge({ onNavigate }: TracksCartridgeProps) {
   const selectedTrack = TRACKS_LIST.find((t) => t.id === selectedTrackId) || TRACKS_LIST[0];
 
   return (
-    <div className="flex flex-col h-full justify-between items-center text-center gap-4 select-none p-3 sm:p-5 overflow-y-auto" id="cartridge-tracks">
-      {/* Header Bar */}
-      <div className="w-full flex flex-col sm:flex-row items-center justify-between pb-3 border-b-2 border-[#2b2e30] gap-2 shrink-0">
+    <div
+      className="flex flex-col h-full gap-3 select-none p-2 sm:p-4 overflow-y-auto overflow-x-hidden max-w-full w-full"
+      id="cartridge-tracks"
+    >
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 pb-2.5 border-b border-[#ef4444]/30 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="font-pixel text-[14px] sm:text-[16px] text-[#a7d38a] flex items-center gap-2">
-            <Layers className="h-4 w-4 text-[#a7d38a]" />
-            CHALLENGE TRACKS
-          </span>
-          <span className="bg-[#1e2f18] text-[#a7d38a] border border-[#2f4f24] font-silkscreen text-[9.5px] sm:text-[10.5px] px-2 py-0.5 rounded-xs font-bold">
-            STATUS: UNLOCKED &amp; LIVE
+          <Layers className="h-4 w-4 text-[#ef4444]" />
+          <span className="font-pixel text-[11px] sm:text-[13px] text-[#ef4444] tracking-wider uppercase">
+            HACKATHON TRACKS &amp; BOUNTIES
           </span>
         </div>
-        <div className="flex items-center gap-2 font-silkscreen text-[9.5px] text-[#7ec7ff] bg-[#101a26] border border-[#1b344d] px-2.5 py-1 rounded-xs">
-          <Award className="h-3.5 w-3.5 text-[#f4c151]" />
-          <span>5 DOMAINS • ₹2,000 BOUNTY PER TRACK</span>
-        </div>
+        <span className="font-silkscreen text-[8.5px] text-[#38bdf8] border border-[#38bdf8]/40 bg-[#38bdf8]/10 backdrop-blur-md px-2 py-0.5 rounded-sm">
+          5 COMPETITIVE DOMAINS
+        </span>
       </div>
 
-      {/* Main Track Showcase Layout */}
-      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-4 text-left my-auto shrink-0">
+      {/* Main Layout (12 Cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 text-left flex-1 min-h-0">
         {/* Left Column: Track Navigation List (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col gap-2.5">
-          <div className="flex items-center justify-between px-1">
-            <span className="font-silkscreen text-[11px] text-[#8fa892] uppercase tracking-wider flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5 text-[#f4c151]" /> SELECT A TRACK (5)
-            </span>
-            <span className="font-silkscreen text-[10px] text-[#7d8285]">CLICK TO INSPECT</span>
-          </div>
+        <div className="lg:col-span-5 flex flex-col gap-1.5 overflow-y-auto">
+          <span className="font-silkscreen text-[8.5px] text-[#38bdf8]/70 uppercase tracking-widest px-0.5">
+            SELECT HACKATHON TRACK
+          </span>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             {TRACKS_LIST.map((track) => {
               const IconComp = track.icon;
               const isSelected = track.id === selectedTrackId;
@@ -210,26 +186,26 @@ export function TracksCartridge({ onNavigate }: TracksCartridgeProps) {
                   type="button"
                   onClick={() => setSelectedTrackId(track.id)}
                   style={{
-                    borderColor: isSelected ? track.color : '#23272b',
-                    backgroundColor: isSelected ? track.bgColor : '#121417',
+                    borderColor: isSelected ? track.color : 'rgba(56,189,248,0.15)',
+                    backgroundColor: isSelected ? track.bgColor : 'rgba(10,12,14,0.35)',
                     boxShadow: isSelected ? `0 0 12px ${track.badgeBg}` : 'none',
                   }}
-                  className={`w-full text-left p-3 rounded-md border-2 transition-all cursor-pointer flex items-center justify-between gap-3 group relative overflow-hidden`}
+                  className="w-full text-left p-2 rounded-md border backdrop-blur-md transition-all cursor-pointer flex items-center justify-between gap-2.5 group relative break-words"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div
                       style={{
-                        backgroundColor: isSelected ? track.badgeBg : '#1c2024',
+                        backgroundColor: isSelected ? track.badgeBg : 'rgba(255,255,255,0.04)',
                         borderColor: track.color,
                       }}
-                      className="w-10 h-10 rounded-md border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
+                      className="w-7 h-7 rounded-md border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
                     >
-                      <IconComp className="h-5 w-5" style={{ color: track.color }} />
+                      <IconComp className="h-3.5 w-3.5" style={{ color: track.color }} />
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span
-                          className="font-pixel text-[9px] px-1.5 py-0.5 rounded-xs uppercase tracking-wider border font-bold"
+                          className="font-pixel text-[7.5px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider border font-bold"
                           style={{
                             color: track.color,
                             borderColor: track.color,
@@ -239,15 +215,14 @@ export function TracksCartridge({ onNavigate }: TracksCartridgeProps) {
                           {track.tag}
                         </span>
                       </div>
-                      <h4 className="font-pixel text-[12px] sm:text-[13px] text-white truncate mt-1 group-hover:text-[#cfe8ff]">
+                      <h4 className="font-pixel text-[10px] sm:text-[11px] text-white truncate mt-0.5 group-hover:text-[#cfe8ff] leading-tight">
                         {track.title}
                       </h4>
                     </div>
                   </div>
 
                   <ChevronRight
-                    className={`h-5 w-5 shrink-0 transition-transform ${isSelected ? 'translate-x-1' : 'opacity-40 group-hover:opacity-100'
-                      }`}
+                    className={`h-3.5 w-3.5 shrink-0 transition-transform ${isSelected ? 'translate-x-0.5' : 'opacity-40 group-hover:opacity-100'}`}
                     style={{ color: track.color }}
                   />
                 </button>
@@ -257,19 +232,19 @@ export function TracksCartridge({ onNavigate }: TracksCartridgeProps) {
         </div>
 
         {/* Right Column: Selected Track Detail Card (7 cols) */}
-        <div className="lg:col-span-7 flex flex-col h-full">
+        <div className="lg:col-span-7 flex flex-col h-full overflow-y-auto">
           <div
             style={{
               borderColor: selectedTrack.color,
-              backgroundColor: '#121417',
+              backgroundColor: 'rgba(10, 12, 14, 0.35)',
             }}
-            className="w-full h-full p-4 sm:p-5 rounded-lg border-2 shadow-[inset_2px_2px_0_0_#2b2e30,inset_-2px_-2px_0_0_#0a0b0c,4px_4px_0_0_rgba(0,0,0,0.7)] flex flex-col justify-between space-y-4"
+            className="w-full h-full p-3 sm:p-3.5 rounded-md border backdrop-blur-md flex flex-col justify-between space-y-2.5 break-words"
           >
             {/* Track Header */}
-            <div className="space-y-2 border-b border-[#23272b] pb-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="space-y-1 border-b border-[#ef4444]/20 pb-2">
+              <div className="flex items-center justify-between flex-wrap gap-1.5">
                 <span
-                  className="font-silkscreen text-[11px] px-2.5 py-0.5 rounded-xs border font-bold uppercase tracking-wider"
+                  className="font-silkscreen text-[8px] px-1.5 py-0.5 rounded-sm border font-bold uppercase tracking-wider"
                   style={{
                     color: selectedTrack.color,
                     borderColor: selectedTrack.color,
@@ -279,17 +254,17 @@ export function TracksCartridge({ onNavigate }: TracksCartridgeProps) {
                   {selectedTrack.tag}
                 </span>
 
-                <span className="font-silkscreen text-[11px] text-[#f4c151] bg-[#241e12] border border-[#544425] px-2.5 py-0.5 rounded-xs font-bold flex items-center gap-1.5">
-                  <Award className="h-3.5 w-3.5 text-[#f4c151]" />
+                <span className="font-silkscreen text-[8px] text-[#ef4444] bg-[#ef4444]/10 border border-[#ef4444]/30 backdrop-blur-md px-2 py-0.5 rounded-sm font-bold flex items-center gap-1">
+                  <Award className="h-3 w-3 text-[#ef4444]" />
                   {selectedTrack.bounty}
                 </span>
               </div>
 
-              <h3 className="font-pixel text-[18px] sm:text-[22px] text-white tracking-wide">
+              <h3 className="font-pixel text-[14px] sm:text-[16px] text-white tracking-wide leading-tight break-words">
                 {selectedTrack.title}
               </h3>
               <p
-                className="font-silkscreen text-[11px] sm:text-[12px] font-semibold tracking-wide"
+                className="font-silkscreen text-[9px] sm:text-[9.5px] font-semibold tracking-wide leading-snug break-words"
                 style={{ color: selectedTrack.color }}
               >
                 {selectedTrack.tagline}
@@ -297,23 +272,23 @@ export function TracksCartridge({ onNavigate }: TracksCartridgeProps) {
             </div>
 
             {/* Description */}
-            <p className="font-silkscreen text-[11.5px] sm:text-[12.5px] text-[#cfe8ff] leading-relaxed bg-[#0c0e10] p-3 rounded border border-[#202428]">
+            <p className="font-silkscreen text-[9px] sm:text-[9.5px] text-[#cfe8ff] leading-snug bg-[#0a0c0e]/40 p-2 rounded-md border border-[#38bdf8]/15 break-words">
               {selectedTrack.description}
             </p>
 
-            {/* Focus Areas & Sample Use Cases */}
-            <div className="space-y-2">
-              <span className="font-pixel text-[10.5px] text-[#a7d38a] flex items-center gap-1.5 uppercase">
-                <Sparkles className="h-3.5 w-3.5 text-[#a7d38a]" /> KEY FOCUS AREAS &amp; PROBLEM DOMAINS
+            {/* Focus Areas */}
+            <div className="space-y-1">
+              <span className="font-silkscreen text-[8px] text-[#38bdf8] flex items-center gap-1 uppercase font-bold">
+                <Sparkles className="h-3 w-3 text-[#38bdf8]" /> KEY FOCUS AREAS &amp; PROBLEM DOMAINS
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 {selectedTrack.focusAreas.map((area, idx) => (
                   <div
                     key={idx}
-                    className="flex items-start gap-2 bg-[#0a0c0e] border border-[#1b1e22] p-2 rounded text-[11.5px] font-silkscreen text-gray-300"
+                    className="flex items-start gap-1.5 bg-[#0a0c0e]/40 backdrop-blur-md border border-[#38bdf8]/15 p-1.5 rounded-md text-[8.5px] sm:text-[9px] font-silkscreen text-[#cfe8ff] leading-snug break-words"
                   >
                     <CheckCircle2
-                      className="h-3.5 w-3.5 shrink-0 mt-0.5"
+                      className="h-3 w-3 shrink-0 mt-0.5"
                       style={{ color: selectedTrack.color }}
                     />
                     <span>{area}</span>
@@ -322,59 +297,25 @@ export function TracksCartridge({ onNavigate }: TracksCartridgeProps) {
               </div>
             </div>
 
-            {/* Evaluation & Requirements */}
-            <div className="space-y-2 pt-1 border-t border-[#23272b]">
-              <span className="font-pixel text-[10.5px] text-[#7ec7ff] flex items-center gap-1.5 uppercase">
-                <Terminal className="h-3.5 w-3.5 text-[#7ec7ff]" /> SUBMISSION CRITERIA &amp; REQUIREMENTS
-              </span>
-              <ul className="space-y-1 font-silkscreen text-[10.5px] text-gray-400">
-                {selectedTrack.requirements.map((req, idx) => (
-                  <li key={idx} className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selectedTrack.color }} />
-                    <span>{req}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Phase 2 Problem Statement Notice Banner */}
-            <div className="bg-[#241a12] border-2 border-[#f4c151] p-2.5 rounded-md text-[#f4c151] font-silkscreen text-[10.5px] sm:text-[11.5px] flex items-center gap-2.5 shadow-[0_0_12px_rgba(244,193,81,0.25)]">
-              <AlertTriangle className="h-4 w-4 text-[#f4c151] shrink-0 animate-pulse" />
+            {/* Phase 2 Banner */}
+            <div className="bg-[#ef4444]/10 border border-[#ef4444]/40 backdrop-blur-md p-1.5 sm:p-2 rounded-md text-[#ef4444] font-silkscreen text-[8px] sm:text-[8.5px] flex items-center gap-1.5 leading-snug break-words">
+              <AlertTriangle className="h-3.5 w-3.5 text-[#ef4444] shrink-0 animate-pulse" />
               <span>
-                <strong className="text-white">PHASE 2 PS RELEASE:</strong> Official Problem Statements (PS) for this track will be given on the day of the hackathon in Phase 2.
+                <strong className="text-white">PHASE 2 PS RELEASE:</strong> Official Problem Statements (PS) for this track will be released in Phase 2 on hackathon day.
               </span>
-            </div>
-
-            {/* CTA Button */}
-            <div className="pt-2 flex justify-end">
-              <a
-                href="https://forms.gle/ZZKRsiC9ejDJSw9A9"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  backgroundColor: selectedTrack.badgeBg,
-                  borderColor: selectedTrack.color,
-                  color: selectedTrack.color,
-                }}
-                className="font-pixel text-[11px] sm:text-[12px] px-4 py-2 rounded border-2 hover:brightness-125 cursor-pointer flex items-center gap-2 shadow-[2px_2px_0_0_#000] transition-all"
-              >
-                <span>SELECT &amp; REGISTER FOR THIS TRACK</span>
-                <ArrowRight className="h-4 w-4" />
-              </a>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Status Bar */}
-      <div className="w-full py-2 px-3 rounded bg-[#101214] border border-[#232629] flex items-center justify-between font-silkscreen text-[10px] text-[#7d8285] shrink-0">
-        <div className="flex items-center gap-2">
-          <Terminal className="h-3.5 w-3.5 text-[#a7d38a]" />
-          <span>CARTRIDGE: TRACKS.ROM // DOMAIN PROTOCOLS UNLOCKED</span>
+      {/* Footer */}
+      <div className="py-1.5 px-2.5 rounded-md bg-[#0a0c0e]/30 backdrop-blur-md border border-[#ef4444]/20 flex items-center justify-between font-silkscreen text-[8px] shrink-0">
+        <div className="flex items-center gap-1.5 text-[#7d8285]">
+          <Terminal className="h-3 w-3 text-[#ef4444]" />
+          <span>TRACKS.ROM · COGNITIA 2026 TRACK REGISTRY</span>
         </div>
-        <span className="text-[#f4c151]">5 TRACKS • ₹10,000 TOTAL SPECIAL BOUNTIES</span>
+        <span className="text-[#38bdf8]">5 ACTIVE DOMAINS</span>
       </div>
     </div>
   );
 }
-

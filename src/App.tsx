@@ -266,16 +266,16 @@ export default function App() {
             setIsDeckOpen(false);
           }}
           onOpenCartridgeMenu={() => setIsDeckOpen((prev) => !prev)}
+          isMenuOpen={isDeckOpen && !isBooting && !showPwaScreen && !isSwitchingCartridge}
+          onToggleMenu={() => !isBooting && !showPwaScreen && !isSwitchingCartridge && setIsDeckOpen((prev) => !prev)}
         >
           <div className="flex flex-col gap-1 grow h-full min-h-0" id="pixel-console-app-root">
-            {/* Full-width Swappable Screen Viewport with Perched Corner Menu Button */}
+            {/* Full-width Swappable Screen Viewport */}
             <div className="flex-1 min-w-0 min-h-0 flex flex-col h-full">
               <ScreenViewport
                 scanlinesEnabled={showScanlines}
                 activeCartridgeId={isBooting ? 'BOOT' : isSwitchingCartridge ? 'SWAP' : showPwaScreen ? 'PWA' : currentCartridge}
                 cartridgeName={getCartridgeName()}
-                isMenuOpen={isDeckOpen && !isBooting && !showPwaScreen && !isSwitchingCartridge}
-                onToggleMenu={() => !isBooting && !showPwaScreen && !isSwitchingCartridge && setIsDeckOpen((prev) => !prev)}
               >
                 {/* Content Area - Internal Cartridge Viewport Scrolling */}
                 {isBooting ? (

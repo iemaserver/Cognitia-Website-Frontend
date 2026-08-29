@@ -2,26 +2,26 @@
 
 @layer base {
   html {
-    font-size: 122%;
+    font-size: 95%;
   }
   body {
     background-color: #0b132b;
     color: #ffffff;
-    font-family: 'Chakra Petch', 'Silkscreen', 'Share Tech Mono', sans-serif;
+    font-family: 'Orbitron', 'Anton', sans-serif;
     overflow-x: hidden;
     cursor: auto;
-    font-size: 1.15rem;
-    line-height: 1.5;
+    font-size: 0.95rem;
+    line-height: 1.4;
   }
 }
 
 /* Phone Viewport Font Optimization (Scales down text strictly on mobile phones <= 640px) */
 @media (max-width: 640px) {
   html {
-    font-size: 72% !important;
+    font-size: 75% !important;
   }
   body {
-    font-size: 0.95rem !important;
+    font-size: 0.85rem !important;
   }
 }
 
@@ -42,7 +42,7 @@
   cursor: url('/spidey-pointer.svg') 16 16, pointer !important;
 }
 
-/* 8-Bit Textboxes & Input Fonts (Case-Sensitive Share Tech Mono Typography & Cyan Caret) */
+/* 8-Bit Textboxes & Input Fonts (Case-Sensitive Orbitron Typography & Cyan Caret) */
 input[type="text"],
 input[type="email"],
 input[type="tel"],
@@ -51,9 +51,9 @@ input[type="number"],
 input[type="url"],
 textarea,
 select {
-  font-family: 'Share Tech Mono', 'VT323', monospace !important;
-  font-size: 20px !important;
-  letter-spacing: 0.04em !important;
+  font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
+  font-size: 15px !important;
+  letter-spacing: 0.03em !important;
   text-transform: none !important;
   caret-color: #00f0ff !important;
   cursor: url('/spidey-text-cursor.svg') 16 16, text !important;
@@ -61,8 +61,8 @@ select {
 
 input::placeholder,
 textarea::placeholder {
-  font-family: 'Share Tech Mono', 'VT323', monospace !important;
-  font-size: 20px !important;
+  font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
+  font-size: 15px !important;
   opacity: 0.65;
   text-transform: none !important;
   cursor: url('/spidey-text-cursor.svg') 16 16, text !important;
@@ -79,25 +79,25 @@ textarea::placeholder {
   color: #090b0d !important;
 }
 
-/* Custom High-Clarity Retro & Arcade Fonts */
+/* Custom High-Clarity Retro & Arcade Fonts - All mapped to Orbitron */
 .font-pixel {
-  font-family: 'Pixelify Sans', 'Orbitron', 'Press Start 2P', monospace;
+  font-family: 'Orbitron', 'Pixelify Sans', sans-serif;
   font-weight: 700;
-  font-size: 1.18em;
-  letter-spacing: 0.02em;
+  font-size: 1.0em;
+  letter-spacing: 0.01em;
 }
 
 .font-silkscreen {
-  font-family: 'Chakra Petch', 'Silkscreen', sans-serif;
+  font-family: 'Orbitron', 'Chakra Petch', sans-serif;
   font-weight: 600;
-  font-size: 1.15em;
-  letter-spacing: 0.02em;
+  font-size: 0.98em;
+  letter-spacing: 0.01em;
 }
 
 .font-mono-retro,
 .font-vt323 {
-  font-family: 'Share Tech Mono', 'VT323', monospace;
-  font-size: 1.2em;
+  font-family: 'Orbitron', 'Share Tech Mono', monospace;
+  font-size: 1.0em;
 }
 
 .font-display {
@@ -106,12 +106,20 @@ textarea::placeholder {
 }
 
 .font-condensed {
-  font-family: 'Chakra Petch', 'Oswald', sans-serif;
+  font-family: 'Orbitron', 'Chakra Petch', sans-serif;
   font-weight: 600;
 }
 
 .font-sans {
-  font-family: 'Chakra Petch', 'Silkscreen', 'Share Tech Mono', sans-serif !important;
+  font-family: 'Orbitron', sans-serif !important;
+}
+
+#console-screen-viewport,
+#console-screen-viewport * {
+  font-family: 'Orbitron', 'Anton', sans-serif !important;
+  overflow-x: hidden !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
 }
 
 /* Scanlines overlay effect for CRT screen */
@@ -237,4 +245,78 @@ textarea::placeholder {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Sci-Fi Futuristic Startup & Logo Construction Animations */
+@keyframes laserScanAnim {
+  0% {
+    top: -5%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 105%;
+    opacity: 0;
+  }
+}
+
+.animate-laser-scan {
+  animation: laserScanAnim 1.6s ease-in-out infinite;
+}
+
+@keyframes radarSweepAnim {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-radar-sweep {
+  animation: radarSweepAnim 4s linear infinite;
+}
+
+.animate-radar-sweep-fast {
+  animation: radarSweepAnim 1.8s linear infinite;
+}
+
+.animate-radar-reverse {
+  animation: radarSweepAnim 6s linear infinite reverse;
+}
+
+@keyframes shockwaveExpandAnim {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.animate-shockwave {
+  animation: shockwaveExpandAnim 0.7s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+}
+
+@keyframes spideyBootSpriteAnim {
+  from {
+    background-position: 0px 0px;
+  }
+  to {
+    background-position: -2048px 0px;
+  }
+}
+
+.animate-spidey-boot-spritesheet {
+  animation: spideyBootSpriteAnim 1.8s steps(8) infinite;
 }

@@ -30,11 +30,6 @@ export function SpideyMenuButton({
 
   // --------------------------------------------------------------------------
   // 1. TOP BUTTON: spidey_head_spritesheet.png (46 frames, 81x83)
-  // - Single continuous loop that smoothly transitions between states:
-  //     * Idle (!isOpen, !isHovered): cycles frames 0..11 (Spidey face)
-  //     * Hover (!isOpen, isHovered): transitions to frame 23 (MENU) and holds
-  //     * Open (isOpen): transitions to frame 45 (Cross X) and holds
-  //     * Close transition: smoothly rewinds back
   // --------------------------------------------------------------------------
   useEffect(() => {
     const canvas = buttonCanvasRef.current;
@@ -54,7 +49,7 @@ export function SpideyMenuButton({
     let currentFrame = 0;
     let lastTime = performance.now();
 
-    img.onload = () => {
+    const startLoop = () => {
       const render = (now: number) => {
         const open = isOpenRef.current;
         const hovered = isHoveredRef.current;
@@ -107,14 +102,19 @@ export function SpideyMenuButton({
       animId = requestAnimationFrame(render);
     };
 
+    if (img.complete) {
+      startLoop();
+    } else {
+      img.onload = startLoop;
+    }
+
     return () => {
       if (animId) cancelAnimationFrame(animId);
     };
-  }, []); // Run once on mount - no re-instantiations, completely glitch-free
+  }, []);
 
   // --------------------------------------------------------------------------
   // 2. HANGING SPIDER-MAN: spidey_user_spritesheet.png (25 frames, 68x110)
-  // - Steady, constant playback speed (no animation or speed changes on hover/click)
   // --------------------------------------------------------------------------
   useEffect(() => {
     const canvas = hangingCanvasRef.current;
@@ -129,13 +129,13 @@ export function SpideyMenuButton({
     const HANG_FRAME_W = 68;
     const HANG_FRAME_H = 110;
     const HANG_TOTAL_FRAMES = 25;
-    const CONSTANT_FRAME_DURATION = 80; // Steady, fluid frame rate
+    const CONSTANT_FRAME_DURATION = 80;
 
     let animId: number;
     let currentFrame = 0;
     let lastTime = performance.now();
 
-    img.onload = () => {
+    const startLoop = () => {
       const render = (now: number) => {
         if (now - lastTime >= CONSTANT_FRAME_DURATION) {
           lastTime = now;
@@ -160,6 +160,12 @@ export function SpideyMenuButton({
 
       animId = requestAnimationFrame(render);
     };
+
+    if (img.complete) {
+      startLoop();
+    } else {
+      img.onload = startLoop;
+    }
 
     return () => {
       if (animId) cancelAnimationFrame(animId);
@@ -218,7 +224,7 @@ export function SpideyMenuButton({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         title="Spider-Man (Click to Toggle Menu)"
-        className="cursor-pointer flex flex-col items-center animate-short-sway origin-top -mt-1"
+        className="cursor-pointer flex flex-col items-center origin-top -mt-1"
       >
         <canvas
           ref={hangingCanvasRef}

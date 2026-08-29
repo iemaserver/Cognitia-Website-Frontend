@@ -316,14 +316,14 @@ export const AdminCartridge: React.FC = () => {
   // Unauthenticated Admin Login Screen
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-4 text-center">
-        <div className="w-full max-w-sm bg-[#141618] border-2 border-[#eb5147] p-5 rounded-md shadow-[4px_4px_0_0_#000] space-y-4">
-          <div className="flex justify-center text-[#eb5147]">
-            <ShieldCheck size={48} />
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-4 text-center select-none" id="cartridge-admin-login">
+        <div className="w-full max-w-sm bg-[#0a0c0e]/35 backdrop-blur-md border border-[#ef4444]/40 hover:border-[#ef4444] p-5 sm:p-6 rounded-md shadow-[0_0_24px_rgba(239,68,68,0.2)] space-y-4 transition-all">
+          <div className="flex justify-center text-[#ef4444]">
+            <ShieldCheck size={48} className="animate-pulse" />
           </div>
 
           <div>
-            <h2 className="font-pixel text-[13px] text-[#eb5147] uppercase tracking-wider">
+            <h2 className="font-pixel text-[13px] text-[#ef4444] uppercase tracking-wider">
               ADMIN CONTROL PANEL
             </h2>
             <p className="font-silkscreen text-[9px] text-[#8f9396] mt-1">
@@ -332,7 +332,7 @@ export const AdminCartridge: React.FC = () => {
           </div>
 
           {loginError && (
-            <div className="p-2 bg-[#261414] border border-[#522525] text-[#fca5a5] font-silkscreen text-[8px] rounded-xs">
+            <div className="p-2 bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#fca5a5] font-silkscreen text-[8.5px] rounded-sm">
               {loginError}
             </div>
           )}

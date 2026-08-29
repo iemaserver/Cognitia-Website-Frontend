@@ -2,56 +2,57 @@ import { Building2, Radio, Sparkles, Terminal } from 'lucide-react';
 
 export function SponsorsCartridge() {
   return (
-    <div className="flex flex-col h-full justify-between items-center text-center gap-4 select-none p-3 sm:p-6" id="cartridge-sponsors">
+    <div className="flex flex-col h-full justify-between items-center text-center gap-3 select-none p-2 sm:p-4 overflow-y-auto overflow-x-hidden max-w-full w-full" id="cartridge-sponsors">
       {/* Header */}
-      <div className="w-full flex items-center justify-between pb-2 border-b-2 border-[#2b2e30]">
+      <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 pb-2.5 border-b border-[#ef4444]/30 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="font-pixel text-[14px] sm:text-[16px] text-[#f4c151]">
+          <span className="font-pixel text-[11px] sm:text-[13px] text-[#ef4444] tracking-wider uppercase flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-[#ef4444]" />
             PARTNERS &amp; SPONSORS
           </span>
-          <span className="bg-[#262010] text-[#f4c151] border border-[#544622] font-silkscreen text-[9.5px] sm:text-[10.5px] px-2 py-0.5 rounded-xs">
+          <span className="bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/30 backdrop-blur-md font-silkscreen text-[8.5px] px-2 py-0.5 rounded-sm font-bold">
             STATUS: TBA
           </span>
         </div>
-        <div className="flex items-center gap-1.5 font-silkscreen text-[9.5px] text-[#7d8285]">
-          <Sparkles className="h-3.5 w-3.5 text-[#f4c151]" />
+        <div className="flex items-center gap-1.5 font-silkscreen text-[8.5px] text-[#38bdf8] bg-[#38bdf8]/10 border border-[#38bdf8]/30 backdrop-blur-md px-2 py-1 rounded-sm">
+          <Sparkles className="h-3.5 w-3.5 text-[#38bdf8]" />
           <span>ALLIANCE PROTOCOL</span>
         </div>
       </div>
 
       {/* Center TBA Card */}
-      <div className="w-full max-w-xl p-6 sm:p-8 rounded-lg bg-[#141618] border-[3px] border-black shadow-[inset_3px_3px_0_0_#2b2e30,inset_-3px_-3px_0_0_#0a0b0c,4px_4px_0_0_rgba(0,0,0,0.7)] flex flex-col items-center justify-center my-auto space-y-4">
-        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#262010] border-2 border-[#544622] flex items-center justify-center shadow-[0_0_16px_rgba(244,193,81,0.2)]">
-          <Building2 className="h-7 w-7 sm:h-8 sm:w-8 text-[#f4c151] animate-pulse" />
+      <div className="w-full max-w-xl p-4 sm:p-6 rounded-md bg-[#0a0c0e]/35 backdrop-blur-md border border-[#38bdf8]/20 hover:border-[#38bdf8]/40 flex flex-col items-center justify-center my-auto space-y-3 transition-all break-words">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md bg-[#38bdf8]/10 border border-[#38bdf8] flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.3)]">
+          <Building2 className="h-6 w-6 sm:h-7 sm:w-7 text-[#38bdf8] animate-pulse" />
         </div>
 
-        <div className="space-y-2">
-          <span className="font-silkscreen text-[12px] sm:text-[13px] text-[#f4c151] uppercase tracking-widest block">
-            [ ECOSYSTEM ALLIANCES ]
+        <div className="space-y-1.5">
+          <span className="font-silkscreen text-[10px] sm:text-[11px] text-[#ef4444] uppercase tracking-widest block font-bold">
+            ECOSYSTEM ALLIANCES
           </span>
-          <h3 className="font-pixel text-[24px] sm:text-[28px] md:text-[32px] text-white tracking-wider">
+          <h3 className="font-pixel text-[18px] sm:text-[22px] md:text-[26px] text-white tracking-wider leading-tight break-words">
             TO BE ANNOUNCED
           </h3>
-          <p className="font-silkscreen text-[11px] sm:text-[12.5px] text-[#d4af37] max-w-md mx-auto leading-relaxed">
+          <p className="font-silkscreen text-[9.5px] sm:text-[10.5px] text-[#7dd3fc] max-w-md mx-auto leading-snug break-words">
             Our technology partners, infrastructure sponsors, and community grant providers will be revealed shortly.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 pt-2">
-          <span className="inline-flex items-center gap-1.5 font-silkscreen text-[10.5px] sm:text-[11.5px] text-[#f4c151] bg-[#242013] border border-[#4d4120] px-3.5 py-1.5 rounded-sm">
-            <Radio className="h-3.5 w-3.5 animate-ping text-[#f4c151]" />
+        <div className="flex items-center gap-2 pt-1">
+          <span className="inline-flex items-center gap-1.5 font-silkscreen text-[9px] sm:text-[10px] text-[#38bdf8] bg-[#38bdf8]/10 border border-[#38bdf8]/30 backdrop-blur-md px-3 py-1 rounded-md font-bold text-center break-words">
+            <Radio className="h-3 w-3 animate-ping text-[#38bdf8] shrink-0" />
             SPONSOR REVEAL IMMINENT
           </span>
         </div>
       </div>
 
       {/* Bottom Status */}
-      <div className="w-full py-2 px-3 rounded bg-[#101214] border border-[#232629] flex items-center justify-between font-silkscreen text-[10px] text-[#7d8285]">
-        <div className="flex items-center gap-2">
-          <Terminal className="h-3.5 w-3.5 text-[#f4c151]" />
-          <span>CARTRIDGE: SPONSORS.ROM // PARTNER SLOTS: IN REVIEW</span>
+      <div className="w-full py-1.5 px-2.5 rounded-md bg-[#0a0c0e]/30 backdrop-blur-md border border-[#ef4444]/20 flex items-center justify-between font-silkscreen text-[8px] shrink-0">
+        <div className="flex items-center gap-1.5 text-[#7d8285]">
+          <Terminal className="h-3 w-3 text-[#ef4444]" />
+          <span>SPONSORS.ROM · PARTNER SLOTS: IN REVIEW</span>
         </div>
-        <span className="text-[#f4c151]">TBA 2026</span>
+        <span className="text-[#38bdf8]">TBA 2026</span>
       </div>
     </div>
   );

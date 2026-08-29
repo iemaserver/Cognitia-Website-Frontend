@@ -1,17 +1,22 @@
-import React from 'react';
-import { SpideyCornerSprite } from './SpideyCornerSprite';
-import { CartridgeId } from '../types';
+import React from "react";
+import { SpideyCornerSprite } from "./SpideyCornerSprite";
+import { SpideyMenuButton } from "./SpideyMenuButton";
+import { CartridgeId } from "../types";
 
 interface ConsoleShellProps {
   children: React.ReactNode;
   currentCartridge: CartridgeId;
   onSelectCartridge: (id: CartridgeId) => void;
   onOpenCartridgeMenu?: () => void;
+  isMenuOpen?: boolean;
+  onToggleMenu?: () => void;
 }
 
 export function ConsoleShell({
   children,
   onSelectCartridge,
+  isMenuOpen = false,
+  onToggleMenu,
 }: ConsoleShellProps) {
   return (
     <div
@@ -20,8 +25,15 @@ export function ConsoleShell({
     >
       {/* BOTTOM-LEFT CORNER PERCHED SPIDEY MASCOT */}
       <div className="absolute -left-3 sm:-left-4 -bottom-3 sm:-bottom-4 z-40">
-        <SpideyCornerSprite onClick={() => onSelectCartridge('dashboard')} />
+        <SpideyCornerSprite onClick={() => onSelectCartridge("dashboard")} />
       </div>
+
+      {/* TOP-RIGHT CORNER PERCHED SPIDEY MENU BUTTON (On Outer Light Blue Chassis - Fully Visible) */}
+      {onToggleMenu && (
+        <div className="absolute -top-2 sm:-top-3 -right-2 sm:-right-5 z-50 pointer-events-auto">
+          <SpideyMenuButton isOpen={isMenuOpen} onClick={onToggleMenu} />
+        </div>
+      )}
 
       {/* 
         MAIN LIGHT BLUE OUTER HUD CHASSIS

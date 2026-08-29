@@ -40,10 +40,10 @@ const OFFICIAL_RULES: RuleCategory[] = [
     category: 'REGISTRATION',
     status: 'MANDATORY',
     icon: UserCheck,
-    color: '#f4c151',
-    borderColor: '#f4c151',
-    bgColor: 'rgba(244, 193, 81, 0.05)',
-    badgeBg: 'rgba(244, 193, 81, 0.15)',
+    color: '#38bdf8',
+    borderColor: '#38bdf8',
+    bgColor: 'rgba(56, 189, 248, 0.05)',
+    badgeBg: 'rgba(56, 189, 248, 0.15)',
     summary: 'Mandatory registration details, team size boundaries, venue pass rules, dress attire, and confirmation fee details.',
     rules: [
       'Participants must complete the registration process with accurate personal, institutional, contact details.',
@@ -52,7 +52,7 @@ const OFFICIAL_RULES: RuleCategory[] = [
       'Attendance may be monitored throughout the hackathon, including during overnight hours.',
       'Participants must remain within the designated hackathon venue during the event unless permission is granted by the organizers.',
       'Participants must follow proper dress attire including proper full trousers all throughout the hackathon.',
-      'Selected teams are required to pay ₹250 to confirm their selection. A cashback of ₹50 will be provided to each selected team after payment.',
+      'Initial team registration requires a fee of ₹50. Selected teams are required to pay ₹250 to confirm their selection. A cashback of ₹50 will be provided to each selected team after payment.',
     ],
     enforcement: 'Inaccurate details, refusal of ID verification, or non-compliance with venue rules will invalidate team selection.',
   },
@@ -62,10 +62,10 @@ const OFFICIAL_RULES: RuleCategory[] = [
     category: 'SUBMISSION',
     status: 'ENFORCED',
     icon: GitBranch,
-    color: '#00f0ff',
-    borderColor: '#00f0ff',
-    bgColor: 'rgba(0, 240, 255, 0.05)',
-    badgeBg: 'rgba(0, 240, 255, 0.15)',
+    color: '#ef4444',
+    borderColor: '#ef4444',
+    bgColor: 'rgba(239, 68, 68, 0.05)',
+    badgeBg: 'rgba(239, 68, 68, 0.15)',
     summary: 'Official track problem statements, sprint duration development, designated GitHub repositories, and strict freeze deadlines.',
     rules: [
       'Teams must work on the officially released problem statements and follow the designated hackathon tracks.',
@@ -84,10 +84,10 @@ const OFFICIAL_RULES: RuleCategory[] = [
     category: 'CODE ETHICS',
     status: 'REQUIRED',
     icon: Cpu,
-    color: '#a7d38a',
-    borderColor: '#a7d38a',
-    bgColor: 'rgba(167, 211, 138, 0.05)',
-    badgeBg: 'rgba(167, 211, 138, 0.15)',
+    color: '#38bdf8',
+    borderColor: '#38bdf8',
+    bgColor: 'rgba(56, 189, 248, 0.05)',
+    badgeBg: 'rgba(56, 189, 248, 0.15)',
     summary: 'Permitted frameworks, AI tool compliance, open-source licensing, strict anti-plagiarism mandates, and project defense.',
     rules: [
       'Participants may use technologies, frameworks, APIs, and tools permitted under the official hackathon rules.',
@@ -104,10 +104,10 @@ const OFFICIAL_RULES: RuleCategory[] = [
     category: 'SAFETY PROTOCOL',
     status: 'ENFORCED',
     icon: ShieldAlert,
-    color: '#f2933d',
-    borderColor: '#f2933d',
-    bgColor: 'rgba(242, 147, 61, 0.05)',
-    badgeBg: 'rgba(242, 147, 61, 0.15)',
+    color: '#ef4444',
+    borderColor: '#ef4444',
+    bgColor: 'rgba(239, 68, 68, 0.05)',
+    badgeBg: 'rgba(239, 68, 68, 0.15)',
     summary: 'Discipline, responsible power equipment usage, facility property care, workspace cleanliness, and resting area rules.',
     rules: [
       'Participants must maintain discipline and follow instructions given by organizers and volunteers.',
@@ -143,10 +143,10 @@ const OFFICIAL_RULES: RuleCategory[] = [
     category: 'COMMUNITY',
     status: 'MANDATORY',
     icon: Users,
-    color: '#ff77e9',
-    borderColor: '#ff77e9',
-    bgColor: 'rgba(255, 119, 233, 0.05)',
-    badgeBg: 'rgba(255, 119, 233, 0.15)',
+    color: '#38bdf8',
+    borderColor: '#38bdf8',
+    bgColor: 'rgba(56, 189, 248, 0.05)',
+    badgeBg: 'rgba(56, 189, 248, 0.15)',
     summary: 'Mutual respect, zero harassment, personal belongings responsibility, organizer authority, and scheduled meals.',
     rules: [
       'Participants must treat fellow participants, organizers, volunteers, judges, mentors, and guests with respect.',
@@ -173,42 +173,31 @@ export function RulesCartridge() {
   const IconComponent = activeCategory.icon;
 
   return (
-    <div className="flex flex-col h-full justify-between gap-3 select-none p-3 sm:p-5 overflow-y-auto" id="cartridge-rules">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between pb-3 border-b-2 border-[#2b2e30] gap-2 shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-pixel text-[13px] sm:text-[16px] text-[#f4c151] flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-[#f4c151]" />
-              RULES &amp; ETHICS PROTOCOL
-            </span>
-            <span className="bg-[#241818] text-[#f2933d] border border-[#422525] font-silkscreen text-[9.5px] px-2 py-0.5 rounded-xs font-bold">
-              OFFICIAL REVISED PROTOCOL 2026
-            </span>
-          </div>
-          <p className="font-silkscreen text-[10px] sm:text-[11px] text-[#8f9396] mt-0.5">
-            Strict guidelines governing registration, team composition, GitHub submissions, safety, conduct, and fee structure.
-          </p>
+    <div className="flex flex-col h-full gap-3 select-none p-2 sm:p-4 overflow-y-auto overflow-x-hidden max-w-full w-full" id="cartridge-rules">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 pb-2.5 border-b border-[#ef4444]/30 shrink-0">
+        <div className="flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-[#ef4444]" />
+          <span className="font-pixel text-[11px] sm:text-[13px] text-[#ef4444] tracking-wider uppercase">
+            Rules &amp; Ethics Protocol
+          </span>
         </div>
-        <div className="flex items-center gap-2 font-silkscreen text-[9.5px] text-[#a7d38a] bg-[#142417] border border-[#25522b] px-2.5 py-1 rounded-xs shrink-0">
-          <CheckCircle2 className="h-3.5 w-3.5 text-[#a7d38a]" />
-          <span>6 DOMAINS ENFORCED</span>
-        </div>
+        <span className="font-silkscreen text-[8.5px] text-[#38bdf8] border border-[#38bdf8]/40 bg-[#38bdf8]/10 backdrop-blur-md px-2 py-0.5 rounded-sm">
+          OFFICIAL 2026 · 6 DOMAINS
+        </span>
       </div>
 
-      {/* Main Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 text-left my-auto shrink-0">
-        {/* Left Column: Rule Categories List (5 Cols) */}
-        <div className="lg:col-span-5 flex flex-col gap-2">
-          <span className="font-silkscreen text-[10.5px] text-[#8f9396] uppercase tracking-wider flex items-center gap-1.5 px-1">
-            <Sparkles className="h-3.5 w-3.5 text-[#f4c151]" /> RULE DOMAINS (6)
-          </span>
+      {/* Main Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 text-left flex-1 min-h-0">
 
-          <div className="space-y-1.5">
+        {/* Left: Category List */}
+        <div className="lg:col-span-4 flex flex-col gap-1.5 overflow-y-auto">
+          <span className="font-silkscreen text-[8.5px] text-[#38bdf8]/70 uppercase tracking-widest px-0.5">Select Domain</span>
+          <div className="space-y-1">
             {OFFICIAL_RULES.map((item, idx) => {
               const ItemIcon = item.icon;
               const isSelected = selectedIdx === idx;
-
               return (
                 <button
                   key={item.id}
@@ -218,39 +207,28 @@ export function RulesCartridge() {
                     setSelectedIdx(idx);
                   }}
                   style={{
-                    borderColor: isSelected ? item.color : '#2b2e30',
-                    backgroundColor: isSelected ? item.bgColor : '#141618',
-                    boxShadow: isSelected ? `0 0 10px ${item.badgeBg}` : 'none',
+                    borderColor: isSelected ? item.color : 'rgba(56,189,248,0.15)',
+                    backgroundColor: isSelected ? `${item.bgColor}` : 'rgba(10,12,14,0.35)',
+                    boxShadow: isSelected ? `0 0 12px ${item.badgeBg}` : 'none',
                   }}
-                  className={`w-full text-left p-2.5 rounded-md border-2 transition-all cursor-pointer flex items-center justify-between gap-2.5 group`}
+                  className="w-full text-left px-2.5 py-2 rounded-md border backdrop-blur-md transition-all cursor-pointer flex items-center gap-2 group"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      style={{
-                        backgroundColor: isSelected ? item.badgeBg : '#1c2024',
-                        borderColor: item.color,
-                      }}
-                      className="w-8 h-8 rounded border flex items-center justify-center shrink-0"
-                    >
-                      <ItemIcon className="h-4 w-4" style={{ color: item.color }} />
+                  <div
+                    style={{ backgroundColor: isSelected ? item.badgeBg : 'rgba(255,255,255,0.04)', borderColor: item.color }}
+                    className="w-6 h-6 rounded border flex items-center justify-center shrink-0"
+                  >
+                    <ItemIcon className="h-3 w-3" style={{ color: item.color }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-pixel text-[9.5px] sm:text-[10px] text-white truncate group-hover:text-[#cfe8ff]">
+                      {item.title}
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="font-pixel text-[11px] sm:text-[12px] text-white truncate group-hover:text-[#cfe8ff]">
-                        {item.title}
-                      </h4>
-                      <span
-                        className="font-silkscreen text-[8.5px] sm:text-[9px] block truncate mt-0.5"
-                        style={{ color: item.color }}
-                      >
-                        {item.category} &bull; {item.status}
-                      </span>
+                    <div className="font-silkscreen text-[7.5px] truncate mt-0.5" style={{ color: item.color }}>
+                      {item.category}
                     </div>
                   </div>
-
                   <ChevronRight
-                    className={`h-4 w-4 shrink-0 transition-transform ${
-                      isSelected ? 'translate-x-1' : 'opacity-40 group-hover:opacity-100'
-                    }`}
+                    className={`h-3.5 w-3.5 shrink-0 transition-transform ${isSelected ? 'translate-x-0.5' : 'opacity-30 group-hover:opacity-70'}`}
                     style={{ color: item.color }}
                   />
                 </button>
@@ -259,120 +237,88 @@ export function RulesCartridge() {
           </div>
         </div>
 
-        {/* Right Column: Rule Category Detailed View (7 Cols) */}
-        <div className="lg:col-span-7 flex flex-col h-full">
+        {/* Right: Rule Detail */}
+        <div className="lg:col-span-8 flex flex-col gap-2.5 overflow-y-auto">
+          {/* Category header card */}
           <div
-            style={{
-              borderColor: activeCategory.color,
-              backgroundColor: '#121417',
-            }}
-            className="w-full h-full p-4 rounded-lg border-2 shadow-[inset_2px_2px_0_0_#2b2e30,inset_-2px_-2px_0_0_#0a0b0c,4px_4px_0_0_rgba(0,0,0,0.7)] flex flex-col justify-between space-y-3.5"
+            style={{ borderColor: activeCategory.color, backgroundColor: activeCategory.bgColor }}
+            className="p-2.5 sm:p-3 rounded-lg border backdrop-blur-md flex items-start justify-between gap-2.5 shrink-0 break-words"
           >
-            {/* Category Header */}
-            <div className="space-y-1.5 border-b border-[#23272b] pb-2.5">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <div
-                    style={{
-                      backgroundColor: activeCategory.badgeBg,
-                      borderColor: activeCategory.color,
-                    }}
-                    className="w-7 h-7 rounded border flex items-center justify-center"
-                  >
-                    <IconComponent className="h-4 w-4" style={{ color: activeCategory.color }} />
-                  </div>
-                  <h3 className="font-pixel text-[15px] sm:text-[17px] text-white">
-                    {activeCategory.title}
-                  </h3>
-                </div>
-
-                <span
-                  style={{
-                    color: activeCategory.color,
-                    borderColor: activeCategory.color,
-                    backgroundColor: activeCategory.badgeBg,
-                  }}
-                  className="font-silkscreen text-[9.5px] px-2 py-0.5 rounded-xs border font-bold uppercase tracking-wider"
-                >
-                  {activeCategory.status}
-                </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <div
+                style={{ backgroundColor: activeCategory.badgeBg, borderColor: activeCategory.color }}
+                className="w-7 h-7 rounded border flex items-center justify-center shrink-0"
+              >
+                <IconComponent className="h-3.5 w-3.5" style={{ color: activeCategory.color }} />
               </div>
-              <p className="font-silkscreen text-[10.5px] sm:text-[11px] text-[#8f9396] leading-relaxed">
-                {activeCategory.summary}
-              </p>
-            </div>
-
-            {/* Rules Bullet List */}
-            <div className="space-y-2 grow overflow-y-auto pr-1 max-h-[260px]">
-              <span className="font-pixel text-[10px] text-[#a7d38a] flex items-center gap-1.5 uppercase">
-                <Terminal className="h-3.5 w-3.5 text-[#a7d38a]" /> OFFICIAL MANDATES &amp; CLAUSES ({activeCategory.rules.length})
-              </span>
-
-              <div className="space-y-1.5">
-                {activeCategory.rules.map((clause, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-2 bg-[#090b0d] border border-[#1b1f24] p-2 rounded text-[11px] sm:text-[12px] font-silkscreen text-[#cfe8ff] leading-relaxed"
-                  >
-                    <span
-                      className="font-pixel text-[9px] px-1.5 py-0.5 rounded-xs border shrink-0 mt-0.5"
-                      style={{
-                        color: activeCategory.color,
-                        borderColor: activeCategory.color,
-                        backgroundColor: activeCategory.badgeBg,
-                      }}
-                    >
-                      #{idx + 1}
-                    </span>
-                    <span>{clause}</span>
-                  </div>
-                ))}
+              <div className="min-w-0">
+                <div className="font-pixel text-[11px] sm:text-[12.5px] text-white leading-tight">{activeCategory.title}</div>
+                <p className="font-silkscreen text-[8.5px] text-[#8f9396] mt-0.5 leading-snug break-words">{activeCategory.summary}</p>
               </div>
             </div>
-
-            {/* Enforcement Warning Box */}
-            <div
-              className="p-2.5 rounded border space-y-1"
-              style={{
-                backgroundColor: 'rgba(28, 20, 20, 0.9)',
-                borderColor: '#542222',
-              }}
+            <span
+              style={{ color: activeCategory.color, borderColor: activeCategory.color, backgroundColor: activeCategory.badgeBg }}
+              className="font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded border font-bold uppercase tracking-wider shrink-0"
             >
-              <span className="font-silkscreen text-[9px] text-[#ef4444] uppercase tracking-wider flex items-center gap-1 font-bold">
-                <AlertTriangle className="h-3.5 w-3.5 text-[#ef4444]" /> ENFORCEMENT &amp; PENALTY PROTOCOL:
-              </span>
-              <p className="font-silkscreen text-[10px] sm:text-[10.5px] text-[#e0a2a2] leading-relaxed">
-                {activeCategory.enforcement}
-              </p>
-            </div>
+              {activeCategory.status}
+            </span>
+          </div>
 
-            {/* Official Judging Rubric Footer */}
-            <div className="pt-2 border-t border-[#23272b]">
-              <span className="font-silkscreen text-[9.5px] text-[#8f9396] uppercase block mb-1.5 flex items-center gap-1">
-                <Award className="h-3.5 w-3.5 text-[#f4c151]" /> OFFICIAL JUDGING RUBRIC:
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {JUDGING_CRITERIA.map((crit, i) => (
-                  <div key={i} className="p-1.5 rounded bg-[#161a1e] border border-[#272d34] text-center">
-                    <span className="font-pixel text-[11px] text-[#a7d38a] block">{crit.weight}</span>
-                    <span className="font-silkscreen text-[8.5px] text-[#cfe8ff] block truncate">{crit.label}</span>
-                  </div>
-                ))}
+          {/* Clauses list */}
+          <div className="space-y-1.5 flex-1 overflow-y-auto">
+            <div className="font-silkscreen text-[8.5px] text-[#38bdf8]/70 uppercase tracking-widest flex items-center gap-1 px-0.5">
+              <Terminal className="h-3 w-3" /> Mandates &amp; Clauses ({activeCategory.rules.length})
+            </div>
+            {activeCategory.rules.map((clause, idx) => (
+              <div
+                key={idx}
+                className="flex items-start gap-2 bg-[#0a0c0e]/40 backdrop-blur-md border border-[#38bdf8]/15 hover:border-[#38bdf8]/30 p-2 sm:p-2.5 rounded-md transition-colors break-words"
+              >
+                <span
+                  className="font-pixel text-[7.5px] px-1.5 py-0.5 rounded border shrink-0 mt-0.5"
+                  style={{ color: activeCategory.color, borderColor: activeCategory.color, backgroundColor: activeCategory.badgeBg }}
+                >
+                  #{idx + 1}
+                </span>
+                <span className="font-silkscreen text-[9px] sm:text-[9.5px] text-[#cfe8ff] leading-snug break-words">{clause}</span>
               </div>
+            ))}
+          </div>
+
+          {/* Enforcement notice */}
+          <div className="p-2.5 rounded-md border border-[#ef4444]/30 bg-[#ef4444]/5 backdrop-blur-md flex items-start gap-2 shrink-0 break-words">
+            <AlertTriangle className="h-3.5 w-3.5 text-[#ef4444] shrink-0 mt-0.5" />
+            <div>
+              <div className="font-silkscreen text-[8px] text-[#ef4444] uppercase tracking-wider font-bold mb-0.5">Enforcement</div>
+              <p className="font-silkscreen text-[8.5px] text-[#fca5a5] leading-snug break-words">{activeCategory.enforcement}</p>
+            </div>
+          </div>
+
+          {/* Judging rubric */}
+          <div className="shrink-0">
+            <div className="font-silkscreen text-[8.5px] text-[#38bdf8]/70 uppercase tracking-widest flex items-center gap-1 mb-1.5">
+              <Award className="h-3 w-3 text-[#38bdf8]" /> Judging Rubric
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              {JUDGING_CRITERIA.map((crit, i) => (
+                <div key={i} className="p-2 rounded-md bg-[#0a0c0e]/40 backdrop-blur-md border border-[#38bdf8]/15 hover:border-[#38bdf8]/35 text-center transition-colors break-words">
+                  <span className="font-pixel text-[11px] text-[#38bdf8] block">{crit.weight}</span>
+                  <span className="font-silkscreen text-[7.5px] text-[#7dd3fc] block mt-0.5 leading-tight">{crit.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Footer Banner */}
-      <div className="w-full py-2 px-3 rounded bg-[#101214] border border-[#232629] flex items-center justify-between font-silkscreen text-[9.5px] text-[#7d8285] shrink-0">
-        <div className="flex items-center gap-2">
-          <Terminal className="h-3.5 w-3.5 text-[#f4c151]" />
-          <span>CARTRIDGE: RULES.ROM // ALL RULES ENFORCED BY ORGANIZING COMMITTEE</span>
+      {/* Footer */}
+      <div className="py-1.5 px-2.5 rounded-md bg-[#0a0c0e]/30 backdrop-blur-md border border-[#ef4444]/20 flex items-center justify-between font-silkscreen text-[8px] shrink-0">
+        <div className="flex items-center gap-1.5 text-[#7d8285]">
+          <Terminal className="h-3 w-3 text-[#ef4444]" />
+          <span>RULES.ROM · ALL RULES ENFORCED BY ORGANIZING COMMITTEE</span>
         </div>
-        <span className="text-[#a7d38a]">VERDICT IS FINAL</span>
+        <span className="text-[#38bdf8]">VERDICT IS FINAL</span>
       </div>
     </div>
   );
 }
-

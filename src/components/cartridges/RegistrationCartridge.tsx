@@ -1011,19 +1011,19 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   // Unauthenticated Lead Login / Signup View
   if (!activeLeadTeam) {
     return (
-      <div className="flex flex-col h-full justify-between gap-3 select-none overflow-y-auto" id="cartridge-registration">
+      <div className="flex flex-col h-full justify-between gap-3 select-none overflow-y-auto overflow-x-hidden max-w-full w-full" id="cartridge-registration">
         {/* Retro Header */}
-        <div className="flex items-center justify-between pb-2 border-b-2 border-[#2b2e30]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-2 border-b border-[#ef4444]/30 gap-1 shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-pixel text-[12px] sm:text-[13px] text-[#f4c151]">
+              <span className="font-pixel text-[11px] sm:text-[13px] text-[#ef4444] tracking-wider uppercase leading-tight">
                 PARTICIPANT LEAD REGISTRATION &amp; PORTAL
               </span>
-              <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
+              <span className="bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/30 backdrop-blur-md font-silkscreen text-[8px] px-2 py-0.5 rounded-sm font-bold shrink-0">
                 CLOUD SERVER ACTIVE
               </span>
             </div>
-            <p className="font-silkscreen text-[8px] sm:text-[9px] text-[#8f9396]">
+            <p className="font-silkscreen text-[8.5px] sm:text-[9px] text-[#8f9396] mt-0.5 leading-snug break-words">
               Register your team lead credentials or log in to manage team members and project deliverables.
             </p>
           </div>
@@ -1031,10 +1031,10 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
         {/* Auth Card Container */}
         <div className="flex-1 flex justify-center items-center py-2">
-          <div className="w-full max-w-lg bg-[#141618] border-2 border-[#2b2e30] p-4 sm:p-5 rounded-md shadow-[4px_4px_0_0_#000]">
-            <div className="flex items-center justify-between border-b border-[#2b2e30] pb-3 mb-4">
-              <span className="font-pixel text-[11px] text-[#6fb3d9] flex items-center gap-1.5">
-                <User size={14} className="text-[#f4c151]" />
+          <div className="w-full max-w-lg bg-[#0a0c0e]/35 backdrop-blur-md border border-[#38bdf8]/30 hover:border-[#38bdf8]/60 p-4 sm:p-5 rounded-md transition-all break-words">
+            <div className="flex items-center justify-between border-b border-[#ef4444]/20 pb-3 mb-4 gap-2">
+              <span className="font-pixel text-[10px] sm:text-[11px] text-[#38bdf8] flex items-center gap-1.5 leading-tight">
+                <User size={14} className="text-[#ef4444] shrink-0" />
                 {isLoginMode ? 'Team Lead Login' : 'New Team Registration'}
               </span>
               <button
@@ -1045,22 +1045,22 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   setAuthError('');
                   setAuthSuccess('');
                 }}
-                className="font-silkscreen text-[8px] text-[#f4c151] hover:underline bg-[#1c1f24] border border-[#33373a] px-2 py-0.5 rounded-xs"
+                className="font-silkscreen text-[8px] text-[#38bdf8] hover:underline bg-[#38bdf8]/10 border border-[#38bdf8]/30 px-2 py-1 rounded-sm cursor-pointer shrink-0"
               >
                 {isLoginMode ? 'Switch to Signup' : 'Switch to Login'}
               </button>
             </div>
 
             {authError && (
-              <div className="mb-3 p-2 bg-[#261414] border border-[#522525] text-[#fca5a5] font-silkscreen text-[8px] flex items-center gap-1.5 rounded-xs">
+              <div className="mb-3 p-2 bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#fca5a5] font-silkscreen text-[8px] flex items-center gap-1.5 rounded-sm break-words">
                 <AlertTriangle size={12} className="text-[#ef4444] shrink-0" />
                 <span>{authError}</span>
               </div>
             )}
 
             {authSuccess && (
-              <div className="mb-3 p-2 bg-[#142417] border border-[#25522b] text-[#86efac] font-silkscreen text-[8px] flex items-center gap-1.5 rounded-xs">
-                <CheckCircle2 size={12} className="text-[#22c55e] shrink-0" />
+              <div className="mb-3 p-2 bg-[#38bdf8]/15 border border-[#38bdf8]/40 text-[#7dd3fc] font-silkscreen text-[8px] flex items-center gap-1.5 rounded-sm break-words">
+                <CheckCircle2 size={12} className="text-[#38bdf8] shrink-0" />
                 <span>{authSuccess}</span>
               </div>
             )}
@@ -1132,7 +1132,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
               <button
                 type="submit"
-                className="w-full bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] font-pixel text-[9px] text-[#f4c151] tracking-wider py-2 px-3 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] active:translate-y-0.5 transition-none cursor-pointer mt-2"
+                className="w-full bg-[#ef4444]/15 border border-[#ef4444]/40 hover:border-[#ef4444] hover:bg-[#ef4444]/25 font-pixel text-[9.5px] sm:text-[10px] text-[#ef4444] tracking-wider py-2 px-3 rounded-md flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(239,68,68,0.2)] cursor-pointer mt-2 transition-all leading-tight text-center break-words"
               >
                 {isLoginMode ? 'AUTHENTICATE LEAD' : 'REGISTER TEAM LEAD'}
               </button>
@@ -1141,9 +1141,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="pt-2 border-t border-[#26282a] flex items-center justify-between text-[8px] font-silkscreen text-[#7d8285]">
+        <div className="pt-2 border-t border-[#ef4444]/20 flex items-center justify-between text-[8px] font-silkscreen text-[#7d8285] shrink-0">
           <span>VERIFIED BY SECURE CLOUD AUTH</span>
-          <span className="text-[#a7d38a]">COGNITIA 2026 REGISTRATION PROTOCOL</span>
+          <span className="text-[#38bdf8]">COGNITIA 2026 REGISTRATION PROTOCOL</span>
         </div>
       </div>
     );
@@ -1151,29 +1151,29 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
   // Authenticated Lead Dashboard View
   return (
-    <div className="flex flex-col h-full justify-between gap-3 select-none overflow-y-auto" id="cartridge-registration-dashboard">
+    <div className="flex flex-col h-full justify-between gap-3 select-none overflow-y-auto overflow-x-hidden max-w-full w-full" id="cartridge-registration-dashboard">
       {/* Top Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-md bg-[#141618] border-2 border-[#2b2e30]">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-md bg-[#0a0c0e]/35 backdrop-blur-md border border-[#ef4444]/30 shrink-0">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-pixel text-[11px] text-[#f4c151]">
+            <span className="font-pixel text-[12px] text-[#ef4444] tracking-wider">
               Team: {activeLeadTeam.teamName}
             </span>
-            <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[7px] px-1.5 py-0.5 rounded-xs">
+            <span className="bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/30 backdrop-blur-sm font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-sm font-bold">
               REGISTERED
             </span>
             {activeLeadTeam.phase2Status === 'selected' && (
-              <span className="bg-[#1a2d42] text-[#6fb3d9] border border-[#2b394d] font-silkscreen text-[7px] px-1.5 py-0.5 rounded-xs flex items-center gap-1">
+              <span className="bg-[#38bdf8]/10 text-[#38bdf8] border border-[#38bdf8]/30 backdrop-blur-sm font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-sm flex items-center gap-1">
                 <Sparkles size={9} /> PHASE 2 SELECTED
               </span>
             )}
             {activeLeadTeam.phase2Status === 'waitlisted' && (
-              <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[7px] px-1.5 py-0.5 rounded-xs flex items-center gap-1">
+              <span className="bg-[#f87171]/10 text-[#f87171] border border-[#f87171]/30 backdrop-blur-sm font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-sm flex items-center gap-1">
                 <Hourglass size={9} /> WAITLISTED
               </span>
             )}
           </div>
-          <p className="font-silkscreen text-[8px] text-[#8f9396]">
+          <p className="font-silkscreen text-[8.5px] text-[#8f9396] mt-0.5">
             Lead: {activeLeadTeam.leadEmail} &bull; ID: {activeLeadTeam.id}
           </p>
         </div>
@@ -1189,7 +1189,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   setActiveTab(TAB_ORDER[currentIdx - 1]);
                 }
               }}
-              className="font-pixel text-[8px] px-2.5 py-1 rounded-xs border border-[#2b2e30] bg-[#181b1e] text-[#8f9396] hover:text-white flex items-center gap-1 cursor-pointer"
+              className="font-pixel text-[8.5px] px-2.5 py-1 rounded-sm border border-[#38bdf8]/30 bg-[#38bdf8]/10 text-[#38bdf8] hover:text-white flex items-center gap-1 cursor-pointer"
             >
               <ArrowLeft size={11} /> PREV
             </button>
@@ -1204,7 +1204,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   handleProceedToNextTab(TAB_ORDER[currentIdx + 1]);
                 }
               }}
-              className="font-pixel text-[8px] px-3 py-1 rounded-xs border border-[#2b4466] hover:border-[#00f0ff] bg-[#1e2838] text-[#00f0ff] hover:bg-[#25354a] flex items-center gap-1 cursor-pointer shadow-[2px_2px_0_0_#000]"
+              className="font-pixel text-[8.5px] px-3 py-1 rounded-sm border border-[#38bdf8]/40 hover:border-[#38bdf8] bg-[#38bdf8]/20 text-[#38bdf8] hover:bg-[#38bdf8]/30 flex items-center gap-1 cursor-pointer transition-all"
             >
               <span>NEXT</span>
               <ArrowRight size={11} />
@@ -1214,7 +1214,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
           {/* Log Out Button */}
           <button
             onClick={handleLogout}
-            className="p-1 px-2 bg-[#261414] border border-[#442222] text-[#eb5147] hover:text-white rounded-xs text-[8px] font-silkscreen flex items-center gap-1 cursor-pointer"
+            className="p-1 px-2 bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#ef4444] hover:text-white rounded-sm text-[8px] font-silkscreen flex items-center gap-1 cursor-pointer transition-colors"
             title="Log Out"
           >
             <LogOut size={12} /> LOG OUT
@@ -1226,7 +1226,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       {activeTab === 'team' && (
         <div className="space-y-3 grow overflow-y-auto">
           {/* Team Name Settings */}
-          <div className="p-3 bg-[#141618] border-2 border-[#2b2e30] rounded-md">
+          <div className="p-3 bg-[#0a0c0e]/35 backdrop-blur-md border border-[#38bdf8]/20 rounded-md">
             <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2 mb-2">
               <span className="font-pixel text-[10px] text-[#6fb3d9] flex items-center gap-1">
                 <Edit2 size={12} /> TEAM NAME &amp; IDENTIFIER

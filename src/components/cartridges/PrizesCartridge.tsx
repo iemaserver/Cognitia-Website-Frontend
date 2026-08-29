@@ -27,10 +27,10 @@ const PODIUM_PRIZES: PrizeCardData[] = [
     rawAmount: 10000,
     title: 'OVERALL HACKATHON WINNER',
     category: 'podium',
-    color: '#f4c151',
-    bgColor: '#1c170d',
-    borderColor: '#7a5e1f',
-    glowColor: 'rgba(244, 193, 81, 0.3)',
+    color: '#ef4444',
+    bgColor: 'rgba(10, 12, 14, 0.35)',
+    borderColor: '#ef4444',
+    glowColor: 'rgba(239, 68, 68, 0.3)',
     badge: 'GOLD TROPHY',
     tagline: 'Highest overall jury score across technical execution, originality & demo presentation.',
     isGrand: true,
@@ -49,8 +49,8 @@ const PODIUM_PRIZES: PrizeCardData[] = [
     title: 'SECOND PLACE WINNER',
     category: 'podium',
     color: '#38bdf8',
-    bgColor: '#0f1720',
-    borderColor: '#1d4ed8',
+    bgColor: 'rgba(10, 12, 14, 0.35)',
+    borderColor: '#38bdf8',
     glowColor: 'rgba(56, 189, 248, 0.2)',
     badge: 'SILVER MEDAL',
     tagline: 'Exceptional build quality, sleek architecture & strong problem impact.',
@@ -68,10 +68,10 @@ const PODIUM_PRIZES: PrizeCardData[] = [
     rawAmount: 3000,
     title: 'THIRD PLACE WINNER',
     category: 'podium',
-    color: '#f97316',
-    bgColor: '#1a120b',
-    borderColor: '#9a3412',
-    glowColor: 'rgba(249, 115, 22, 0.2)',
+    color: '#f87171',
+    bgColor: 'rgba(10, 12, 14, 0.35)',
+    borderColor: '#f87171',
+    glowColor: 'rgba(248, 113, 113, 0.2)',
     badge: 'BRONZE MEDAL',
     tagline: 'Outstanding technical implementation and creative solution design.',
     perks: [
@@ -87,38 +87,19 @@ const TRACK_BOUNTIES: PrizeCardData[] = [
   {
     id: 'track-1',
     rank: 'SPECIAL TRACK BOUNTY',
-    amount: '₹1,000',
-    rawAmount: 1000,
-    title: 'BEST SOLUTION TRACK WINNER',
+    amount: '₹2,000',
+    rawAmount: 2000,
+    title: 'BEST SOLUTION & EXECUTION AWARD',
     category: 'track',
-    color: '#a7d38a',
-    bgColor: '#101a12',
-    borderColor: '#2b542e',
-    glowColor: 'rgba(167, 211, 138, 0.2)',
-    badge: 'SOLUTION TRACK',
-    tagline: 'Awarded to the team with the most innovative, impactful, and well-designed problem solution.',
+    color: '#38bdf8',
+    bgColor: 'rgba(10, 12, 14, 0.35)',
+    borderColor: '#38bdf8',
+    glowColor: 'rgba(56, 189, 248, 0.2)',
+    badge: 'TRACK BOUNTY',
+    tagline: 'Single prize awarded to the team with the most innovative solution and best technical execution combined.',
     perks: [
-      '₹1,000 Pure Cash Bounty (Direct UPI)',
-      'Best Solution Track Certificate',
-      'Cognitia Featured Project Showcase',
-    ],
-  },
-  {
-    id: 'track-2',
-    rank: 'SPECIAL TRACK BOUNTY',
-    amount: '₹1,000',
-    rawAmount: 1000,
-    title: 'BEST IMPLEMENTATION TRACK WINNER',
-    category: 'track',
-    color: '#c084fc',
-    bgColor: '#171020',
-    borderColor: '#581c87',
-    glowColor: 'rgba(192, 132, 252, 0.2)',
-    badge: 'DEV EXECUTION',
-    tagline: 'Awarded to the team demonstrating the highest technical execution, clean codebase, and working demo.',
-    perks: [
-      '₹1,000 Pure Cash Bounty (Direct UPI)',
-      'Best Technical Execution Certificate',
+      '₹2,000 Pure Cash Bounty',
+      'Best Solution & Execution Certificate',
       'Cognitia Featured Project Showcase',
     ],
   },
@@ -139,28 +120,27 @@ export function PrizesCartridge() {
           setSelectedPrizeId(prize.id);
         }}
         style={{
-          backgroundColor: prize.bgColor,
-          borderColor: isSelected ? prize.color : prize.borderColor,
+          borderColor: isSelected ? prize.color : 'rgba(56,189,248,0.15)',
           boxShadow: isSelected ? `0 0 16px ${prize.glowColor}` : undefined,
         }}
-        className={`p-3.5 sm:p-4 rounded-xl border-2 flex flex-col justify-between cursor-pointer transition-all duration-200 group relative overflow-hidden h-full ${
-          isSelected ? 'z-10 ring-1 ring-white/10' : 'hover:border-[#4b5563]'
+        className={`p-3.5 sm:p-4 rounded-md border backdrop-blur-md flex flex-col justify-between cursor-pointer transition-all duration-200 group relative overflow-hidden h-full bg-[#0a0c0e]/35 ${
+          isSelected ? 'z-10 ring-1 ring-white/10' : 'hover:border-[#38bdf8]/40'
         }`}
       >
         {/* Integrated Top Banner for Grand Champion */}
         {isGrand && (
-          <div className="bg-[#f4c151] text-black font-pixel text-[9px] px-2.5 py-1 -mx-3.5 -mt-3.5 sm:-mx-4 sm:-mt-4 mb-2 flex items-center justify-between font-bold shadow-xs">
+          <div className="bg-[#ef4444] text-white font-pixel text-[8.5px] px-2.5 py-1 -mx-3.5 -mt-3.5 sm:-mx-4 sm:-mt-4 mb-2 flex items-center justify-between font-bold shadow-xs">
             <span className="flex items-center gap-1">
-              <Crown className="h-3.5 w-3.5 text-black shrink-0" />
+              <Crown className="h-3.5 w-3.5 text-white shrink-0" />
               GRAND CHAMPION PRIZE
             </span>
-            <span className="font-silkscreen text-[8.5px] bg-black/20 text-black px-1.5 py-0.5 rounded">
+            <span className="font-silkscreen text-[8px] bg-black/30 text-white px-1.5 py-0.5 rounded-xs">
               TOP RANK
             </span>
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {/* Header Badge & Pin */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -172,11 +152,11 @@ export function PrizesCartridge() {
                 }`}
               />
               <span
-                className="font-silkscreen text-[9px] px-2 py-0.5 rounded border uppercase tracking-wide"
+                className="font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-sm border uppercase tracking-wide"
                 style={{
                   color: prize.color,
-                  borderColor: prize.borderColor,
-                  backgroundColor: '#0c1014',
+                  borderColor: prize.color,
+                  backgroundColor: 'rgba(0,0,0,0.4)',
                 }}
               >
                 {prize.badge}
@@ -193,91 +173,76 @@ export function PrizesCartridge() {
           </div>
 
           {/* Amount & Title */}
-          <div>
-            <span className="font-pixel text-[9.5px] sm:text-[10px] text-[#9ca3af] uppercase tracking-wider block">
+          <div className="break-words">
+            <span className="font-pixel text-[8px] sm:text-[8.5px] text-[#9ca3af] uppercase tracking-wider block">
               {prize.rank}
             </span>
             <div className="flex items-baseline gap-1 my-0.5">
               <span
-                className="font-pixel text-[24px] sm:text-[28px] tracking-wide font-bold"
+                className="font-pixel text-[18px] sm:text-[22px] tracking-wide font-bold"
                 style={{ color: prize.color }}
               >
                 {prize.amount}
               </span>
-              <span className="font-silkscreen text-[10px] text-[#9ca3af]">CASH</span>
+              <span className="font-silkscreen text-[8.5px] text-[#9ca3af]">CASH</span>
             </div>
-            <span className="font-silkscreen font-bold text-[10px] sm:text-[11px] text-[#e2e8f0] block leading-tight">
+            <span className="font-silkscreen font-bold text-[9px] sm:text-[9.5px] text-[#e2e8f0] block leading-tight break-words">
               {prize.title}
             </span>
           </div>
 
           {/* Tagline */}
-          <p className="font-silkscreen text-[10px] text-[#9ca3af] leading-relaxed">
+          <p className="font-silkscreen text-[8.5px] sm:text-[9px] text-[#9ca3af] leading-snug break-words">
             {prize.tagline}
           </p>
 
           {/* Perks Checklist */}
-          <div className="pt-2 border-t border-white/10 space-y-1">
-            <div className="font-pixel text-[9px] text-[#9ca3af] uppercase tracking-wider flex items-center gap-1">
-              <img src="/red_pin.png" alt="pin" className="w-3 h-3 pixelated" />
+          <div className="pt-1.5 border-t border-white/10 space-y-0.5">
+            <div className="font-pixel text-[8px] text-[#9ca3af] uppercase tracking-wider flex items-center gap-1">
+              <img src="/red_pin.png" alt="pin" className="w-2.5 h-2.5 pixelated pointer-events-none select-none shrink-0" draggable={false} />
               Included Perks &amp; Rewards:
             </div>
             {prize.perks.map((perk, idx) => (
-              <div key={idx} className="flex items-center gap-1.5 text-[9.5px] sm:text-[10.5px] font-silkscreen text-[#d1d5db]">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: prize.color }} />
+              <div key={idx} className="flex items-start gap-1.5 text-[8.5px] sm:text-[9px] font-silkscreen text-[#d1d5db] leading-snug break-words">
+                <CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5" style={{ color: prize.color }} />
                 <span>{perk}</span>
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Bottom Transfer Method */}
-        <div className="mt-2.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9px] font-silkscreen">
-          <span className="text-[#9ca3af] flex items-center gap-1">
-            <IndianRupee className="h-3 w-3" style={{ color: prize.color }} />
-            DIRECT UPI / WIRE
-          </span>
-          <span
-            className="font-pixel text-[9px] group-hover:translate-x-0.5 transition-transform flex items-center gap-1"
-            style={{ color: prize.color }}
-          >
-            <span>DETAILS</span>
-            <ArrowRight className="h-3 w-3" />
-          </span>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="flex flex-col h-full justify-between gap-2 select-none" id="cartridge-prizes">
+    <div className="flex flex-col h-full justify-between gap-2.5 select-none p-2 sm:p-4 overflow-y-auto overflow-x-hidden max-w-full w-full" id="cartridge-prizes">
       {/* Top Banner Header */}
-      <div className="flex flex-col gap-1.5 pb-2 border-b border-[#2b2e30]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex flex-col gap-1 pb-2 border-b border-[#ef4444]/30 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-pixel text-[12px] sm:text-[14px] text-[#f4c151] tracking-wide flex items-center gap-1.5">
-                <Trophy className="h-4 w-4 text-[#f4c151]" />
+              <span className="font-pixel text-[11px] sm:text-[13px] text-[#ef4444] tracking-wider uppercase flex items-center gap-1.5">
+                <Trophy className="h-4 w-4 text-[#ef4444]" />
                 PRIZES &amp; CASH BOUNTIES
               </span>
-              <span className="bg-[#262010] text-[#f4c151] border border-[#544622] font-silkscreen text-[8px] px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
-                <Zap className="h-3 w-3 text-[#10b981]" />
+              <span className="bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/30 backdrop-blur-md font-silkscreen text-[8px] px-2 py-0.5 rounded-sm font-bold flex items-center gap-1">
+                <Zap className="h-3 w-3 text-[#ef4444]" />
                 ₹20,000 TOTAL CASH POOL
               </span>
             </div>
-            <p className="font-silkscreen text-[8.5px] sm:text-[9.5px] text-[#9ca3af] mt-0.5">
+            <p className="font-silkscreen text-[8.5px] sm:text-[9px] text-[#9ca3af] mt-0.5 leading-snug break-words">
               Direct monetary awards disbursed in cash/UPI following technical jury score verification.
             </p>
           </div>
 
           {/* Quick Stats Pill */}
-          <div className="hidden lg:flex items-center gap-2 bg-[#12161a] border border-[#262c33] px-2.5 py-1 rounded-md text-[8px] font-silkscreen text-[#9ca3af]">
-            <span className="flex items-center gap-1 text-[#f4c151]">
-              <Crown className="h-3 w-3 text-[#f4c151]" />
+          <div className="hidden lg:flex items-center gap-2 bg-[#0a0c0e]/50 border border-[#38bdf8]/20 backdrop-blur-md px-2 py-1 rounded-md text-[8px] font-silkscreen text-[#38bdf8]">
+            <span className="flex items-center gap-1 text-[#ef4444]">
+              <Crown className="h-3 w-3 text-[#ef4444]" />
               5 WINNER SLOTS
             </span>
-            <span className="text-[#4b5563]">|</span>
-            <span className="text-[#34d399] flex items-center gap-1">
+            <span className="text-[#38bdf8]/40">|</span>
+            <span className="text-[#38bdf8] flex items-center gap-1">
               <ShieldCheck className="h-3 w-3" /> 100% GUARANTEED
             </span>
           </div>
@@ -285,39 +250,39 @@ export function PrizesCartridge() {
       </div>
 
       {/* Main Prize Cards Section */}
-      <div className="grow overflow-y-auto p-1.5 sm:p-2 space-y-3 no-scrollbar">
+      <div className="grow overflow-y-auto space-y-2.5 pr-0.5">
         {/* Podium Champions Grid (3 Columns) */}
         <div>
-          <div className="font-pixel text-[10.5px] text-[#f4c151] mb-1.5 flex items-center gap-1.5">
-            <Crown className="h-4 w-4 text-[#f4c151]" />
+          <div className="font-silkscreen text-[8.5px] text-[#ef4444] mb-1 flex items-center gap-1 uppercase tracking-wider font-bold">
+            <Crown className="h-3.5 w-3.5 text-[#ef4444]" />
             <span>PODIUM CHAMPION PRIZES (₹18,000)</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-stretch">
             {PODIUM_PRIZES.map((prize) => renderCard(prize))}
           </div>
         </div>
 
-        {/* Special Track Bounties Grid (2 Columns) */}
-        <div className="pt-2">
-          <div className="font-pixel text-[10.5px] text-[#a7d38a] mb-1.5 flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4 text-[#a7d38a]" />
-            <span>SPECIAL TRACK BOUNTIES (₹2,000)</span>
+        {/* Special Track Bounty (Single Prize) */}
+        <div className="pt-0.5">
+          <div className="font-silkscreen text-[8.5px] text-[#38bdf8] mb-1 flex items-center gap-1 uppercase tracking-wider font-bold">
+            <Sparkles className="h-3.5 w-3.5 text-[#38bdf8]" />
+            <span>SPECIAL TRACK BOUNTY (₹2,000)</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+          <div className="grid grid-cols-1 gap-2.5 items-stretch">
             {TRACK_BOUNTIES.map((prize) => renderCard(prize))}
           </div>
         </div>
       </div>
 
       {/* Footer Support & Claim Ribbon */}
-      <div className="pt-1.5 border-t border-[#262c33] flex flex-col sm:flex-row items-center justify-between gap-1.5 text-[10px] font-silkscreen text-[#9ca3af]">
-        <div className="flex items-center gap-2">
-          <Gift className="h-3.5 w-3.5 text-[#f4c151]" />
+      <div className="pt-1.5 border-t border-[#ef4444]/20 flex flex-col sm:flex-row items-center justify-between gap-1 text-[8px] font-silkscreen text-[#9ca3af] shrink-0">
+        <div className="flex items-center gap-1.5">
+          <Gift className="h-3.5 w-3.5 text-[#ef4444]" />
           <span>ALL CASH PRIZES DISBURSED WITHIN 7 DAYS POST-CEREMONY</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[#34d399] font-pixel text-[9.5px] flex items-center gap-1">
-            <img src="/red_pin.png" alt="pin" className="w-3 h-3 pixelated" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-[#38bdf8] font-pixel text-[8.5px] flex items-center gap-1">
+            <img src="/red_pin.png" alt="pin" className="w-2.5 h-2.5 pixelated pointer-events-none select-none" draggable={false} />
             ₹20,000 TOTAL PURSE
           </span>
         </div>

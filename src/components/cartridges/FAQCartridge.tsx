@@ -47,8 +47,8 @@ const FAQ_ITEMS: FAQItem[] = [
     category: 'GENERAL',
     question: 'IS THERE ANY REGISTRATION OR CONFIRMATION FEE?',
     answer:
-      'Initial team registration is completely free via our official Google Form. Selected teams are required to pay ₹250 to confirm their selection, and a cashback of ₹50 is provided to each selected team after payment (net ₹200).',
-    highlights: ['Free initial registration', '₹250 selection confirmation', '₹50 cashback provided'],
+      'Initial team registration requires a fee of ₹50 via our official Google Form. Selected teams are required to pay ₹250 to confirm their selection, and a cashback of ₹50 is provided to each selected team after payment (net ₹200).',
+    highlights: ['₹50 initial registration fee', '₹250 selection confirmation', '₹50 cashback provided'],
   },
   {
     id: 3,
@@ -114,44 +114,44 @@ const CATEGORY_META: Record<
   TEAMS: {
     label: 'TEAMS',
     icon: Users,
-    color: '#f59e0b',
-    bg: 'rgba(245, 158, 11, 0.12)',
-    border: 'rgba(245, 158, 11, 0.35)',
+    color: '#ef4444',
+    bg: 'rgba(239, 68, 68, 0.12)',
+    border: 'rgba(239, 68, 68, 0.35)',
   },
   TECHNICAL: {
     label: 'TECHNICAL',
     icon: Cpu,
-    color: '#06b6d4',
-    bg: 'rgba(6, 182, 212, 0.12)',
-    border: 'rgba(6, 182, 212, 0.35)',
+    color: '#38bdf8',
+    bg: 'rgba(56, 189, 248, 0.12)',
+    border: 'rgba(56, 189, 248, 0.35)',
   },
   'AI ETHICS': {
     label: 'AI ETHICS',
     icon: Sparkles,
-    color: '#c084fc',
-    bg: 'rgba(192, 132, 252, 0.12)',
-    border: 'rgba(192, 132, 252, 0.35)',
+    color: '#f87171',
+    bg: 'rgba(248, 113, 113, 0.12)',
+    border: 'rgba(248, 113, 113, 0.35)',
   },
   SUBMISSION: {
     label: 'SUBMISSION',
     icon: UploadCloud,
-    color: '#34d399',
-    bg: 'rgba(52, 211, 153, 0.12)',
-    border: 'rgba(52, 211, 153, 0.35)',
+    color: '#38bdf8',
+    bg: 'rgba(56, 189, 248, 0.12)',
+    border: 'rgba(56, 189, 248, 0.35)',
   },
   PRIZES: {
     label: 'PRIZES',
     icon: Trophy,
-    color: '#fbbf24',
-    bg: 'rgba(251, 191, 36, 0.12)',
-    border: 'rgba(251, 191, 36, 0.35)',
+    color: '#ef4444',
+    bg: 'rgba(239, 68, 68, 0.12)',
+    border: 'rgba(239, 68, 68, 0.35)',
   },
   HARDWARE: {
     label: 'HARDWARE',
     icon: Terminal,
-    color: '#fb7185',
-    bg: 'rgba(251, 113, 133, 0.12)',
-    border: 'rgba(251, 113, 133, 0.35)',
+    color: '#ef4444',
+    bg: 'rgba(239, 68, 68, 0.12)',
+    border: 'rgba(239, 68, 68, 0.35)',
   },
 };
 
@@ -182,201 +182,204 @@ export function FAQCartridge() {
   };
 
   return (
-    <div className="flex flex-col h-full justify-between gap-2.5 select-none" id="cartridge-faq">
+    <div
+      className="flex flex-col h-full justify-between gap-2.5 select-none p-2 sm:p-4 overflow-y-auto overflow-x-hidden max-w-full w-full"
+      id="cartridge-faq"
+    >
       {/* Top Banner Header */}
-      <div className="flex flex-col gap-2 pb-2 border-b border-[#2b2e30]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex flex-col gap-1 pb-2 border-b border-[#ef4444]/30 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-pixel text-[14px] sm:text-[16px] text-[#f4c151] tracking-wide flex items-center gap-1.5">
-                <BookOpen className="h-4.5 w-4.5 text-[#6fb3d9]" />
+              <span className="font-pixel text-[11px] sm:text-[13px] text-[#ef4444] tracking-wider uppercase flex items-center gap-1.5">
+                <BookOpen className="h-4 w-4 text-[#ef4444]" />
                 KNOWLEDGE BASE &amp; FAQ
               </span>
-              <span className="bg-[#142338] text-[#7ec7ff] border border-[#1f4066] font-silkscreen text-[9.5px] px-2 py-0.5 rounded-xs font-bold uppercase">
-                COGNITIA 2026 OFFICIAL
+              <span className="bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/30 backdrop-blur-md font-silkscreen text-[8px] px-2 py-0.5 rounded-sm font-bold uppercase">
+                OFFICIAL DIRECTORY
               </span>
             </div>
-            <p className="font-silkscreen text-[10.5px] sm:text-[11.5px] text-[#9ca3af] mt-0.5">
+            <p className="font-silkscreen text-[8.5px] sm:text-[9px] text-[#9ca3af] mt-0.5 leading-snug break-words">
               Comprehensive guidelines on eligibility, teams, tools, AI policies, deliverables &amp; prizes.
             </p>
           </div>
 
           {/* Quick Stats Pill */}
-          <div className="hidden lg:flex items-center gap-2 bg-[#12161a] border border-[#262c33] px-2.5 py-1 rounded-md text-[8px] font-silkscreen text-[#9ca3af]">
-            <span className="flex items-center gap-1 text-[#f4c151]">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>
+          <div className="hidden lg:flex items-center gap-2 bg-[#0a0c0e]/50 border border-[#38bdf8]/20 backdrop-blur-md px-2 py-1 rounded-md text-[8px] font-silkscreen text-[#38bdf8]">
+            <span className="flex items-center gap-1 text-[#ef4444]">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#ef4444] animate-pulse"></span>
               {FAQ_ITEMS.length} MODULES
             </span>
-            <span className="text-[#4b5563]">|</span>
+            <span className="text-[#38bdf8]/40">|</span>
             <span className="text-[#38bdf8]">24/7 SUPPORT</span>
           </div>
         </div>
       </div>
 
       {/* Main FAQ Accordion List */}
-      <div className="space-y-2 grow overflow-y-auto pr-1">
+      <div className="space-y-1.5 grow overflow-y-auto pr-0.5">
         {FAQ_ITEMS.map((faq) => {
           const isExpanded = expandedIds.includes(faq.id);
           const meta = CATEGORY_META[faq.category];
           const CategoryIcon = meta?.icon || HelpCircle;
           const vote = helpfulVotes[faq.id];
 
-            return (
-              <div
-                key={faq.id}
-                id={`faq-${faq.id}`}
-                style={{
-                  borderLeftColor: meta?.color || '#38bdf8',
-                  borderLeftWidth: '4px',
-                }}
-                className={`rounded-lg border border-[#242b35] transition-all overflow-hidden group/card ${
-                  isExpanded
-                    ? 'bg-[#151c24] shadow-md border-t-[#2d3a4b]'
-                    : 'bg-[#11161c] hover:bg-[#151a22] hover:border-[#323c4a]'
-                }`}
+          return (
+            <div
+              key={faq.id}
+              id={`faq-${faq.id}`}
+              style={{
+                borderLeftColor: meta?.color || '#38bdf8',
+                borderLeftWidth: '3px',
+              }}
+              className={`rounded-md border backdrop-blur-md transition-all overflow-hidden group/card break-words ${
+                isExpanded
+                  ? 'bg-[#0a0c0e]/60 border-[#38bdf8]/30 shadow-md'
+                  : 'bg-[#0a0c0e]/35 border-[#38bdf8]/15 hover:bg-[#0a0c0e]/50 hover:border-[#38bdf8]/35'
+              }`}
+            >
+              {/* Question Row Header */}
+              <button
+                type="button"
+                onClick={() => toggleExpand(faq.id)}
+                className="w-full p-2 sm:p-2.5 flex items-center justify-between text-left cursor-pointer gap-2 group/btn break-words"
               >
-                {/* Question Row Header */}
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(faq.id)}
-                  className="w-full p-2.5 sm:p-3 flex items-center justify-between text-left cursor-pointer gap-2 group/btn"
-                >
-                  <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
-                    {/* 8-Bit Pixel Pin Pointer on Question Header */}
-                    <img
-                      src={isExpanded ? '/red_pin.png' : '/white_pin.png'}
-                      alt="pointer pin"
-                      className={`w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain pixelated shrink-0 transition-transform duration-150 ${
-                        isExpanded
-                          ? 'scale-110 filter drop-shadow-[0_0_4px_rgba(244,193,81,0.6)]'
-                          : 'opacity-50 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5'
-                      }`}
-                    />
+                <div className="flex items-center gap-2 min-w-0 flex-1 break-words">
+                  {/* 8-Bit Pixel Pin Pointer on Question Header */}
+                  <img
+                    src={isExpanded ? '/red_pin.png' : '/white_pin.png'}
+                    alt="pointer pin"
+                    className={`w-3.5 h-3.5 object-contain pixelated shrink-0 transition-transform duration-150 ${
+                      isExpanded
+                        ? 'scale-110'
+                        : 'opacity-50 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5'
+                    } pointer-events-none select-none`}
+                    draggable={false}
+                  />
 
-                    {/* Category Tag */}
-                    <span
-                      style={{
-                        backgroundColor: meta?.bg || 'rgba(56, 189, 248, 0.1)',
-                        borderColor: meta?.border || '#38bdf8',
-                        color: meta?.color || '#38bdf8',
-                      }}
-                      className="font-silkscreen text-[9px] sm:text-[9.5px] px-2 py-0.5 rounded-xs border flex items-center gap-1 shrink-0"
-                    >
-                      <CategoryIcon className="h-3.5 w-3.5" />
-                      <span>{faq.category}</span>
-                    </span>
+                  {/* Category Tag */}
+                  <span
+                    style={{
+                      backgroundColor: meta?.bg || 'rgba(56, 189, 248, 0.1)',
+                      borderColor: meta?.border || '#38bdf8',
+                      color: meta?.color || '#38bdf8',
+                    }}
+                    className="font-silkscreen text-[7.5px] sm:text-[8px] px-1.5 py-0.5 rounded-sm border flex items-center gap-1 shrink-0"
+                  >
+                    <CategoryIcon className="h-3 w-3" />
+                    <span>{faq.category}</span>
+                  </span>
 
-                    {/* Question text */}
-                    <span
-                      className={`font-pixel text-[10.5px] sm:text-[12px] leading-snug transition-colors ${
-                        isExpanded ? 'text-[#f4c151]' : 'text-[#e2e8f0] group-hover/btn:text-[#6fb3d9]'
-                      }`}
-                    >
-                      {faq.question}
-                    </span>
-                  </div>
-
-                  {/* Toggle Indicator */}
-                  <div
-                    className={`p-1 rounded-md transition-transform duration-200 shrink-0 ${
-                      isExpanded ? 'bg-[#203448] text-[#f4c151]' : 'bg-[#192028] text-[#9ca3af]'
+                  {/* Question text */}
+                  <span
+                    className={`font-pixel text-[9.5px] sm:text-[10.5px] leading-snug transition-colors break-words flex-1 ${
+                      isExpanded ? 'text-[#ef4444]' : 'text-[#cfe8ff] group-hover/btn:text-[#38bdf8]'
                     }`}
                   >
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform duration-200 ${
-                        isExpanded ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </div>
-                </button>
+                    {faq.question}
+                  </span>
+                </div>
 
-                {/* Expanded Answer Content */}
-                {isExpanded && (
-                  <div className="px-3 sm:px-4 pb-3.5 pt-2.5 border-t border-[#1f2732] bg-[#0e1318]/90 text-[11px] sm:text-[12px] font-silkscreen text-[#d1d5db] leading-relaxed flex flex-col gap-3">
-                    <p className="text-[#cbd5e1]">{faq.answer}</p>
+                {/* Toggle Indicator */}
+                <div
+                  className={`p-1 rounded-sm transition-transform duration-200 shrink-0 ${
+                    isExpanded ? 'bg-[#ef4444]/15 text-[#ef4444]' : 'bg-[#0a0c0e] text-[#8f9396]'
+                  }`}
+                >
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                      isExpanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </button>
 
-                    {/* Highlighted tags */}
-                    {faq.highlights && faq.highlights.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-[9.5px] text-[#9ca3af] uppercase tracking-wider font-mono flex items-center gap-1">
-                          <img src="/red_pin.png" alt="pin" className="w-3 h-3 pixelated" />
-                          Key Takeaways:
+              {/* Expanded Answer Content */}
+              {isExpanded && (
+                <div className="px-3 sm:px-4 pb-3 pt-2 border-t border-[#ef4444]/20 bg-[#0a0c0e]/90 text-[10px] sm:text-[11px] font-silkscreen text-[#cfe8ff] leading-relaxed flex flex-col gap-2.5">
+                  <p className="text-[#cfe8ff]">{faq.answer}</p>
+
+                  {/* Highlighted tags */}
+                  {faq.highlights && faq.highlights.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[8.5px] text-[#9ca3af] uppercase tracking-wider font-mono flex items-center gap-1">
+                        <img src="/red_pin.png" alt="pin" className="w-3 h-3 pixelated" />
+                        Key Takeaways:
+                      </span>
+                      {faq.highlights.map((h, i) => (
+                        <span
+                          key={i}
+                          className="bg-[#38bdf8]/10 text-[#38bdf8] border border-[#38bdf8]/30 text-[8.5px] px-2 py-0.5 rounded-sm font-mono flex items-center gap-1"
+                        >
+                          <span className="text-[#ef4444]">►</span>
+                          <span>{h}</span>
                         </span>
-                        {faq.highlights.map((h, i) => (
-                          <span
-                            key={i}
-                            className="bg-[#172330] text-[#38bdf8] border border-[#25394f] text-[9.5px] px-2.5 py-0.5 rounded-full font-mono flex items-center gap-1"
-                          >
-                            <span className="text-[#f4c151]">►</span>
-                            <span>{h}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                      ))}
+                    </div>
+                  )}
 
-                    {/* Interactive Action Footer */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#1b232c] text-[10px]">
-                      {/* Helpful Feedback */}
-                      <div className="flex items-center gap-2 text-[#9ca3af]">
-                        <span>Was this helpful?</span>
-                        <button
-                          type="button"
-                          onClick={() => handleVote(faq.id, 'yes')}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border transition-colors ${
-                            vote === 'yes'
-                              ? 'bg-[#143828] border-[#10b981] text-[#34d399]'
-                              : 'bg-[#171d24] border-[#29323d] hover:bg-[#202832] text-[#9ca3af]'
-                          }`}
-                        >
-                          <ThumbsUp className="h-3.5 w-3.5" />
-                          <span>YES</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleVote(faq.id, 'no')}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border transition-colors ${
-                            vote === 'no'
-                              ? 'bg-[#3b1717] border-[#f43f5e] text-[#fb7185]'
-                              : 'bg-[#171d24] border-[#29323d] hover:bg-[#202832] text-[#9ca3af]'
-                          }`}
-                        >
-                          <ThumbsDown className="h-3.5 w-3.5" />
-                          <span>NO</span>
-                        </button>
-                        {vote && (
-                          <span className="text-[#34d399] font-pixel text-[9px] animate-fade-in flex items-center gap-1">
-                            <img src="/red_pin.png" alt="pin" className="w-3 h-3 pixelated" />
-                            THANKS FOR FEEDBACK!
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Copy Link Button */}
+                  {/* Interactive Action Footer */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#38bdf8]/15 text-[9px]">
+                    {/* Helpful Feedback */}
+                    <div className="flex items-center gap-2 text-[#9ca3af]">
+                      <span>Was this helpful?</span>
                       <button
                         type="button"
-                        onClick={() => handleCopyLink(faq.id, faq.question)}
-                        className="flex items-center gap-1 bg-[#16202b] hover:bg-[#1e2c3b] border border-[#2b3c4f] text-[#6fb3d9] px-2.5 py-1 rounded cursor-pointer transition-colors"
+                        onClick={() => handleVote(faq.id, 'yes')}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-sm cursor-pointer border transition-colors ${
+                          vote === 'yes'
+                            ? 'bg-[#38bdf8]/20 border-[#38bdf8] text-[#38bdf8]'
+                            : 'bg-[#0a0c0e] border-[#38bdf8]/20 hover:bg-[#38bdf8]/10 text-[#9ca3af]'
+                        }`}
                       >
-                        {copiedId === faq.id ? (
-                          <>
-                            <Check className="h-3.5 w-3.5 text-[#34d399]" />
-                            <span className="text-[#34d399]">LINK COPIED!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3.5 w-3.5" />
-                            <span>COPY LINK</span>
-                          </>
-                        )}
+                        <ThumbsUp className="h-3 w-3" />
+                        <span>YES</span>
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => handleVote(faq.id, 'no')}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-sm cursor-pointer border transition-colors ${
+                          vote === 'no'
+                            ? 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444]'
+                            : 'bg-[#0a0c0e] border-[#ef4444]/20 hover:bg-[#ef4444]/10 text-[#9ca3af]'
+                        }`}
+                      >
+                        <ThumbsDown className="h-3 w-3" />
+                        <span>NO</span>
+                      </button>
+                      {vote && (
+                        <span className="text-[#38bdf8] font-pixel text-[8.5px] flex items-center gap-1">
+                          <img src="/red_pin.png" alt="pin" className="w-3 h-3 pixelated" />
+                          THANKS FOR FEEDBACK!
+                        </span>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-      </div>
 
+                    {/* Copy Link Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink(faq.id, faq.question)}
+                      className="flex items-center gap-1 bg-[#38bdf8]/10 hover:bg-[#38bdf8]/20 border border-[#38bdf8]/30 text-[#38bdf8] px-2 py-0.5 rounded-sm cursor-pointer transition-colors"
+                    >
+                      {copiedId === faq.id ? (
+                        <>
+                          <Check className="h-3 w-3 text-[#38bdf8]" />
+                          <span className="text-[#38bdf8]">LINK COPIED!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          <span>COPY LINK</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
