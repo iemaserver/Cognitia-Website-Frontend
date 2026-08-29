@@ -1,6 +1,6 @@
 {
-  "name": "Pixel Console HUD",
-  "description": "Retro handheld console design system and HUD frame with swappable cartridge viewports, physical-press buttons, and boot diagnostics.",
+  "name": "Cognitia 2k26",
+  "description": "Friendly Neighbourhood 24Hr Hackathon",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

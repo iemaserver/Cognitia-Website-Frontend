@@ -1,7 +1,7 @@
 {
-  "name": "Cognitia 2k26 - Official Fest App",
-  "short_name": "Cognitia '26",
-  "description": "Official Cognitia 2k26 Retro Pixel Console Fest App",
+  "name": "Cognitia 2k26",
+  "short_name": "Cognitia 2k26",
+  "description": "Friendly Neighbourhood 24Hr Hackathon",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

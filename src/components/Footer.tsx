@@ -47,7 +47,7 @@ export function Footer() {
             <li className="flex items-center gap-2.5">
               <Mail className="h-4.5 w-4.5 text-[#f4c151] shrink-0" />
               <a
-                href="cognitia2026.official@gmail.com"
+                href="mailto:cognitia2026.official@gmail.com"
                 onClick={() => sound.playBlip(700)}
                 className="hover:text-white transition-colors underline decoration-dotted"
               >
