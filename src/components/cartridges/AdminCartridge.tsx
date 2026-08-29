@@ -27,7 +27,7 @@ import {
   Mail,
   Phone,
 } from 'lucide-react';
-import { awsService } from '../../services/awsService';
+import { firebaseService } from '../../services/firebaseService';
 import { TeamRegistration, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus } from '../../types';
 import { sound } from '../../utils/audio';
 
@@ -55,7 +55,7 @@ export const AdminCartridge: React.FC = () => {
   }, []);
 
   const loadAdminData = () => {
-    const data = awsService.getAllRegistrations();
+    const data = firebaseService.getAllRegistrations();
     setTeams(data);
   };
 
@@ -90,7 +90,7 @@ export const AdminCartridge: React.FC = () => {
       }
     }
     sound.playBlip(600);
-    await awsService.updatePhase2Selection(teamId, newStatus);
+    await firebaseService.updatePhase2Selection(teamId, newStatus);
     loadAdminData();
     if (selectedTeamModal && selectedTeamModal.id === teamId) {
       setSelectedTeamModal({ ...selectedTeamModal, phase2Status: newStatus });
@@ -108,7 +108,7 @@ export const AdminCartridge: React.FC = () => {
       }
     }
     sound.playBoot();
-    const res = await awsService.updatePhase1PaymentStatus(teamId, newStatus);
+    const res = await firebaseService.updatePhase1PaymentStatus(teamId, newStatus);
     if (res.success && res.team) {
       loadAdminData();
       if (selectedTeamModal && selectedTeamModal.id === teamId) {
@@ -133,7 +133,7 @@ export const AdminCartridge: React.FC = () => {
       }
     }
     sound.playBoot();
-    const res = await awsService.updatePhase2PaymentStatus(teamId, newStatus);
+    const res = await firebaseService.updatePhase2PaymentStatus(teamId, newStatus);
     if (res.success && res.team) {
       loadAdminData();
       if (selectedTeamModal && selectedTeamModal.id === teamId) {
@@ -147,7 +147,7 @@ export const AdminCartridge: React.FC = () => {
 
   const handleVerifyPaymentAndGenerateTicket = async (teamId: string) => {
     sound.playBoot();
-    const res = await awsService.verifyPaymentAndGenerateTicket(teamId);
+    const res = await firebaseService.verifyPaymentAndGenerateTicket(teamId);
     if (res.success && res.team) {
       loadAdminData();
       setSelectedTeamModal(res.team);
@@ -165,7 +165,7 @@ export const AdminCartridge: React.FC = () => {
       return;
     }
 
-    const res = await awsService.markAttendance(scanQuery, 'checked_in');
+    const res = await firebaseService.markAttendance(scanQuery, 'checked_in');
     if (res.success && res.team) {
       sound.playBoot();
       loadAdminData();
@@ -183,7 +183,7 @@ export const AdminCartridge: React.FC = () => {
   const handleToggleAttendanceStatus = async (teamId: string, currentStatus?: AttendanceStatus) => {
     sound.playBlip(500);
     const nextStatus: AttendanceStatus = currentStatus === 'checked_in' ? 'not_checked_in' : 'checked_in';
-    const res = await awsService.markAttendance(teamId, nextStatus);
+    const res = await firebaseService.markAttendance(teamId, nextStatus);
     if (res.success) {
       loadAdminData();
       if (selectedTeamModal && selectedTeamModal.id === teamId) {

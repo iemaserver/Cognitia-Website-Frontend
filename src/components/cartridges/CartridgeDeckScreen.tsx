@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CartridgeId } from '../../types';
 import { sound } from '../../utils/audio';
-import { awsService } from '../../services/awsService';
+import { firebaseService } from '../../services/firebaseService';
 
 interface CartridgeDeckScreenProps {
   currentCartridge: CartridgeId;
@@ -20,7 +20,7 @@ export function CartridgeDeckScreen({
   onCloseDeck,
 }: CartridgeDeckScreenProps) {
   const [hoveredId, setHoveredId] = useState<CartridgeId | null>(null);
-  const activeLeadTeam = awsService.getActiveLeadTeam();
+  const activeLeadTeam = firebaseService.getActiveLeadTeam();
   const isLoggedIn = !!activeLeadTeam;
 
   const menuPages: MenuPageItem[] = [

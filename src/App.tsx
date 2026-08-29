@@ -20,7 +20,7 @@ import { ThemeLoadingScreen, RetroThemeId } from './components/ThemeLoadingScree
 import { CartridgeSwapLoader } from './components/CartridgeSwapLoader';
 import { CartridgeId } from './types';
 import { sound } from './utils/audio';
-import { awsService } from './services/awsService';
+import { firebaseService } from './services/firebaseService';
 
 export default function App() {
   const [currentCartridge, setCurrentCartridge] = useState<CartridgeId>(() => {
@@ -77,7 +77,7 @@ export default function App() {
   };
 
   const getCartridgeNameById = (id: CartridgeId) => {
-    const isLoggedIn = !!awsService.getActiveLeadTeam();
+    const isLoggedIn = !!firebaseService.getActiveLeadTeam();
     switch (id) {
       case 'dashboard': return 'DASHBOARD';
       case 'register': return isLoggedIn ? 'TEAM DASHBOARD' : 'REGISTER TEAM';
@@ -233,7 +233,7 @@ export default function App() {
   };
 
   const getCartridgeName = () => {
-    const isLoggedIn = !!awsService.getActiveLeadTeam();
+    const isLoggedIn = !!firebaseService.getActiveLeadTeam();
     if (isBooting) return 'INITIALIZING';
     if (isSwitchingCartridge) return targetCartridgeName || 'SWAPPING ROM';
     if (showPwaScreen) return 'INSTALL PWA';

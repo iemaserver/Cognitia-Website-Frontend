@@ -11,14 +11,14 @@ import {
 } from 'lucide-react';
 import { CartridgeId } from '../../types';
 import { sound } from '../../utils/audio';
-import { awsService } from '../../services/awsService';
+import { firebaseService } from '../../services/firebaseService';
 
 interface DashboardCartridgeProps {
   onNavigate?: (id: CartridgeId) => void;
 }
 
 export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
-  const activeLeadTeam = awsService.getActiveLeadTeam();
+  const activeLeadTeam = firebaseService.getActiveLeadTeam();
   const isLoggedIn = !!activeLeadTeam;
 
   const handleNav = (id: CartridgeId) => {

@@ -79,7 +79,7 @@ const AVAILABLE_TRACKS = [
     description: 'Architect next-gen financial engines, micro-payment routing, automated risk assessment algorithms, algorithmic trading strategies, or AI-powered fraud detection HUDs.',
   },
 ];
-import { awsService } from '../../services/awsService';
+import { firebaseService } from '../../services/firebaseService';
 import { TeamRegistration, TeamMember } from '../../types';
 import { sound } from '../../utils/audio';
 import { RetroInput } from '../RetroInput';
@@ -331,7 +331,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   }, []);
 
   const refreshActiveTeam = () => {
-    const current = awsService.getActiveLeadTeam();
+    const current = firebaseService.getActiveLeadTeam();
     if (current) {
       setActiveLeadTeam(current);
       setEditableTeamName(current.teamName);
@@ -370,7 +370,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         setAuthError('Please enter both email and password.');
         return;
       }
-      const res = await awsService.loginTeamLead(leadEmail, leadPassword);
+      const res = await firebaseService.loginTeamLead(leadEmail, leadPassword);
       if (res.success && res.team) {
         sound.playBoot();
         setActiveLeadTeam(res.team);
@@ -392,7 +392,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         setAuthError('Please enter a valid phone number (at least 10 digits).');
         return;
       }
-      const res = await awsService.registerTeamLead({
+      const res = await firebaseService.registerTeamLead({
         teamName,
         leadName,
         leadEmail,
@@ -420,7 +420,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     if (typeof window !== 'undefined') {
       localStorage.removeItem('cognitia_team_dashboard_tab');
     }
-    awsService.logoutTeamLead();
+    firebaseService.logoutTeamLead();
     setActiveLeadTeam(null);
   };
 
@@ -459,7 +459,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     if (
       members.some((m) => m.email.toLowerCase() === cleanEmail) ||
-      awsService.isEmailRegistered(cleanEmail, activeLeadTeam?.id)
+      firebaseService.isEmailRegistered(cleanEmail, activeLeadTeam?.id)
     ) {
       alert(`Email '${newMemberEmail}' is already registered for another participant or team lead.`);
       return;
@@ -467,7 +467,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     if (
       members.some((m) => m.githubId.toLowerCase() === cleanGithub) ||
-      awsService.isGitHubRegistered(cleanGithub, activeLeadTeam?.id)
+      firebaseService.isGitHubRegistered(cleanGithub, activeLeadTeam?.id)
     ) {
       alert(`GitHub handle '@${cleanGithub}' is already registered for another participant or team lead.`);
       return;
@@ -492,7 +492,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     sound.playBlip(700);
 
     if (activeLeadTeam) {
-      const res = await awsService.updateTeamDetails(activeLeadTeam.id, editableTeamName, updated);
+      const res = await firebaseService.updateTeamDetails(activeLeadTeam.id, editableTeamName, updated);
       if (!res.success && res.message) {
         alert(res.message);
         setMembers(members);
@@ -557,7 +557,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     const otherMembers = members.filter((m) => m.id !== memberId);
     if (
       otherMembers.some((m) => m.email.toLowerCase() === cleanEmail) ||
-      awsService.isEmailRegistered(cleanEmail, activeLeadTeam?.id)
+      firebaseService.isEmailRegistered(cleanEmail, activeLeadTeam?.id)
     ) {
       alert(`Email '${editEmail}' is already registered for another participant or lead.`);
       return;
@@ -565,7 +565,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     if (
       otherMembers.some((m) => m.githubId.toLowerCase() === cleanGithub) ||
-      awsService.isGitHubRegistered(cleanGithub, activeLeadTeam?.id)
+      firebaseService.isGitHubRegistered(cleanGithub, activeLeadTeam?.id)
     ) {
       alert(`GitHub handle '@${cleanGithub}' is already registered for another participant or lead.`);
       return;
@@ -591,7 +591,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     if (activeLeadTeam) {
       const isTargetLead = members.find((m) => m.id === memberId)?.isLead;
-      const res = await awsService.updateTeamDetails(activeLeadTeam.id, editableTeamName, updated, isMembersLocked);
+      const res = await firebaseService.updateTeamDetails(activeLeadTeam.id, editableTeamName, updated, isMembersLocked);
       if (res.success && res.team) {
         if (isTargetLead) {
           setActiveLeadTeam({
@@ -625,7 +625,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     const updated = members.filter((m) => m.id !== id);
     setMembers(updated);
     if (activeLeadTeam) {
-      awsService.updateTeamDetails(activeLeadTeam.id, editableTeamName, updated, isMembersLocked);
+      firebaseService.updateTeamDetails(activeLeadTeam.id, editableTeamName, updated, isMembersLocked);
     }
   };
 
@@ -646,7 +646,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
     sound.playBlip(nextState ? 900 : 450);
     setIsMembersLocked(nextState);
-    const res = await awsService.updateTeamDetails(activeLeadTeam.id, editableTeamName, members, nextState);
+    const res = await firebaseService.updateTeamDetails(activeLeadTeam.id, editableTeamName, members, nextState);
     if (res.success && res.team) {
       setActiveLeadTeam(res.team);
     }
@@ -707,7 +707,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     setIsSubmittingFee(true);
     sound.playBoot();
-    const res = await awsService.submitPaymentScreenshot(activeLeadTeam.id, feeProofUrl, cleanUtr);
+    const res = await firebaseService.submitPaymentScreenshot(activeLeadTeam.id, feeProofUrl, cleanUtr);
     setIsSubmittingFee(false);
 
     if (res.success && res.team) {
@@ -788,7 +788,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     if (!confirmChoice) return;
 
     sound.playBlip(900);
-    const res = await awsService.lockTrackPreference(activeLeadTeam.id, trackPreferences);
+    const res = await firebaseService.lockTrackPreference(activeLeadTeam.id, trackPreferences);
     if (res.success && res.team) {
       setActiveLeadTeam(res.team);
       setTrackId(trackPreferences[0]);
@@ -800,7 +800,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
   const handleSaveTeamDetails = async () => {
     if (!activeLeadTeam) return;
-    const res = await awsService.updateTeamDetails(activeLeadTeam.id, editableTeamName, members, isMembersLocked);
+    const res = await firebaseService.updateTeamDetails(activeLeadTeam.id, editableTeamName, members, isMembersLocked);
     if (res.success && res.team) {
       sound.playBlip(800);
       setActiveLeadTeam(res.team);
@@ -816,7 +816,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     const file = e.target.files[0];
     setIsUploading(true);
     try {
-      const res = await awsService.uploadFileToS3(file, 'ppts');
+      const res = await firebaseService.uploadFileToGCS(file, 'ppts');
       setPptUrl(res.url);
       setPptFileName(res.fileName);
       sound.playBlip(900);
@@ -834,7 +834,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       const newUrls: string[] = [];
       for (let i = 0; i < e.target.files.length; i++) {
         const file = e.target.files[i];
-        const res = await awsService.uploadFileToS3(file, 'screenshots');
+        const res = await firebaseService.uploadFileToGCS(file, 'screenshots');
         newUrls.push(res.url);
       }
       setScreenshots((prev) => [...prev, ...newUrls]);
@@ -864,7 +864,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
 
     setIsUploading(true);
-    const res = await awsService.saveProjectSubmission(activeLeadTeam.id, {
+    const res = await firebaseService.saveProjectSubmission(activeLeadTeam.id, {
       projectTitle,
       tagline,
       trackId: activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'General',
@@ -902,7 +902,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const handleConfirmRsvp = async () => {
     if (!activeLeadTeam) return;
     sound.playBoot();
-    const res = await awsService.confirmRsvp(activeLeadTeam.id);
+    const res = await firebaseService.confirmRsvp(activeLeadTeam.id);
     if (res.success && res.team) {
       setActiveLeadTeam(res.team);
     }
@@ -928,7 +928,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     setIsUploadingPayment(true);
     setFeeMessage(null);
     try {
-      const res = await awsService.uploadFileToS3(file, 'payments');
+      const res = await firebaseService.uploadFileToGCS(file, 'payments');
       setFeeProofUrl(res.url);
       setFeeProofFileName(res.fileName);
       sound.playBlip(900);
@@ -956,7 +956,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     setIsUploadingPayment(true);
     try {
-      const res = await awsService.uploadFileToS3(file, 'payments');
+      const res = await firebaseService.uploadFileToGCS(file, 'payments');
       sound.playBlip(900);
       setPaymentScreenshot(res.url);
     } catch {
@@ -983,7 +983,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     setIsUploadingPayment(true);
     sound.playBoot();
-    const submitRes = await awsService.submitPhase2PaymentDetails(activeLeadTeam.id, paymentScreenshot, cleanUtr);
+    const submitRes = await firebaseService.submitPhase2PaymentDetails(activeLeadTeam.id, paymentScreenshot, cleanUtr);
     setIsUploadingPayment(false);
 
     if (submitRes.success && submitRes.team) {

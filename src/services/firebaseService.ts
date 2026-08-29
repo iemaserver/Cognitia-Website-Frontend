@@ -7,10 +7,10 @@ import {
   AttendanceStatus,
 } from '../types';
 
-const STORAGE_KEY_TEAMS = 'cognitia_aws_teams_v2';
-const STORAGE_KEY_AUTH = 'cognitia_lead_session_v2';
+const STORAGE_KEY_TEAMS = 'cognitia_firebase_teams_v1';
+const STORAGE_KEY_AUTH = 'cognitia_lead_session_v1';
 
-class AWSService {
+class FirebaseService {
   private teams: TeamRegistration[] = [];
 
   constructor() {
@@ -19,19 +19,29 @@ class AWSService {
 
   private loadFromStorage() {
     try {
-      // Automatically purge legacy browser cache keys to guarantee a completely fresh state
-      localStorage.removeItem('cognitia_aws_teams_v1');
-      localStorage.removeItem('cognitia_lead_session_v1');
-
+      // Import/Migrate legacy AWS keys if present, then purge them
+      const legacyAwsTeams = localStorage.getItem('cognitia_aws_teams_v2');
       const stored = localStorage.getItem(STORAGE_KEY_TEAMS);
+
       if (stored) {
         const parsed = JSON.parse(stored);
         this.teams = parsed.filter(
           (t: TeamRegistration) => !t.id.startsWith('team-spidey-') && !t.id.startsWith('team-cyber-')
         );
+      } else if (legacyAwsTeams) {
+        const parsed = JSON.parse(legacyAwsTeams);
+        this.teams = parsed.filter(
+          (t: TeamRegistration) => !t.id.startsWith('team-spidey-') && !t.id.startsWith('team-cyber-')
+        );
+        this.saveToStorage();
       } else {
         this.teams = [];
       }
+
+      // Purge legacy storage keys
+      localStorage.removeItem('cognitia_aws_teams_v1');
+      localStorage.removeItem('cognitia_aws_teams_v2');
+      localStorage.removeItem('cognitia_lead_session_v1');
     } catch {
       this.teams = [];
     }
@@ -45,23 +55,22 @@ class AWSService {
     }
   }
 
-  // S3 Direct Upload Simulation / Integration Layer
-  public async uploadFileToS3(
+  // Google Cloud Storage / Firebase Storage Upload Layer
+  public async uploadFileToGCS(
     file: File,
     folder: 'ppts' | 'screenshots' | 'payments'
   ): Promise<{ url: string; fileName: string }> {
     return new Promise((resolve, reject) => {
-      const MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB = 1,048,576 bytes
+      const MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB limit
       if (folder === 'payments' && file.size > MAX_FILE_SIZE_BYTES) {
         reject(new Error(`FILE_TOO_LARGE: Image size ${(file.size / (1024 * 1024)).toFixed(2)} MB exceeds 1 MB limit.`));
         return;
       }
 
-      const bucket = (import.meta as any).env?.VITE_AWS_S3_BUCKET || 'cognitia-2026-submissions-529470779811';
-      const region = (import.meta as any).env?.VITE_AWS_REGION || 'ap-south-1';
+      const bucket = (import.meta as any).env?.VITE_FIREBASE_STORAGE_BUCKET || 'cognitia-2026.appspot.com';
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const s3Key = `submissions/${folder}/${Date.now()}_${sanitizedName}`;
-      console.log(`[S3 Direct Upload] Target bucket: s3://${bucket}/${s3Key} (Region: ${region})`);
+      const gcsPath = `submissions/${folder}/${Date.now()}_${sanitizedName}`;
+      console.log(`[Google Cloud Storage Upload] Target bucket: gs://${bucket}/${gcsPath}`);
 
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
@@ -116,6 +125,14 @@ class AWSService {
         reader.readAsDataURL(file);
       }
     });
+  }
+
+  // Alias for backward compatibility if needed
+  public async uploadFileToFirebaseStorage(
+    file: File,
+    folder: 'ppts' | 'screenshots' | 'payments'
+  ): Promise<{ url: string; fileName: string }> {
+    return this.uploadFileToGCS(file, folder);
   }
 
   // Check if an email address is already registered across any team or team member
@@ -278,7 +295,7 @@ class AWSService {
     return { success: true, team: this.teams[index] };
   }
 
-  // Permanently lock team track preferences (Ordered 1 to 5; Once locked, cannot be changed even before deadline)
+  // Permanently lock team track preferences
   public async lockTrackPreference(
     teamId: string,
     trackPreferences: string[]
@@ -327,8 +344,6 @@ class AWSService {
   }
 
   // PHASE 2 OFFLINE ROUND & SELECTION METHODS
-
-  // Admin updates team Phase 2 selection status ('selected' | 'waitlisted' | 'not_selected' | 'pending')
   public async updatePhase2Selection(
     teamId: string,
     status: Phase2SelectionStatus
@@ -341,7 +356,6 @@ class AWSService {
     return { success: true, team };
   }
 
-  // Participant confirms Phase 2 RSVP
   public async confirmRsvp(teamId: string): Promise<{ success: boolean; team?: TeamRegistration }> {
     const team = this.teams.find((t) => t.id === teamId);
     if (!team) return { success: false };
@@ -351,7 +365,6 @@ class AWSService {
     return { success: true, team };
   }
 
-  // Participant uploads Phase 1 payment screenshot and transaction ID / UTR
   public async submitPaymentScreenshot(
     teamId: string,
     screenshotUrl: string,
@@ -369,7 +382,6 @@ class AWSService {
     return { success: true, team };
   }
 
-  // Participant uploads Phase 2 payment screenshot and transaction ID / UTR
   public async submitPhase2PaymentDetails(
     teamId: string,
     screenshotUrl: string,
@@ -387,7 +399,6 @@ class AWSService {
     return { success: true, team };
   }
 
-  // Admin manually updates Phase 1 payment status ('unpaid' | 'payment_pending' | 'payment_verified')
   public async updatePhase1PaymentStatus(
     teamId: string,
     status: Phase2PaymentStatus
@@ -401,7 +412,6 @@ class AWSService {
     return { success: true, team };
   }
 
-  // Admin manually updates Phase 2 payment status ('unpaid' | 'payment_pending' | 'payment_verified')
   public async updatePhase2PaymentStatus(
     teamId: string,
     status: Phase2PaymentStatus
@@ -424,7 +434,6 @@ class AWSService {
     return { success: true, team, ticketId };
   }
 
-  // Admin verifies payment & issues unique pass ticket ID (Legacy helper)
   public async verifyPaymentAndGenerateTicket(
     teamId: string
   ): Promise<{ success: boolean; team?: TeamRegistration; ticketId?: string }> {
@@ -443,7 +452,6 @@ class AWSService {
     return { success: true, team, ticketId };
   }
 
-  // OFFLINE ATTENDANCE CHECK-IN METHOD
   public async markAttendance(
     query: string,
     status: AttendanceStatus
@@ -468,7 +476,6 @@ class AWSService {
     return { success: true, team };
   }
 
-  // Admin Access Methods
   public getAllRegistrations(): TeamRegistration[] {
     return [...this.teams];
   }
@@ -484,4 +491,4 @@ class AWSService {
   }
 }
 
-export const awsService = new AWSService();
+export const firebaseService = new FirebaseService();
