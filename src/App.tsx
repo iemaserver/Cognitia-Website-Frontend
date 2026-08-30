@@ -137,8 +137,7 @@ export default function App() {
 
       setTimeout(() => {
         setCurrentCartridge(id);
-        setIsSwitchingCartridge(false);
-      }, 420);
+      }, 180);
     } else {
       setShowPwaScreen(false);
     }

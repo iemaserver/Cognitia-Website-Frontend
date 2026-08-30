@@ -130,7 +130,7 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
       /* ignore audio autoplay restriction */
     }
 
-    const intervalTime = isFastSwitch ? 22 : 55;
+    const intervalTime = isFastSwitch ? 28 : 48;
 
     const timer = setInterval(() => {
       setProgress((prev) => {
@@ -142,12 +142,14 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
           } catch (e) { }
 
           if (onBootComplete) {
-            setTimeout(onBootComplete, isFastSwitch ? 120 : 600);
+            setTimeout(onBootComplete, isFastSwitch ? 300 : 500);
           }
           return 100;
         }
 
-        const step = isFastSwitch ? 15 : Math.floor(Math.random() * 5) + 3;
+        const step = isFastSwitch
+          ? Math.floor(Math.random() * 4) + 6
+          : Math.floor(Math.random() * 5) + 3;
         const next = Math.min(prev + step, 100);
 
         // Sound feedback on milestones
