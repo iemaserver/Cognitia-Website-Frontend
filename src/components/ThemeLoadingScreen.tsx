@@ -168,9 +168,7 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
 
   return (
     <div
-      className={`absolute inset-0 w-full h-full flex items-center justify-center select-none overflow-hidden bg-[#0d0f12] z-50 transition-opacity duration-500 ${
-        isBlending ? 'opacity-0 pointer-events-none' : 'opacity-100'
-      }`}
+      className="absolute inset-0 w-full h-full flex items-center justify-center select-none overflow-hidden bg-transparent z-10"
       id="theme-loading-screen"
     >
       {/* 1. Underlying Spidey Background Image (1.5x bigger & centered, matching ScreenViewport layout) */}
@@ -200,8 +198,8 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
             <div
               key={cell.id}
               className={`relative transition-all duration-300 ${isUnlocked
-                  ? 'border border-cyan-400/20 bg-transparent'
-                  : 'border border-cyan-500/10 bg-[#0d0f12]'
+                ? 'border border-cyan-400/20 bg-transparent'
+                : 'border border-cyan-500/10 bg-[#0d0f12]'
                 }`}
             >
               {/* Wireframe cross node on locked cells */}

@@ -352,7 +352,7 @@ export default function App() {
       {/* Centered Cognitia Brand Logo (Just after console, just above footer) */}
       <div className="w-full flex items-center justify-center py-6 sm:py-10 px-4 shrink-0">
         <img
-          src="/cognitia_logo.webp"
+          src="/footer_logo.webp"
           alt="Cognitia Official Crest Logo"
           width={535}
           height={75}
