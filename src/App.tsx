@@ -1,26 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { ConsoleShell } from './components/ConsoleShell';
 import { ScreenViewport } from './components/ScreenViewport';
 import { BottomBar } from './components/BottomBar';
 import { Footer } from './components/Footer';
 import { CartridgeDeckScreen } from './components/cartridges/CartridgeDeckScreen';
 import { DashboardCartridge } from './components/cartridges/DashboardCartridge';
-import { RulesCartridge } from './components/cartridges/RulesCartridge';
-import { TracksCartridge } from './components/cartridges/TracksCartridge';
-import { TimelineCartridge } from './components/cartridges/TimelineCartridge';
-import { SponsorsCartridge } from './components/cartridges/SponsorsCartridge';
-import { MembersCartridge } from './components/cartridges/MembersCartridge';
-import { PrizesCartridge } from './components/cartridges/PrizesCartridge';
-import { FAQCartridge } from './components/cartridges/FAQCartridge';
-import { RegistrationCartridge, LoginCartridge } from './components/cartridges/RegistrationCartridge';
-import { AdminCartridge } from './components/cartridges/AdminCartridge';
-import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { PWAConsoleScreen } from './components/PWAConsoleScreen';
 import { ThemeLoadingScreen, RetroThemeId } from './components/ThemeLoadingScreen';
-import { CartridgeSwapLoader } from './components/CartridgeSwapLoader';
 import { CartridgeId } from './types';
 import { sound } from './utils/audio';
 import { firebaseService } from './services/firebaseService';
+
+// Lazy load non-initial cartridges to optimize initial bundle size & load speed
+const RulesCartridge = lazy(() => import('./components/cartridges/RulesCartridge').then(m => ({ default: m.RulesCartridge })));
+const TracksCartridge = lazy(() => import('./components/cartridges/TracksCartridge').then(m => ({ default: m.TracksCartridge })));
+const TimelineCartridge = lazy(() => import('./components/cartridges/TimelineCartridge').then(m => ({ default: m.TimelineCartridge })));
+const SponsorsCartridge = lazy(() => import('./components/cartridges/SponsorsCartridge').then(m => ({ default: m.SponsorsCartridge })));
+const MembersCartridge = lazy(() => import('./components/cartridges/MembersCartridge').then(m => ({ default: m.MembersCartridge })));
+const PrizesCartridge = lazy(() => import('./components/cartridges/PrizesCartridge').then(m => ({ default: m.PrizesCartridge })));
+const FAQCartridge = lazy(() => import('./components/cartridges/FAQCartridge').then(m => ({ default: m.FAQCartridge })));
+const AdminCartridge = lazy(() => import('./components/cartridges/AdminCartridge').then(m => ({ default: m.AdminCartridge })));
+const RegistrationCartridge = lazy(() => import('./components/cartridges/RegistrationCartridge').then(m => ({ default: m.RegistrationCartridge })));
+const LoginCartridge = lazy(() => import('./components/cartridges/RegistrationCartridge').then(m => ({ default: m.LoginCartridge })));
 
 export default function App() {
   const [currentCartridge, setCurrentCartridge] = useState<CartridgeId>(() => {
@@ -292,7 +293,7 @@ export default function App() {
                     onContinueToDashboard={() => setShowPwaScreen(false)}
                   />
                 ) : (
-                  <>
+                  <Suspense fallback={null}>
                     {currentCartridge === 'dashboard' && (
                       <DashboardCartridge
                         onNavigate={(id) => {
@@ -318,7 +319,7 @@ export default function App() {
                     {currentCartridge === 'prizes' && <PrizesCartridge />}
                     {currentCartridge === 'faq' && <FAQCartridge />}
                     {currentCartridge === 'admin' && <AdminCartridge />}
-                  </>
+                  </Suspense>
                 )}
 
                 {/* Boot / Swap Loader Overlay (Positioned on top so LCP element is never delayed) */}
