@@ -39,6 +39,7 @@ export function ScreenViewport({
           <img
             src="/spideybg.jpg"
             alt=""
+            decoding="async"
             className="w-full h-full max-w-[630px] max-h-[630px] sm:max-w-[720px] sm:max-h-[720px] object-contain object-center mix-blend-screen opacity-25 sm:opacity-30 filter brightness-110 contrast-125 saturate-150"
             referrerPolicy="no-referrer"
           />

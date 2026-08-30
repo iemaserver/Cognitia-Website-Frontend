@@ -12,12 +12,27 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Cognitia 2k26" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Performance Preconnections & Resource Preloads -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="image" href="/cognitia logo.png" fetchpriority="high" />
+    <link rel="preload" as="image" href="/spideybg.jpg" />
+
+    <!-- Asynchronous Non-Blocking Google Fonts Loading -->
     <link
       href="https://fonts.googleapis.com/css2?family=Anton&family=Chakra+Petch:wght@400;600;700&family=Orbitron:wght@600;700;800;900&family=Oswald:wght@400;600;700&family=Pixelify+Sans:wght@400;600;700&family=Press+Start+2P&family=Share+Tech+Mono&family=Silkscreen:wght@400;700&family=VT323&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Chakra+Petch:wght@400;600;700&family=Orbitron:wght@600;700;800;900&family=Oswald:wght@400;600;700&family=Pixelify+Sans:wght@400;600;700&family=Press+Start+2P&family=Share+Tech+Mono&family=Silkscreen:wght@400;700&family=VT323&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
     <meta property="og:title" content="Cognitia 2k26" />
     <meta
       property="og:description"

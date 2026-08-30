@@ -39,6 +39,8 @@ export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
           <img
             src="/cognitia logo.png"
             alt="COGNITIA 2K26"
+            fetchPriority="high"
+            decoding="async"
             className="w-full h-auto max-h-[220px] sm:max-h-[300px] md:max-h-[360px] object-contain drop-shadow-[0_4px_20px_rgba(239,68,68,0.45)] filter brightness-105 contrast-105 transition-all duration-300 group-hover:brightness-115 group-hover:drop-shadow-[0_6px_28px_rgba(239,68,68,0.7)]"
             referrerPolicy="no-referrer"
           />

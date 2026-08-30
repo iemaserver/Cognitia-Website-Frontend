@@ -130,7 +130,7 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
       /* ignore audio autoplay restriction */
     }
 
-    const intervalTime = isFastSwitch ? 22 : 55;
+    const intervalTime = isFastSwitch ? 12 : 16;
 
     const timer = setInterval(() => {
       setProgress((prev) => {
@@ -142,12 +142,12 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
           } catch (e) {}
 
           if (onBootComplete) {
-            setTimeout(onBootComplete, isFastSwitch ? 120 : 600);
+            setTimeout(onBootComplete, isFastSwitch ? 50 : 100);
           }
           return 100;
         }
 
-        const step = isFastSwitch ? 15 : Math.floor(Math.random() * 5) + 3;
+        const step = isFastSwitch ? 25 : 15;
         const next = Math.min(prev + step, 100);
 
         // Sound feedback on milestones
@@ -176,6 +176,7 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
         <img
           src="/spideybg.jpg"
           alt=""
+          decoding="async"
           className="w-full h-full max-w-[630px] max-h-[630px] sm:max-w-[720px] sm:max-h-[720px] object-contain object-center mix-blend-screen filter brightness-115 contrast-125 saturate-150 transition-opacity duration-700"
           style={{
             opacity: isBlending ? 0.3 : 0.88,

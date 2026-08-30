@@ -344,11 +344,13 @@ export default function App() {
         </ConsoleShell>
       </section>
 
-      {/* Centered Cognitia Brand Logo SVG (Just after console, just above footer) */}
+      {/* Centered Cognitia Brand Logo (Just after console, just above footer) */}
       <div className="w-full flex items-center justify-center py-6 sm:py-10 px-4 shrink-0">
         <img
-          src="/cognitia_logo.svg"
+          src="/cognitia logo.png"
           alt="Cognitia Official Crest Logo"
+          loading="lazy"
+          decoding="async"
           className="h-20 sm:h-28 md:h-36 lg:h-44 w-auto max-w-[94vw] object-contain drop-shadow-[0_6px_32px_rgba(126,199,255,0.55)] filter brightness-110 contrast-105 transition-all duration-300 hover:scale-[1.03]"
         />
       </div>
