@@ -62,8 +62,23 @@ export default function App() {
     }
     return 'cognitia-gold';
   });
+  // Target Event Start Date: September 11, 2026 at 4:00 PM IST (16:00:00)
+  const TARGET_DATE_TIME = new Date('2026-09-11T16:00:00+05:30').getTime();
+
+  const calculateRemainingTime = () => {
+    const now = Date.now();
+    const diff = Math.max(0, TARGET_DATE_TIME - now);
+
+    return {
+      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+      mins: Math.floor((diff / (1000 * 60)) % 60),
+      secs: Math.floor((diff / 1000) % 60),
+    };
+  };
+
   const [showScanlines] = useState<boolean>(true);
-  const [countdown, setCountdown] = useState({ days: 12, hours: 8, mins: 44, secs: 20 });
+  const [countdown, setCountdown] = useState(calculateRemainingTime);
 
   const handleThemeChange = (th: RetroThemeId) => {
     setActiveTheme(th);
@@ -113,16 +128,10 @@ export default function App() {
     }
   }, []);
 
-  // Live countdown timer ticker
+  // Live real-time countdown timer ticker targeting September 11, 2026 4:00 PM IST
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev.secs > 0) return { ...prev, secs: prev.secs - 1 };
-        if (prev.mins > 0) return { ...prev, mins: 59, secs: 59 };
-        if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, mins: 59, secs: 59 };
-        if (prev.days > 0) return { ...prev, days: prev.days - 1, hours: 23, mins: 59, secs: 59 };
-        return prev;
-      });
+      setCountdown(calculateRemainingTime());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
