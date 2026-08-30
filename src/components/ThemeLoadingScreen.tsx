@@ -18,7 +18,7 @@ export interface ThemeConfig {
   hudGlow: string;
 }
 
-export const THEMES: Record<RetroThemeId, ThemeConfig> = {
+const THEMES: Record<RetroThemeId, ThemeConfig> = {
   'cognitia-gold': {
     id: 'cognitia-gold',
     name: 'Cognitia Gold & Cyan',
@@ -130,7 +130,7 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
       /* ignore audio autoplay restriction */
     }
 
-    const intervalTime = isFastSwitch ? 12 : 16;
+    const intervalTime = isFastSwitch ? 22 : 55;
 
     const timer = setInterval(() => {
       setProgress((prev) => {
@@ -139,15 +139,15 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
           setIsBlending(true);
           try {
             sound.playCoin();
-          } catch (e) {}
+          } catch (e) { }
 
           if (onBootComplete) {
-            setTimeout(onBootComplete, isFastSwitch ? 50 : 100);
+            setTimeout(onBootComplete, isFastSwitch ? 120 : 600);
           }
           return 100;
         }
 
-        const step = isFastSwitch ? 25 : 15;
+        const step = isFastSwitch ? 15 : Math.floor(Math.random() * 5) + 3;
         const next = Math.min(prev + step, 100);
 
         // Sound feedback on milestones
@@ -156,7 +156,7 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
           lastTickRef.current = milestone;
           try {
             sound.playConstructionTick(milestone);
-          } catch (e) {}
+          } catch (e) { }
         }
 
         return next;
@@ -168,7 +168,9 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
 
   return (
     <div
-      className="absolute inset-0 w-full h-full flex items-center justify-center select-none overflow-hidden bg-transparent z-10"
+      className={`absolute inset-0 w-full h-full flex items-center justify-center select-none overflow-hidden bg-[#0d0f12] z-50 transition-opacity duration-500 ${
+        isBlending ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`}
       id="theme-loading-screen"
     >
       {/* 1. Underlying Spidey Background Image (1.5x bigger & centered, matching ScreenViewport layout) */}
@@ -189,20 +191,18 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
 
       {/* 2. Full-Screen Sci-Fi Grid Boxes Covering the Entire ScreenViewport */}
       <div
-        className={`absolute inset-0 grid grid-cols-8 grid-rows-6 pointer-events-none z-20 transition-opacity duration-500 ${
-          isBlending ? 'opacity-0' : 'opacity-100'
-        }`}
+        className={`absolute inset-0 grid grid-cols-8 grid-rows-6 pointer-events-none z-20 transition-opacity duration-500 ${isBlending ? 'opacity-0' : 'opacity-100'
+          }`}
       >
         {FULL_SCREEN_GRID_CELLS.map((cell) => {
           const isUnlocked = progress >= cell.threshold;
           return (
             <div
               key={cell.id}
-              className={`relative transition-all duration-300 ${
-                isUnlocked
+              className={`relative transition-all duration-300 ${isUnlocked
                   ? 'border border-cyan-400/20 bg-transparent'
                   : 'border border-cyan-500/10 bg-[#0d0f12]'
-              }`}
+                }`}
             >
               {/* Wireframe cross node on locked cells */}
               {!isUnlocked && (
@@ -217,18 +217,16 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
 
       {/* 3. Full-Viewport Sweeping Laser Scanner */}
       <div
-        className={`absolute inset-0 pointer-events-none z-30 transition-opacity duration-700 ${
-          isBlending ? 'opacity-0' : 'opacity-100'
-        }`}
+        className={`absolute inset-0 pointer-events-none z-30 transition-opacity duration-700 ${isBlending ? 'opacity-0' : 'opacity-100'
+          }`}
       >
         <div className="absolute inset-x-0 h-1 sm:h-1.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-laser-scan shadow-[0_0_24px_#00f0ff]" />
       </div>
 
       {/* 4. Full-Viewport Concentric Radar / Gyroscope Rings */}
       <div
-        className={`absolute inset-0 flex items-center justify-center pointer-events-none z-25 transition-opacity duration-700 ${
-          isBlending ? 'opacity-0' : 'opacity-100'
-        }`}
+        className={`absolute inset-0 flex items-center justify-center pointer-events-none z-25 transition-opacity duration-700 ${isBlending ? 'opacity-0' : 'opacity-100'
+          }`}
       >
         <div className="w-[88vmin] h-[88vmin] max-w-[680px] max-h-[680px] rounded-full border border-cyan-400/20 animate-radar-reverse" />
         <div className="absolute w-[68vmin] h-[68vmin] max-w-[520px] max-h-[520px] rounded-full border border-dashed border-cyan-400/30 animate-radar-sweep" />
