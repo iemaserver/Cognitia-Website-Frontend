@@ -174,8 +174,10 @@ export const ThemeLoadingScreen: React.FC<ThemeLoadingScreenProps> = ({
       {/* 1. Underlying Spidey Background Image (1.5x bigger & centered, matching ScreenViewport layout) */}
       <div className="absolute inset-0 flex items-center justify-center p-2 sm:p-4 pointer-events-none z-10">
         <img
-          src="/spideybg.jpg"
+          src="/spideybg.webp"
           alt=""
+          width={720}
+          height={720}
           decoding="async"
           className="w-full h-full max-w-[630px] max-h-[630px] sm:max-w-[720px] sm:max-h-[720px] object-contain object-center mix-blend-screen filter brightness-115 contrast-125 saturate-150 transition-opacity duration-700"
           style={{

@@ -351,8 +351,10 @@ export default function App() {
       {/* Centered Cognitia Brand Logo (Just after console, just above footer) */}
       <div className="w-full flex items-center justify-center py-6 sm:py-10 px-4 shrink-0">
         <img
-          src="/cognitia logo.png"
+          src="/cognitia_logo.webp"
           alt="Cognitia Official Crest Logo"
+          width={535}
+          height={75}
           loading="lazy"
           decoding="async"
           className="h-20 sm:h-28 md:h-36 lg:h-44 w-auto max-w-[94vw] object-contain drop-shadow-[0_6px_32px_rgba(126,199,255,0.55)] filter brightness-110 contrast-105 transition-all duration-300 hover:scale-[1.03]"

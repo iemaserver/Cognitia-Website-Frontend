@@ -37,8 +37,10 @@ export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
       <div className="flex flex-col items-center justify-center space-y-1 pt-6 sm:pt-10 md:pt-12 w-full shrink-0">
         <div className="relative group flex items-center justify-center w-full max-w-[460px] sm:max-w-[580px] md:max-w-[700px] transition-all duration-300">
           <img
-            src="/cognitia logo.png"
+            src="/cognitia_logo.webp"
             alt="COGNITIA 2K26"
+            width={535}
+            height={75}
             fetchPriority="high"
             decoding="async"
             className="w-full h-auto max-h-[220px] sm:max-h-[300px] md:max-h-[360px] object-contain drop-shadow-[0_4px_20px_rgba(239,68,68,0.45)] filter brightness-105 contrast-105 transition-all duration-300 group-hover:brightness-115 group-hover:drop-shadow-[0_6px_28px_rgba(239,68,68,0.7)]"

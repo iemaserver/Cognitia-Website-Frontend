@@ -37,8 +37,10 @@ export function ScreenViewport({
         {/* Spidey Outline Logo Graphic (1.5x bigger & centered) */}
         <div className="absolute inset-0 flex items-center justify-center p-2 sm:p-4 pointer-events-none">
           <img
-            src="/spideybg.jpg"
+            src="/spideybg.webp"
             alt=""
+            width={720}
+            height={720}
             decoding="async"
             className="w-full h-full max-w-[630px] max-h-[630px] sm:max-w-[720px] sm:max-h-[720px] object-contain object-center mix-blend-screen opacity-25 sm:opacity-30 filter brightness-110 contrast-125 saturate-150"
             referrerPolicy="no-referrer"
