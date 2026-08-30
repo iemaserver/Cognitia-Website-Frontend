@@ -277,26 +277,8 @@ export default function App() {
                 activeCartridgeId={isBooting ? 'BOOT' : isSwitchingCartridge ? 'SWAP' : showPwaScreen ? 'PWA' : currentCartridge}
                 cartridgeName={getCartridgeName()}
               >
-                {/* Content Area - Internal Cartridge Viewport Scrolling */}
-                {isBooting ? (
-                  <ThemeLoadingScreen
-                    currentTheme={activeTheme}
-                    onThemeChange={handleThemeChange}
-                    onBootComplete={handleBootComplete}
-                  />
-                ) : isSwitchingCartridge ? (
-                  <ThemeLoadingScreen
-                    isFastSwitch={true}
-                    currentTheme={activeTheme}
-                    onThemeChange={handleThemeChange}
-                    targetCartridgeName={targetCartridgeName}
-                    onBootComplete={() => setIsSwitchingCartridge(false)}
-                  />
-                ) : showPwaScreen ? (
-                  <PWAConsoleScreen
-                    onContinueToDashboard={() => setShowPwaScreen(false)}
-                  />
-                ) : isDeckOpen ? (
+                {/* Content Area - Main Cartridge Rendered Immediately (LCP Optimized) */}
+                {isDeckOpen ? (
                   <CartridgeDeckScreen
                     currentCartridge={currentCartridge}
                     onSelectCartridge={(id) => {
@@ -304,6 +286,10 @@ export default function App() {
                       setIsDeckOpen(false);
                     }}
                     onCloseDeck={() => setIsDeckOpen(false)}
+                  />
+                ) : showPwaScreen ? (
+                  <PWAConsoleScreen
+                    onContinueToDashboard={() => setShowPwaScreen(false)}
                   />
                 ) : (
                   <>
@@ -333,6 +319,24 @@ export default function App() {
                     {currentCartridge === 'faq' && <FAQCartridge />}
                     {currentCartridge === 'admin' && <AdminCartridge />}
                   </>
+                )}
+
+                {/* Boot / Swap Loader Overlay (Positioned on top so LCP element is never delayed) */}
+                {isBooting && (
+                  <ThemeLoadingScreen
+                    currentTheme={activeTheme}
+                    onThemeChange={handleThemeChange}
+                    onBootComplete={handleBootComplete}
+                  />
+                )}
+                {isSwitchingCartridge && (
+                  <ThemeLoadingScreen
+                    isFastSwitch={true}
+                    currentTheme={activeTheme}
+                    onThemeChange={handleThemeChange}
+                    targetCartridgeName={targetCartridgeName}
+                    onBootComplete={() => setIsSwitchingCartridge(false)}
+                  />
                 )}
               </ScreenViewport>
             </div>
