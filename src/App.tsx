@@ -51,7 +51,7 @@ export default function App() {
     return 'dashboard';
   });
   const [isDeckOpen, setIsDeckOpen] = useState<boolean>(false);
-  const [isBooting, setIsBooting] = useState<boolean>(true);
+  const [isBooting, setIsBooting] = useState<boolean>(false);
   const [showPwaScreen, setShowPwaScreen] = useState<boolean>(false);
   const [isSwitchingCartridge, setIsSwitchingCartridge] = useState<boolean>(false);
   const [targetCartridgeName, setTargetCartridgeName] = useState<string>('');
