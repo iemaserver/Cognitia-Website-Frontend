@@ -132,8 +132,7 @@ const COMMITTEE_GROUPS: MemberGroup[] = [
     badgeBg: 'rgba(56, 189, 248, 0.18)',
     members: [
       { name: 'Subhashree Das' },
-      { name: 'Alokparna Mitra' },
-      { name: 'Sahitya Pan' }
+      { name: 'Alokparna Mitra' }
     ]
   },
   {
