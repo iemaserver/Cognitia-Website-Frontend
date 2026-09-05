@@ -98,13 +98,12 @@ interface RegistrationCartridgeProps {
 
 const EMPTY_TRACK_PREFS = ['', '', '', '', ''];
 
-type TeamDashboardTab = 'team' | 'tracks_selection' | 'fee_payment' | 'submission' | 'phase2' | 'phase2_status';
+type TeamDashboardTab = 'team' | 'tracks_selection' | 'fee_payment' | 'phase2' | 'phase2_status';
 
 const TAB_ORDER: TeamDashboardTab[] = [
   'team',
   'tracks_selection',
   'fee_payment',
-  'submission',
   'phase2',
   'phase2_status',
 ];
@@ -118,11 +117,12 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [activeTab, setActiveTab] = useState<TeamDashboardTab>(() => {
     if (typeof window !== 'undefined') {
       const savedTab = localStorage.getItem('cognitia_team_dashboard_tab');
-      const validTabs: TeamDashboardTab[] = ['team', 'tracks_selection', 'fee_payment', 'submission', 'phase2', 'phase2_status'];
+      const validTabs: TeamDashboardTab[] = ['team', 'tracks_selection', 'fee_payment', 'phase2', 'phase2_status'];
       if (savedTab && validTabs.includes(savedTab as TeamDashboardTab)) {
         return savedTab as TeamDashboardTab;
       }
     }
+    return 'team';
   });
 
   useEffect(() => {
@@ -130,33 +130,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       localStorage.setItem('cognitia_team_dashboard_tab', activeTab);
     }
   }, [activeTab]);
-
-  useEffect(() => {
-    if (activeLeadTeam) {
-      if (activeLeadTeam.paymentStatus === 'payment_verified') {
-        const hasSubmittedDeliverables = !!activeLeadTeam.submission;
-        const isPhase2Selected = activeLeadTeam.phase2Status === 'selected';
-        const savedTab = typeof window !== 'undefined' ? localStorage.getItem('cognitia_team_dashboard_tab') : null;
-
-        if (hasSubmittedDeliverables && !isPhase2Selected) {
-          // After submission until selection is done, show Phase 2 page directly from dashboard
-          if (!savedTab || savedTab === 'fee_payment' || savedTab === 'submission') {
-            setActiveTab('phase2');
-          }
-        } else if (!hasSubmittedDeliverables) {
-          // Payment verified, deliverables pending -> show deliverables page directly
-          if (!savedTab || savedTab === 'fee_payment') {
-            setActiveTab('submission');
-          }
-        }
-      } else {
-        // Payment not verified -> restrict access to fee_payment
-        if (activeTab === 'submission' || activeTab === 'phase2' || activeTab === 'phase2_status') {
-          setActiveTab('fee_payment');
-        }
-      }
-    }
-  }, [activeLeadTeam]);
 
   const [trackPreferences, setTrackPreferences] = useState<string[]>(EMPTY_TRACK_PREFS);
   const [feeUtrId, setFeeUtrId] = useState<string>('');
@@ -195,30 +168,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       setPaymentScreenshot(activeLeadTeam.phase2PaymentScreenshotUrl || '');
       setPaymentTxId(activeLeadTeam.phase2PaymentTransactionId || '');
 
-      // Deliverable submission state (blank for new team)
-      if (activeLeadTeam.submission) {
-        setProjectTitle(activeLeadTeam.submission.projectTitle || '');
-        setTagline(activeLeadTeam.submission.tagline || '');
-        setTrackId(activeLeadTeam.submission.trackId || 'Natural Language Processing & Computer Vision');
-        setGithubRepoUrl(activeLeadTeam.submission.githubRepoUrl || '');
-        setProposedSolution(activeLeadTeam.submission.proposedSolution || '');
-        setTechStackJustification(activeLeadTeam.submission.techStackJustification || '');
-        setDeploymentStrategy(activeLeadTeam.submission.deploymentStrategy || '');
-        setPptUrl(activeLeadTeam.submission.pptUrl || '');
-        setPptFileName(activeLeadTeam.submission.pptFileName || '');
-        setScreenshots(activeLeadTeam.submission.screenshots || []);
-      } else {
-        setProjectTitle('');
-        setTagline('');
-        setTrackId('Natural Language Processing & Computer Vision');
-        setGithubRepoUrl('');
-        setProposedSolution('');
-        setTechStackJustification('');
-        setDeploymentStrategy('');
-        setPptUrl('');
-        setPptFileName('');
-        setScreenshots([]);
-      }
     } else {
       // Clear all team fields when logged out
       setEditableTeamName('');
@@ -231,16 +180,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       setFeeMessage(null);
       setPaymentScreenshot('');
       setPaymentTxId('');
-      setProjectTitle('');
-      setTagline('');
-      setTrackId('Natural Language Processing & Computer Vision');
-      setGithubRepoUrl('');
-      setProposedSolution('');
-      setTechStackJustification('');
-      setDeploymentStrategy('');
-      setPptUrl('');
-      setPptFileName('');
-      setScreenshots([]);
     }
   }, [activeLeadTeam]);
 
@@ -272,15 +211,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     isDeadlinePassed
   );
 
-  // New Member Form
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [newMemberPhone, setNewMemberPhone] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState('Developer');
-  const [newMemberGithub, setNewMemberGithub] = useState('');
-  const [newMemberIsIemUem, setNewMemberIsIemUem] = useState<boolean>(true);
-  const [newMemberCollegeName, setNewMemberCollegeName] = useState<string>('IEM / UEM');
-  const [newMemberEnrollmentNo, setNewMemberEnrollmentNo] = useState<string>('');
 
   // Member Editing State (Editable until deadline)
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -367,39 +297,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     setLeadPhone(sanitized);
   };
 
-  const handleNewMemberPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const sanitized = e.target.value.replace(/[^0-9+\s\-()]/g, '');
-    setNewMemberPhone(sanitized);
-  };
-
-  // Submission Form State
-  const [projectTitle, setProjectTitle] = useState('');
-  const [tagline, setTagline] = useState('');
-  const [trackId, setTrackId] = useState('Natural Language Processing & Computer Vision');
-  const [githubRepoUrl, setGithubRepoUrl] = useState('');
-  const [proposedSolution, setProposedSolution] = useState('');
-  const [techStackJustification, setTechStackJustification] = useState('');
-  const [deploymentStrategy, setDeploymentStrategy] = useState('');
-  const [pptUrl, setPptUrl] = useState('');
-  const [pptFileName, setPptFileName] = useState('');
-  const [screenshots, setScreenshots] = useState<string[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const getWordCount = (text: string) => {
-    const clean = text.trim();
-    if (!clean) return 0;
-    return clean.split(/\s+/).length;
-  };
-
-  const handleAnswerChange = (val: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
-    const words = val.trim().split(/\s+/);
-    if (words.length > 4000 && val.length > 50) {
-      alert('⚠️ WORD LIMIT REACHED: Maximum 4000 words allowed per answer.');
-    }
-    setter(val);
-  };
-
   // Phase 2 State
   const [paymentScreenshot, setPaymentScreenshot] = useState<string>('');
   const [paymentTxId, setPaymentTxId] = useState<string>('');
@@ -424,18 +321,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       // Phase 2 Payment state
       setPaymentScreenshot(current.phase2PaymentScreenshotUrl || '');
       setPaymentTxId(current.phase2PaymentTransactionId || '');
-      if (current.submission) {
-        setProjectTitle(current.submission.projectTitle || '');
-        setTagline(current.submission.tagline || '');
-        setTrackId(current.submission.trackId || 'Natural Language Processing & Computer Vision');
-        setGithubRepoUrl(current.submission.githubRepoUrl || '');
-        setProposedSolution(current.submission.proposedSolution || '');
-        setTechStackJustification(current.submission.techStackJustification || '');
-        setDeploymentStrategy(current.submission.deploymentStrategy || '');
-        setPptUrl(current.submission.pptUrl || '');
-        setPptFileName(current.submission.pptFileName || '');
-        setScreenshots(current.submission.screenshots || []);
-      }
     }
   };
 
@@ -511,85 +396,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     setActiveLeadTeam(null);
   };
 
-  // Add Member
-  const handleAddMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isDeadlinePassed) {
-      alert('Registration deadline has completed. Team members can no longer be added.');
-      return;
-    }
-    if (isMembersLocked) {
-      alert('Team roster is currently locked. Unlock roster to add members before deadline.');
-      return;
-    }
-    if (members.length >= 4) {
-      alert('Maximum limit of 4 team members reached. Remove a member or lock your roster.');
-      return;
-    }
-    if (!newMemberName || !newMemberEmail || !newMemberPhone || !newMemberGithub) {
-      alert('Please fill out all member details.');
-      return;
-    }
-    if (newMemberIsIemUem && (!newMemberEnrollmentNo || newMemberEnrollmentNo.trim().length < 4)) {
-      alert('Please enter a valid IEM / UEM Student Enrollment Number for this member.');
-      return;
-    }
-
-    const memberPhoneDigits = newMemberPhone.replace(/\D/g, '');
-    if (memberPhoneDigits.length < 10) {
-      alert('Please enter a valid phone number for the team member (at least 10 digits).');
-      return;
-    }
-
-    const cleanEmail = newMemberEmail.trim().toLowerCase();
-    const cleanGithub = newMemberGithub.trim().replace(/^@/, '').toLowerCase();
-
-    if (
-      members.some((m) => m.email.toLowerCase() === cleanEmail) ||
-      firebaseService.isEmailRegistered(cleanEmail, activeLeadTeam?.id)
-    ) {
-      alert(`Email '${newMemberEmail}' is already registered for another participant or team lead.`);
-      return;
-    }
-
-    if (
-      members.some((m) => m.githubId.toLowerCase() === cleanGithub) ||
-      firebaseService.isGitHubRegistered(cleanGithub, activeLeadTeam?.id)
-    ) {
-      alert(`GitHub handle '@${cleanGithub}' is already registered for another participant or team lead.`);
-      return;
-    }
-
-    const newMem: TeamMember = {
-      id: `mem-${Date.now()}`,
-      name: newMemberName,
-      email: cleanEmail,
-      phone: newMemberPhone,
-      role: newMemberRole || 'Developer',
-      githubId: cleanGithub,
-      isLead: false,
-      isIemUemStudent: newMemberIsIemUem,
-      collegeName: newMemberIsIemUem ? 'IEM / UEM' : newMemberCollegeName,
-      enrollmentNo: newMemberIsIemUem ? newMemberEnrollmentNo.trim() : '',
-    };
-
-    const updated = [...members, newMem];
-    setMembers(updated);
-    setNewMemberName('');
-    setNewMemberEmail('');
-    setNewMemberPhone('');
-    setNewMemberGithub('');
-    sound.playBlip(700);
-
-    if (activeLeadTeam) {
-      const res = await firebaseService.updateTeamDetails(activeLeadTeam.id, editableTeamName, updated);
-      if (!res.success && res.message) {
-        alert(res.message);
-        setMembers(members);
-      }
-    }
-  };
-
   const startEditingMember = (m: TeamMember) => {
     if (isDeadlinePassed) {
       alert('Registration deadline has completed. Member details can no longer be edited.');
@@ -616,10 +422,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const handleSaveMemberEdits = async (memberId: string) => {
     if (isDeadlinePassed) {
       alert('Registration deadline has completed. Edits cannot be saved.');
-      return;
-    }
-    if (isPaymentSubmittedOrVerified) {
-      alert('Phase 1 entry fee payment has been submitted/verified. Team roster is permanently locked.');
       return;
     }
     if (isMembersLocked) {
@@ -743,10 +545,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     if (!activeLeadTeam) return;
     if (isDeadlinePassed) {
       alert('Registration deadline has completed. Team roster is permanently locked and cannot be unlocked.');
-      return;
-    }
-    if (isPaymentSubmittedOrVerified) {
-      alert('Phase 1 entry fee payment has been submitted/verified. Team roster is permanently locked and cannot be unlocked.');
       return;
     }
     const nextState = !isMembersLocked;
@@ -889,7 +687,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     const res = await firebaseService.lockTrackPreference(activeLeadTeam.id, trackPreferences);
     if (res.success && res.team) {
       setActiveLeadTeam(res.team);
-      setTrackId(trackPreferences[0]);
       alert(`Track preferences (1st Choice: "${trackPreferences[0]}") have been PERMANENTLY LOCKED.`);
     } else if (res.message) {
       alert(res.message);
@@ -909,93 +706,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
   };
 
-  const handlePptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-    setIsUploading(true);
-    try {
-      const res = await firebaseService.uploadFileToGCS(file, 'ppts');
-      setPptUrl(res.url);
-      setPptFileName(res.fileName);
-      sound.playBlip(900);
-    } catch {
-      alert('PPT upload failed.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    setIsUploading(true);
-    try {
-      const newUrls: string[] = [];
-      for (let i = 0; i < e.target.files.length; i++) {
-        const file = e.target.files[i];
-        const res = await firebaseService.uploadFileToGCS(file, 'screenshots');
-        newUrls.push(res.url);
-      }
-      setScreenshots((prev) => [...prev, ...newUrls]);
-      sound.playBlip(900);
-    } catch {
-      alert('Screenshot upload failed.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleRemoveScreenshot = (index: number) => {
-    setScreenshots((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleProjectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitMessage(null);
-    if (!activeLeadTeam) return;
-
-    if (!projectTitle || !proposedSolution.trim() || !techStackJustification.trim() || !deploymentStrategy.trim()) {
-      setSubmitMessage({
-        type: 'error',
-        text: 'Please fill out Project Title and answer all 3 Evaluation Questions.',
-      });
-      return;
-    }
-
-    setIsUploading(true);
-    const res = await firebaseService.saveProjectSubmission(activeLeadTeam.id, {
-      projectTitle,
-      tagline,
-      trackId: activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'General',
-      githubRepoUrl,
-      proposedSolution,
-      techStackJustification,
-      deploymentStrategy,
-      pptUrl,
-      pptFileName,
-      screenshots,
-    });
-    setIsUploading(false);
-
-    if (res.success && res.submission) {
-      sound.playBoot();
-      if (res.team) {
-        setActiveLeadTeam(res.team);
-      }
-      setSubmitMessage({
-        type: 'success',
-        text: 'Phase 1 evaluation deliverables submitted successfully!',
-      });
-      if (!activeLeadTeam.phase2Status || activeLeadTeam.phase2Status !== 'selected') {
-        setActiveTab('phase2');
-      }
-    } else {
-      setSubmitMessage({
-        type: 'error',
-        text: 'Failed to submit project deliverables.',
-      });
-    }
-  };
-
   // Phase 2 RSVP & Payment Handlers
   const handleConfirmRsvp = async () => {
     if (!activeLeadTeam) return;
@@ -1008,7 +718,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
   const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB limit
 
-  const handlePhase1ScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFeeScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !activeLeadTeam) return;
     const file = e.target.files[0];
 
@@ -1435,10 +1145,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                 {isDeadlinePassed ? (
                   <span className="bg-[#2a1b1b] text-[#eb5147] border border-[#522525] font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs flex items-center gap-1">
                     <Lock size={10} /> LOCKED (DEADLINE COMPLETED)
-                  </span>
-                ) : isPaymentSubmittedOrVerified ? (
-                  <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                    <Lock size={10} /> ROSTER PERMANENTLY LOCKED (PAYMENT SUBMITTED / VERIFIED)
                   </span>
                 ) : (
                   <button
@@ -2217,7 +1923,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                               <input
                                 type="file"
                                 accept="image/*"
-                                onChange={handlePhase1ScreenshotUpload}
+                                onChange={handleFeeScreenshotUpload}
                                 className="hidden"
                               />
                             </label>
@@ -2308,172 +2014,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         </div>
       )}
 
-      {/* TAB 2: DELIVERABLES */}
-      {activeTab === 'submission' && (
-        <form onSubmit={handleProjectSubmit} className="space-y-3 grow overflow-y-auto">
-            {submitMessage && (
-              <div
-                className={`p-2.5 rounded-xs border font-silkscreen text-[8px] flex items-center gap-1.5 ${submitMessage.type === 'success'
-                  ? 'bg-[#142417] border-[#25522b] text-[#86efac]'
-                  : 'bg-[#261414] border-[#522525] text-[#fca5a5]'
-                  }`}
-              >
-                {submitMessage.type === 'success' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                <span>{submitMessage.text}</span>
-              </div>
-            )}
 
-            {/* Project Overview */}
-            <div className="p-3 bg-[#141618] border-2 border-[#2b2e30] rounded-md space-y-2">
-              <span className="font-pixel text-[10px] text-[#f4c151] block border-b border-[#2b2e30] pb-1">
-                PHASE 1 PROJECT TITLE &amp; OVERVIEW
-              </span>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-silkscreen text-[8px] text-[#8f9396] mb-1">
-                    Project Title <span className="text-[#eb5147]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Spider-Sense AI"
-                    value={projectTitle}
-                    onChange={(e) => setProjectTitle(e.target.value)}
-                    className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-silkscreen text-[8px] text-[#8f9396] mb-1">
-                    Project Pitch Tagline
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Brief one-line summary of project"
-                    value={tagline}
-                    onChange={(e) => setTagline(e.target.value)}
-                    className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* PHASE 1 EVALUATION QUESTIONS */}
-            <div className="p-3.5 bg-[#141618] border-2 border-[#a7d38a]/40 rounded-md space-y-3">
-              <div className="border-b border-[#254225] pb-1.5 flex items-center justify-between">
-                <span className="font-pixel text-[10.5px] text-[#a7d38a] flex items-center gap-1.5">
-                  <FileText size={14} /> PHASE 1 PROJECT EVALUATION QUESTIONS (MANDATORY)
-                </span>
-                <span className="font-silkscreen text-[8px] bg-[#142417] text-[#86efac] border border-[#25522b] px-2 py-0.5 rounded-xs">
-                  4000 WORDS LIMIT PER ANSWER
-                </span>
-              </div>
-
-              {/* Question 1 */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block font-pixel text-[9px] text-[#f4c151]">
-                    1. Proposed Solution &amp; Implementation Architecture <span className="text-[#eb5147]">*</span>
-                  </label>
-                  <span className={`font-silkscreen text-[7.5px] ${getWordCount(proposedSolution) > 4000 ? 'text-[#eb5147] font-bold' : 'text-[#8f9396]'}`}>
-                    {getWordCount(proposedSolution)} / 4000 WORDS
-                  </span>
-                </div>
-                <p className="font-silkscreen text-[8px] text-[#8f9396]">
-                  What is your proposed solution and detailed technical implementation?
-                </p>
-                <textarea
-                  required
-                  rows={5}
-                  placeholder="Describe your proposed solution, core implementation features, data flow, and architecture (Max 4000 words)..."
-                  value={proposedSolution}
-                  onChange={(e) => handleAnswerChange(e.target.value, setProposedSolution)}
-                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-xs p-2.5 rounded-xs focus:border-[#f4c151] focus:outline-none leading-relaxed min-h-[110px]"
-                />
-              </div>
-
-              {/* Question 2 */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block font-pixel text-[9px] text-[#00f0ff]">
-                    2. Technology Stack &amp; Justification <span className="text-[#eb5147]">*</span>
-                  </label>
-                  <span className={`font-silkscreen text-[7.5px] ${getWordCount(techStackJustification) > 4000 ? 'text-[#eb5147] font-bold' : 'text-[#8f9396]'}`}>
-                    {getWordCount(techStackJustification)} / 4000 WORDS
-                  </span>
-                </div>
-                <p className="font-silkscreen text-[8px] text-[#8f9396]">
-                  What technology stack are you using and justify its selection for this project?
-                </p>
-                <textarea
-                  required
-                  rows={5}
-                  placeholder="List your programming languages, frameworks, databases, APIs, and explain why they were selected (Max 4000 words)..."
-                  value={techStackJustification}
-                  onChange={(e) => handleAnswerChange(e.target.value, setTechStackJustification)}
-                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-xs p-2.5 rounded-xs focus:border-[#00f0ff] focus:outline-none leading-relaxed min-h-[110px]"
-                />
-              </div>
-
-              {/* Question 3 */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block font-pixel text-[9px] text-[#a7d38a]">
-                    3. Scalable Deployment Strategy <span className="text-[#eb5147]">*</span>
-                  </label>
-                  <span className={`font-silkscreen text-[7.5px] ${getWordCount(deploymentStrategy) > 4000 ? 'text-[#eb5147] font-bold' : 'text-[#8f9396]'}`}>
-                    {getWordCount(deploymentStrategy)} / 4000 WORDS
-                  </span>
-                </div>
-                <p className="font-silkscreen text-[8px] text-[#8f9396]">
-                  What is your deployment strategy to run, maintain, and scale the application under high traffic?
-                </p>
-                <textarea
-                  required
-                  rows={5}
-                  placeholder="Explain your cloud hosting, CI/CD pipeline, caching layers, containerization, and scaling strategy (Max 4000 words)..."
-                  value={deploymentStrategy}
-                  onChange={(e) => handleAnswerChange(e.target.value, setDeploymentStrategy)}
-                  className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-xs p-2.5 rounded-xs focus:border-[#a7d38a] focus:outline-none leading-relaxed min-h-[110px]"
-                />
-              </div>
-            </div>
-
-            {/* SUBMIT BUTTON */}
-            <button
-              type="submit"
-              disabled={isUploading}
-              className="w-full bg-[#182418] border-2 border-[#254225] hover:border-[#a7d38a] font-pixel text-[10px] text-[#a7d38a] uppercase py-2.5 px-3 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer"
-            >
-              <Send size={14} /> {isUploading ? 'UPLOADING DELIVERABLES...' : 'SUBMIT PROJECT DELIVERABLES'}
-            </button>
-
-            {/* Tab 2 Navigation Bar */}
-            <div className="flex items-center justify-between pt-2.5 border-t border-[#2b2e30] mt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playBlip(400);
-                  setActiveTab('team');
-                }}
-                className="font-pixel text-[9px] bg-[#181c22] border border-[#2b2e30] hover:border-[#6fb3d9] text-[#9ad4ff] px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer hover:bg-[#202730] transition-all"
-              >
-                <ArrowLeft size={12} /> BACK TO MEMBERS
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playBlip(600);
-                  setActiveTab('phase2');
-                }}
-                className="font-pixel text-[9px] bg-[#221a2c] border border-[#482b66] hover:border-[#b180ff] text-[#b180ff] px-3 py-1.5 rounded-xs flex items-center gap-1.5 shadow-[2px_2px_0_0_#000] active:translate-y-0.5 cursor-pointer hover:bg-[#2f223d] transition-all"
-              >
-                NEXT: PHASE 2 <ArrowRight size={12} />
-              </button>
-            </div>
-          </form>
-        )}
 
       {/* TAB 3: PHASE 2 OFFLINE ROUND & DYNAMIC UPI QR PAYMENT & TICKET */}
       {activeTab === 'phase2' && (
