@@ -87,6 +87,15 @@ export interface TeamMember {
   role: string;
   githubId: string;
   isLead?: boolean;
+  collegeName?: string;
+  isIemUemStudent?: boolean;
+  enrollmentNo?: string;
+  iemcrpScreenshotUrl?: string;
+  // Unique Individual Member Pass & Gate Attendance Fields
+  memberPassId?: string;
+  memberQrCodeUrl?: string;
+  checkInStatus?: AttendanceStatus;
+  checkInTimestamp?: string;
 }
 
 export interface ProjectSubmission {
@@ -124,6 +133,11 @@ export interface TeamRegistration {
   trackLockedAt?: string;
   registeredAt: string;
   submission?: ProjectSubmission;
+  // IEM / UEM Verification & Fee Exemption Fields
+  isIemUemTeam?: boolean;
+  phase2FeeAmount?: number;
+  iemcrpScreenshotsSubmitted?: boolean;
+  iemcrpScreenshotsSubmittedAt?: string;
   // Phase 1 Payment Fields
   paymentStatus?: Phase2PaymentStatus;
   paymentScreenshotUrl?: string;

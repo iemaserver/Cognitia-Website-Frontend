@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User,
   Mail,
@@ -40,6 +41,8 @@ import {
   Clock,
   MessageCircle,
   ExternalLink,
+  Eye,
+  X,
 } from 'lucide-react';
 
 const AVAILABLE_TRACKS = [
@@ -105,11 +108,11 @@ const TAB_ORDER: TeamDashboardTab[] = [
 ];
 
 export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
-  defaultLoginMode = false,
+  defaultLoginMode = true,
 }) => {
   const isDeadlinePassed = new Date() > REGISTRATION_DEADLINE;
   const [activeLeadTeam, setActiveLeadTeam] = useState<TeamRegistration | null>(null);
-  const [isLoginMode, setIsLoginMode] = useState<boolean>(defaultLoginMode);
+  const [isLoginMode, setIsLoginMode] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<TeamDashboardTab>(() => {
     if (typeof window !== 'undefined') {
       const savedTab = localStorage.getItem('cognitia_team_dashboard_tab');
@@ -244,6 +247,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [leadPassword, setLeadPassword] = useState('');
   const [leadGithub, setLeadGithub] = useState('');
   const [teamName, setTeamName] = useState('');
+  const [leadIsIemUem, setLeadIsIemUem] = useState<boolean>(true);
+  const [leadCollegeName, setLeadCollegeName] = useState<string>('IEM / UEM');
+  const [leadEnrollmentNo, setLeadEnrollmentNo] = useState<string>('');
 
   // Team Edit State
   const [editableTeamName, setEditableTeamName] = useState('');
@@ -272,6 +278,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [newMemberPhone, setNewMemberPhone] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('Developer');
   const [newMemberGithub, setNewMemberGithub] = useState('');
+  const [newMemberIsIemUem, setNewMemberIsIemUem] = useState<boolean>(true);
+  const [newMemberCollegeName, setNewMemberCollegeName] = useState<string>('IEM / UEM');
+  const [newMemberEnrollmentNo, setNewMemberEnrollmentNo] = useState<string>('');
 
   // Member Editing State (Editable until deadline)
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -280,6 +289,77 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [editPhone, setEditPhone] = useState('');
   const [editRole, setEditRole] = useState('');
   const [editGithub, setEditGithub] = useState('');
+  const [editIsIemUem, setEditIsIemUem] = useState<boolean>(true);
+  const [editCollegeName, setEditCollegeName] = useState<string>('IEM / UEM');
+  const [editEnrollmentNo, setEditEnrollmentNo] = useState<string>('');
+
+  // IEMCRP Verification Screenshot State
+  const [iemcrpScreenshots, setIemcrpScreenshots] = useState<{ [memberId: string]: string }>({});
+  const [uploadingMemberId, setUploadingMemberId] = useState<string | null>(null);
+  const [iemcrpSubmitMessage, setIemcrpSubmitMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [previewImageModal, setPreviewImageModal] = useState<{ url: string; title: string } | null>(null);
+
+  useEffect(() => {
+    if (activeLeadTeam?.members) {
+      const initialScreenshots: { [memberId: string]: string } = {};
+      activeLeadTeam.members.forEach((m) => {
+        if (m.iemcrpScreenshotUrl) {
+          initialScreenshots[m.id] = m.iemcrpScreenshotUrl;
+        }
+      });
+      setIemcrpScreenshots(initialScreenshots);
+    } else {
+      setIemcrpScreenshots({});
+    }
+  }, [activeLeadTeam]);
+
+  const handleIemcrpScreenshotSelect = async (memberId: string, file: File) => {
+    if (!file) return;
+    try {
+      setUploadingMemberId(memberId);
+      const res = await firebaseService.uploadFileToGCS(file, 'screenshots');
+      setIemcrpScreenshots((prev) => ({
+        ...prev,
+        [memberId]: res.url,
+      }));
+    } catch (err: any) {
+      alert(`Failed to process image: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setUploadingMemberId(null);
+    }
+  };
+
+  const handleSubmitIemcrpVerifications = async () => {
+    if (!activeLeadTeam) return;
+    sound.playBoot();
+    setIsSubmittingFee(true);
+    setIemcrpSubmitMessage(null);
+
+    try {
+      const updatedMembers = activeLeadTeam.members.map((m) => ({
+        ...m,
+        iemcrpScreenshotUrl: iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl || '',
+      }));
+
+      const res = await firebaseService.submitIemcrpVerifications(activeLeadTeam.id, updatedMembers);
+
+      if (res.success && res.team) {
+        setActiveLeadTeam(res.team);
+        sound.playBoot();
+        setIemcrpSubmitMessage({
+          type: 'success',
+          text: `🎉 FREE REGISTRATION CONFIRMED! Your Pass Ticket ID is ${res.ticketId}.`,
+        });
+        alert(`🎉 FREE PHASE 2 REGISTRATION CONFIRMED!\n\nYour Phase 2 Ticket Pass (${res.ticketId}) has been issued. IEMCRP screenshots submitted to admin for verification.`);
+      } else {
+        setIemcrpSubmitMessage({ type: 'error', text: 'Failed to submit IEMCRP verifications. Please try again.' });
+      }
+    } catch (err: any) {
+      setIemcrpSubmitMessage({ type: 'error', text: err?.message || 'Submission error.' });
+    } finally {
+      setIsSubmittingFee(false);
+    }
+  };
 
   // Phone Input Handlers (Numeric & Phone Symbol Only)
   const handleLeadPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -392,6 +472,10 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         setAuthError('Please enter a valid phone number (at least 10 digits).');
         return;
       }
+      if (leadIsIemUem && (!leadEnrollmentNo || leadEnrollmentNo.trim().length < 4)) {
+        setAuthError('Please enter a valid IEM / UEM Student Enrollment Number.');
+        return;
+      }
       const res = await firebaseService.registerTeamLead({
         teamName,
         leadName,
@@ -399,6 +483,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         leadPhone,
         passwordHash: leadPassword,
         leadGitHubId: leadGithub,
+        collegeName: leadIsIemUem ? 'IEM / UEM' : leadCollegeName,
+        isIemUemStudent: leadIsIemUem,
+        enrollmentNo: leadIsIemUem ? leadEnrollmentNo.trim() : '',
       });
 
       if (res.success && res.team) {
@@ -432,7 +519,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       return;
     }
     if (isPaymentSubmittedOrVerified) {
-      alert('Phase 1 entry fee payment has been submitted/verified. Team roster is permanently locked and members cannot be added.');
+      alert('Team roster is permanently locked and members cannot be added.');
       return;
     }
     if (isMembersLocked) {
@@ -445,6 +532,10 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
     if (!newMemberName || !newMemberEmail || !newMemberPhone || !newMemberGithub) {
       alert('Please fill out all member details.');
+      return;
+    }
+    if (newMemberIsIemUem && (!newMemberEnrollmentNo || newMemberEnrollmentNo.trim().length < 4)) {
+      alert('Please enter a valid IEM / UEM Student Enrollment Number for this member.');
       return;
     }
 
@@ -478,9 +569,12 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       name: newMemberName,
       email: cleanEmail,
       phone: newMemberPhone,
-      role: newMemberRole,
+      role: newMemberRole || 'Developer',
       githubId: cleanGithub,
       isLead: false,
+      isIemUemStudent: newMemberIsIemUem,
+      collegeName: newMemberIsIemUem ? 'IEM / UEM' : newMemberCollegeName,
+      enrollmentNo: newMemberIsIemUem ? newMemberEnrollmentNo.trim() : '',
     };
 
     const updated = [...members, newMem];
@@ -608,6 +702,34 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
   };
 
+  const handleUpdateMemberIemDetails = async (
+    memberId: string,
+    isIemUem: boolean,
+    enrollmentNo: string,
+    screenshotUrl?: string
+  ) => {
+    if (!activeLeadTeam) return;
+    const updatedMembers = members.map((m) => {
+      if (m.id === memberId || m.memberPassId === memberId) {
+        return {
+          ...m,
+          isIemUemStudent: isIemUem,
+          collegeName: isIemUem ? 'IEM / UEM' : (m.collegeName || 'External'),
+          enrollmentNo: isIemUem ? enrollmentNo : '',
+          iemcrpScreenshotUrl: screenshotUrl !== undefined ? screenshotUrl : m.iemcrpScreenshotUrl,
+        };
+      }
+      return m;
+    });
+
+    setMembers(updatedMembers);
+    sound.playBoot();
+    const res = await firebaseService.updateTeamDetails(activeLeadTeam.id, editableTeamName, updatedMembers);
+    if (res.success && res.team) {
+      setActiveLeadTeam(res.team);
+    }
+  };
+
   const handleRemoveMember = (id: string) => {
     if (isDeadlinePassed) {
       alert('Registration deadline has completed. Team members can no longer be removed.');
@@ -668,23 +790,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       alert('Please LOCK YOUR TEAM ROSTER before proceeding to track selection or next steps.');
       return;
     }
-    if ((targetTab === 'fee_payment' || targetTab === 'submission' || targetTab === 'phase2' || targetTab === 'phase2_status') && !activeLeadTeam?.isTrackLocked) {
+    if ((targetTab === 'fee_payment' || targetTab === 'phase2' || targetTab === 'phase2_status') && !activeLeadTeam?.isTrackLocked) {
       sound.playBlip(300);
-      alert('Please SELECT AND PERMANENTLY LOCK YOUR TRACK PREFERENCE in Track Selection before proceeding.');
+      alert('Please SELECT AND PERMANENTLY LOCK YOUR TRACK PREFERENCES in Track Selection before proceeding to Payment.');
       setActiveTab('tracks_selection');
       return;
-    }
-    if (targetTab === 'submission' || targetTab === 'phase2' || targetTab === 'phase2_status') {
-      if (activeLeadTeam?.paymentStatus !== 'payment_verified') {
-        sound.playBlip(300);
-        if (activeLeadTeam?.paymentStatus === 'payment_pending') {
-          alert('⌛ PAYMENT VERIFICATION PENDING BY ADMIN\n\nYour ₹50 payment details & screenshot proof have been submitted and are currently being verified by the Cognitia Admin team.\n\nPhase 1 Deliverables will unlock automatically once an admin verifies your payment!');
-        } else {
-          alert('⚠️ ACCESS RESTRICTED\n\nPlease complete and submit your Phase 1 entry fee payment (₹50) and wait for admin verification before accessing Phase 1 Deliverables or Phase 2.');
-        }
-        setActiveTab('fee_payment');
-        return;
-      }
     }
     sound.playBlip(600);
     setActiveTab(targetTab);
@@ -1002,7 +1112,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
   // Dynamic UPI Details
   const upiId = '9434364001@pz';
-  const amount = '500';
+  const amount = '200';
   const teamNum = activeLeadTeam?.id ? String(activeLeadTeam.id).replace(/^team-/, '') : '0000';
   const remark = `cognitia-p2-tid-${teamNum}`;
   const upiUrl = `upi://pay?pa=${upiId}&pn=Cognitia2026&am=${amount}&tn=${encodeURIComponent(remark)}&cu=INR`;
@@ -1024,7 +1134,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               </span>
             </div>
             <p className="font-silkscreen text-[8.5px] sm:text-[9px] text-[#8f9396] mt-0.5 leading-snug break-words">
-              Register your team lead credentials or log in to manage team members and project deliverables.
+              Log in with your Unique Team ID (TID) &amp; Password to manage track preferences and claim Phase 2 pass.
             </p>
           </div>
         </div>
@@ -1032,23 +1142,26 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         {/* Auth Card Container */}
         <div className="flex-1 flex justify-center items-center py-2">
           <div className="w-full max-w-lg bg-[#0a0c0e]/35 backdrop-blur-md border border-[#38bdf8]/30 hover:border-[#38bdf8]/60 p-4 sm:p-5 rounded-md transition-all break-words">
-            <div className="flex items-center justify-between border-b border-[#ef4444]/20 pb-3 mb-4 gap-2">
-              <span className="font-pixel text-[10px] sm:text-[11px] text-[#38bdf8] flex items-center gap-1.5 leading-tight">
-                <User size={14} className="text-[#ef4444] shrink-0" />
-                {isLoginMode ? 'Team Lead Login' : 'New Team Registration'}
+            <div className="flex items-center justify-between border-b border-[#38bdf8]/20 pb-3 mb-3 gap-2">
+              <span className="font-pixel text-[11px] sm:text-[12px] text-[#38bdf8] flex items-center gap-1.5 leading-tight uppercase">
+                <User size={14} className="text-[#38bdf8] shrink-0" />
+                PHASE 2 TEAM PORTAL LOGIN
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playBlip(450);
-                  setIsLoginMode(!isLoginMode);
-                  setAuthError('');
-                  setAuthSuccess('');
-                }}
-                className="font-silkscreen text-[8px] text-[#38bdf8] hover:underline bg-[#38bdf8]/10 border border-[#38bdf8]/30 px-2 py-1 rounded-sm cursor-pointer shrink-0"
-              >
-                {isLoginMode ? 'Switch to Signup' : 'Switch to Login'}
-              </button>
+              <span className="font-silkscreen text-[8px] bg-[#182418] text-[#86efac] border border-[#254225] px-2 py-0.5 rounded-xs">
+                TEAM ID LOGIN
+              </span>
+            </div>
+
+            <div className="mb-3.5 p-3 bg-[#0d1620] border border-[#2b4466] rounded-xs font-silkscreen text-[9.5px] text-[#93c5fd] leading-relaxed space-y-1">
+              <div className="flex items-center gap-1.5 text-[#38bdf8] font-pixel text-[10px]">
+                <Sparkles size={13} /> TEAM LOGIN CREDENTIALS
+              </div>
+              <p>
+                Phase 1 team submissions were verified externally. Your Unique Team ID (TID) and Password have been assigned by the organizers.
+              </p>
+              <p className="text-[#f4c151] pt-0.5">
+                Log in with your Team ID (TID) below to upload IEMCRP screenshots (for ₹0 free registration waiver), lock track preferences, and claim your Pass Ticket.
+              </p>
             </div>
 
             {authError && (
@@ -1087,11 +1200,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               )}
 
               <RetroInput
-                label="Lead Email Address"
-                icon={<Mail size={10} />}
+                label="Unique Team ID (TID) *"
+                icon={<Hash size={10} />}
                 required
-                type="email"
-                placeholder="lead@hackathon.org"
+                type="text"
+                placeholder="e.g. COG26-T101"
                 value={leadEmail}
                 onChange={(e) => setLeadEmail(e.target.value)}
               />
@@ -1120,14 +1233,74 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               />
 
               {!isLoginMode && (
-                <RetroInput
-                  label="Lead GitHub Handle"
-                  icon={<Github size={10} />}
-                  required
-                  placeholder="e.g. peterparker-dev"
-                  value={leadGithub}
-                  onChange={(e) => setLeadGithub(e.target.value)}
-                />
+                <>
+                  <RetroInput
+                    label="Lead GitHub Handle"
+                    icon={<Github size={10} />}
+                    required
+                    placeholder="e.g. peterparker-dev"
+                    value={leadGithub}
+                    onChange={(e) => setLeadGithub(e.target.value)}
+                  />
+
+                  <div className="bg-[#0b0e11] p-2.5 border border-[#2b3545] rounded-xs space-y-2">
+                    <label className="block font-silkscreen text-[8.5px] text-[#f4c151]">
+                      Lead Student Institution &amp; Category:
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 text-[8.5px] font-silkscreen text-[#cfe8ff]">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="leadStudentType"
+                          checked={leadIsIemUem}
+                          onChange={() => setLeadIsIemUem(true)}
+                          className="accent-[#38bdf8]"
+                        />
+                        <span className="text-[#86efac]">🎓 IEM / UEM Student (FREE Reg)</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="leadStudentType"
+                          checked={!leadIsIemUem}
+                          onChange={() => setLeadIsIemUem(false)}
+                          className="accent-[#ef4444]"
+                        />
+                        <span className="text-[#93c5fd]">🏫 External Student (₹200 Fee)</span>
+                      </label>
+                    </div>
+
+                    {leadIsIemUem ? (
+                      <div>
+                        <label className="block font-silkscreen text-[7.5px] text-[#86efac] mb-0.5">
+                          IEM / UEM Enrollment Number (Mandatory for Free Entry)*
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 12022002015042"
+                          value={leadEnrollmentNo}
+                          onChange={(e) => setLeadEnrollmentNo(e.target.value)}
+                          className="w-full bg-[#050709] border border-[#25522b] text-[#86efac] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#4ade80] focus:outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block font-silkscreen text-[7.5px] text-[#93c5fd] mb-0.5">
+                          College / University Name*
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Techno India / Heritage / NIT"
+                          value={leadCollegeName}
+                          onChange={(e) => setLeadCollegeName(e.target.value)}
+                          className="w-full bg-[#050709] border border-[#2b3545] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
 
               <button
@@ -1388,11 +1561,20 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                     className="bg-[#090b0d] border border-[#2b2e30] p-2.5 rounded-xs flex items-start justify-between"
                   >
                     <div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="font-pixel text-[11px] sm:text-[12px] text-[#cfe8ff]">{m.name}</span>
                         {m.isLead && (
                           <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs">
                             LEAD
+                          </span>
+                        )}
+                        {m.isIemUemStudent ? (
+                          <span className="bg-[#142417] text-[#86efac] border border-[#25522b] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
+                            🎓 IEM/UEM: {m.enrollmentNo || 'Verified'}
+                          </span>
+                        ) : (
+                          <span className="bg-[#1a1c20] text-[#93c5fd] border border-[#2d3748] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
+                            🏫 External ({m.collegeName || 'Other'})
                           </span>
                         )}
                       </div>
@@ -1402,122 +1584,93 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                         <p className="flex items-center gap-1"><Phone size={10} /> {m.phone}</p>
                         <p className="flex items-center gap-1 text-[#6fb3d9] font-mono"><Github size={10} /> @{m.githubId}</p>
                       </div>
+
+                      {/* Team Lead IEM/UEM Verification Controls */}
+                      <div className="mt-2.5 pt-2 border-t border-[#2b2e30] space-y-1.5 font-silkscreen text-[8px]">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`iem_${m.id}`}
+                              checked={m.isIemUemStudent ?? true}
+                              onChange={() => handleUpdateMemberIemDetails(m.id, true, m.enrollmentNo || '')}
+                              className="accent-[#4ade80]"
+                            />
+                            <span className="text-[#86efac]">🎓 IEM / UEM Student</span>
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`iem_${m.id}`}
+                              checked={m.isIemUemStudent === false}
+                              onChange={() => handleUpdateMemberIemDetails(m.id, false, '')}
+                              className="accent-[#f2933d]"
+                            />
+                            <span className="text-[#93c5fd]">🏫 External Student</span>
+                          </label>
+                        </div>
+
+                        {m.isIemUemStudent && (
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 pt-1">
+                            <input
+                              type="text"
+                              placeholder="IEM/UEM Enrollment No.*"
+                              value={m.enrollmentNo || ''}
+                              onChange={(e) => handleUpdateMemberIemDetails(m.id, true, e.target.value)}
+                              className="bg-[#0c0e10] border border-[#25522b] text-[#86efac] px-2 py-1 rounded-xs font-mono text-[8.5px] w-full sm:w-48 focus:border-[#4ade80] focus:outline-none"
+                            />
+                            <div className="flex items-center gap-2">
+                              <label className="inline-flex items-center gap-1 bg-[#1e4620] hover:bg-[#275c2a] text-[#86efac] border border-[#34783a] px-2 py-0.5 rounded-xs cursor-pointer">
+                                <Upload size={9} />
+                                <span>{m.iemcrpScreenshotUrl ? '📸 CHANGE SCREENSHOT' : '📸 UPLOAD IEMCRP SCREENSHOT'}</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                      const res = await firebaseService.uploadFileToGCS(e.target.files[0], 'iemcrp');
+                                      handleUpdateMemberIemDetails(m.id, true, m.enrollmentNo || '', res.url);
+                                    }
+                                  }}
+                                />
+                              </label>
+                              {m.iemcrpScreenshotUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sound.playBlip(500);
+                                    setPreviewImageModal({
+                                      url: m.iemcrpScreenshotUrl!,
+                                      title: `${m.name}'s IEMCRP Student Information Page`,
+                                    });
+                                  }}
+                                  className="text-[#38bdf8] hover:underline flex items-center gap-1"
+                                >
+                                  <Eye size={9} /> VIEW
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {!isRosterLockedEffective && (
-                        <button
-                          type="button"
-                          onClick={() => startEditingMember(m)}
-                          className="font-pixel text-[9px] bg-[#181d24] border border-[#2b394d] text-[#6fb3d9] hover:bg-[#202833] hover:text-white px-2 py-1 rounded-xs flex items-center gap-1 cursor-pointer"
-                          title="Edit member details"
-                        >
-                          <Edit2 size={10} /> EDIT
-                        </button>
-                      )}
-
-                      {!m.isLead && !isRosterLockedEffective && (
-                        <button
-                          onClick={() => handleRemoveMember(m.id)}
-                          className="text-[#eb5147] hover:text-red-300 p-0.5"
-                          title="Remove Member"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-
-                      {isRosterLockedEffective && (
-                        <span className="text-[#6b7280] p-0.5" title={isPaymentSubmittedOrVerified ? 'Permanently Locked (Phase 1 Payment Submitted/Verified)' : isDeadlinePassed ? 'Permanently Locked (Deadline Completed)' : 'Roster Locked'}>
-                          <Lock size={10} />
-                        </span>
-                      )}
+                      <span className="text-[#8f9396] font-silkscreen text-[7.5px] px-1.5 py-0.5 bg-[#141618] border border-[#2b2e30] rounded-xs flex items-center gap-1">
+                        <Lock size={9} className="text-[#6fb3d9]" /> OFFICIAL ROSTER
+                      </span>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* Add Member Form or Status Banners */}
-            {isDeadlinePassed ? (
-              <div className="border-t border-[#2b2e30] pt-2.5 mt-2 bg-[#1a1212] p-2.5 rounded-xs border border-[#3d2020] text-center font-silkscreen text-[8px] text-[#fca5a5] flex items-center justify-center gap-1.5">
-                <Lock size={12} className="text-[#ef4444]" />
-                REGISTRATION DEADLINE COMPLETED. ROSTER IS PERMANENTLY LOCKED &amp; NO MEMBERS CAN BE ADDED OR REMOVED.
-              </div>
-            ) : isPaymentSubmittedOrVerified ? (
-              <div className="border-t border-[#2b2e30] pt-2.5 mt-2 bg-[#182418] p-2.5 rounded-xs border border-[#254225] text-center font-silkscreen text-[8px] text-[#a7d38a] flex items-center justify-center gap-1.5">
-                <Lock size={12} className="text-[#4ade80]" />
-                TEAM ROSTER IS PERMANENTLY LOCKED FOLLOWING PHASE 1 PAYMENT. MEMBER DETAILS CANNOT BE MODIFIED.
-              </div>
-            ) : isMembersLocked ? (
-              <div className="border-t border-[#2b2e30] pt-2.5 mt-2 bg-[#1c1813] p-2.5 rounded-xs border border-[#3d2c1c] text-center font-silkscreen text-[8px] text-[#f2933d] flex flex-col sm:flex-row items-center justify-between gap-1.5">
-                <span className="flex items-center gap-1.5">
-                  <Lock size={12} className="text-[#f4c151]" />
-                  ROSTER IS LOCKED. YOU CAN UNLOCK AND EDIT MEMBERS UNTIL REGISTRATION DEADLINE.
-                </span>
-                <button
-                  type="button"
-                  onClick={handleToggleLockMembers}
-                  className="font-pixel text-[7.5px] bg-[#291e14] border border-[#523b25] text-[#f4c151] px-2 py-0.5 rounded-xs hover:bg-[#38281a] cursor-pointer"
-                >
-                  [UNLOCK TO EDIT]
-                </button>
-              </div>
-            ) : members.length >= 4 ? (
-              <div className="border-t border-[#2b2e30] pt-2.5 mt-2 bg-[#1c1813] p-2.5 rounded-xs border border-[#3d2c1c] text-center font-silkscreen text-[8px] text-[#f2933d] flex items-center justify-center gap-1.5">
-                <AlertTriangle size={12} className="text-[#f4c151]" />
-                MAXIMUM TEAM CAPACITY REACHED (4/4 MEMBERS MAXIMUM).
-              </div>
-            ) : (
-              <form onSubmit={handleAddMember} className="border-t border-[#2b2e30] pt-2 mt-2">
-                <span className="font-silkscreen text-[8px] text-[#8f9396] block mb-1.5 flex items-center gap-1">
-                  <Plus size={10} /> Add Team Member (Must have unique GitHub ID):
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-                  <input
-                    type="text"
-                    placeholder="Full Name"
-                    value={newMemberName}
-                    onChange={(e) => setNewMemberName(e.target.value)}
-                    className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={newMemberEmail}
-                    onChange={(e) => setNewMemberEmail(e.target.value)}
-                    className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                  />
-                  <input
-                    type="tel"
-                    pattern="[+0-9\s\-\(\)]*"
-                    placeholder="Phone Number (10 digits)"
-                    value={newMemberPhone}
-                    onChange={handleNewMemberPhoneChange}
-                    className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Role (e.g. Frontend)"
-                    value={newMemberRole}
-                    onChange={(e) => setNewMemberRole(e.target.value)}
-                    className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="GitHub Handle"
-                    value={newMemberGithub}
-                    onChange={(e) => setNewMemberGithub(e.target.value)}
-                    className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] font-pixel text-[8px] text-[#a7d38a] uppercase py-1 px-2 rounded-xs flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <Plus size={10} /> ADD MEMBER
-                  </button>
-                </div>
-              </form>
-            )}
+            {/* Admin Managed Roster Informational Banner */}
+            <div className="border-t border-[#2b2e30] pt-2.5 mt-2 bg-[#0e141d] p-2.5 rounded-xs border border-[#1e344d] text-center font-silkscreen text-[8px] text-[#93c5fd] flex items-center justify-center gap-1.5">
+              <Lock size={12} className="text-[#38bdf8]" />
+              TEAM ROSTER IS MANAGED BY EVENT ADMINISTRATORS. PARTICIPANTS CANNOT ADD, REMOVE, OR ALTER MEMBER DETAILS.
+            </div>
           </div>
 
           {/* Tab 1 Bottom Navigation Bar */}
@@ -1734,244 +1887,409 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         </div>
       )}
 
-      {/* TAB: REGISTRATION FEE PAYMENT (UPI QR CODE FOR ₹50) */}
+      {/* TAB: REGISTRATION FEE PAYMENT (IEM/UEM FREE vs EXTERNAL ₹200) */}
       {activeTab === 'fee_payment' && (
         <div className="space-y-3 grow overflow-y-auto">
-          {/* Header Banner */}
-          <div className="p-3 bg-[#141618] border-2 border-[#2b2e30] rounded-md space-y-1">
-            <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
-              <span className="font-pixel text-[12px] sm:text-[13px] text-[#f4c151] flex items-center gap-1.5">
-                <CreditCard size={15} /> STEP 3: REGISTRATION ENTRY FEE (₹50)
-              </span>
-              {activeLeadTeam.paymentStatus === 'payment_verified' ? (
-                <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                  <CheckCircle2 size={11} /> REGISTRATION CONFIRMED BY ADMIN
-                </span>
-              ) : activeLeadTeam.paymentStatus === 'payment_pending' ? (
-                <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1 animate-pulse">
-                  <Clock size={11} /> VERIFICATION PENDING BY ADMIN
-                </span>
-              ) : (
-                <span className="bg-[#241818] text-[#eb5147] border border-[#422525] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                  <AlertTriangle size={11} /> FEE UNPAID
-                </span>
-              )}
-            </div>
-            <p className="font-silkscreen text-[10.5px] text-[#d0d7e0] pt-1 leading-normal">
-              Scan the UPI QR code below to pay the mandatory <strong className="text-[#f4c151]">₹50 Team Entry Fee</strong>. After paying via GPay/PhonePe/Paytm, enter your 12-digit UTR Transaction Ref ID below for admin verification.
-            </p>
-          </div>
-
-          {/* Verified / Confirmed Success Card */}
-          {activeLeadTeam.paymentStatus === 'payment_verified' && (
-            <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md shadow-[0_0_16px_rgba(37,82,43,0.5)] space-y-3">
-              <div className="flex items-center gap-2 text-[#a7d38a]">
-                <ShieldCheck size={20} className="text-[#4ade80]" />
-                <span className="font-pixel text-[13px] sm:text-[14px] text-[#4ade80]">
-                  🎉 PHASE 1 FEE VERIFIED &amp; REGISTRATION CONFIRMED!
-                </span>
-              </div>
-              <p className="font-silkscreen text-[11px] text-[#cfe8ff] leading-relaxed">
-                Your ₹50 registration fee has been verified by the Cognitia Admin team. Your team <strong>{activeLeadTeam.teamName}</strong> is officially unlocked to submit Phase 1 Project Deliverables!
-              </p>
-
-              <div className="pt-1">
-                <a
-                  href="https://www.whatsapp.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => sound.playBlip(800)}
-                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20ba5a] text-black font-pixel text-[10px] sm:text-[11px] font-bold px-3.5 py-2 rounded-xs shadow-[2px_2px_0_0_#000] transition-all cursor-pointer"
-                >
-                  <MessageCircle size={15} /> JOIN PHASE 1 WHATSAPP COMMUNITY <ExternalLink size={13} />
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* Verification Pending Warning Card */}
-          {activeLeadTeam.paymentStatus === 'payment_pending' && (
-            <div className="p-3.5 bg-[#241d14] border-2 border-[#544622] rounded-md space-y-1.5">
-              <div className="flex items-center gap-2 text-[#f2933d]">
-                <Clock size={18} className="text-[#f4c151] animate-spin" />
-                <span className="font-pixel text-[11.5px] sm:text-[12.5px] text-[#f4c151]">
-                  ⌛ PAYMENT SUBMITTED — VERIFICATION PENDING BY ADMIN
-                </span>
-              </div>
-              <p className="font-silkscreen text-[10.5px] text-[#ffd17d] leading-snug">
-                Your ₹50 payment details (UTR ID: <strong className="font-mono text-white">{activeLeadTeam.paymentTransactionId}</strong>) have been received. The Cognitia Admin team is currently verifying the transaction. Your registration will automatically update to <strong>REGISTRATION CONFIRMED</strong> once verified.
-              </p>
-            </div>
-          )}
-
-          {/* UPI QR Code Card & Payment Details Form */}
           {(() => {
-            const phase1Amount = 50;
-            const phase1UpiId = '9434364001@pz';
-            const phase1TeamNum = activeLeadTeam?.id ? String(activeLeadTeam.id).replace(/^team-/, '') : '0000';
-            const phase1Remark = `cognitia-p1-tid-${phase1TeamNum}`;
-            const phase1QrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-              `upi://pay?pa=${phase1UpiId}&pn=Cognitia%20Hackathon&am=${phase1Amount}&cu=INR&tn=${phase1Remark}`
+            const isIemUemAllStudentTeam = activeLeadTeam?.members && activeLeadTeam.members.length > 0 && activeLeadTeam.members.every(
+              (m) => Boolean(m.isIemUemStudent && m.enrollmentNo && m.enrollmentNo.trim().length >= 4)
+            );
+            const feeAmount = isIemUemAllStudentTeam ? 0 : 200;
+
+            if (isIemUemAllStudentTeam) {
+              const allScreenshotsUploaded = activeLeadTeam.members.every(
+                (m) => Boolean(iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl)
+              );
+
+              return (
+                <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md shadow-[0_0_20px_rgba(37,82,43,0.5)] space-y-4">
+                  <div className="flex items-center justify-between border-b border-[#25522b] pb-2.5">
+                    <div className="flex items-center gap-2 text-[#4ade80]">
+                      <Sparkles size={20} className="text-[#4ade80]" />
+                      <span className="font-pixel text-[13px] sm:text-[14px] text-[#4ade80]">
+                        🎓 IEM / UEM ALL-STUDENT TEAM: ₹0 FREE PHASE 2 REGISTRATION
+                      </span>
+                    </div>
+                    <span className="bg-[#1e4620] text-[#86efac] border border-[#34783a] font-silkscreen text-[9px] px-2.5 py-1 rounded-xs">
+                      ₹0 FREE WAIVER
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-[#0d1a0e] border border-[#25522b] rounded-xs space-y-1.5 font-silkscreen text-[10.5px] text-[#bbf7d0]">
+                    <p className="font-bold text-[#f4c151] flex items-center gap-1.5">
+                      <AlertTriangle size={14} className="text-[#f4c151]" />
+                      MANDATORY IEMCRP PORTAL SCREENSHOT REQUIREMENT FOR FREE REGISTRATION:
+                    </p>
+                    <p className="leading-relaxed">
+                      All team members in <strong>{activeLeadTeam.teamName}</strong> belong to IEM / UEM group. To complete your <strong>₹0 Free Phase 2 Registration</strong>, you MUST upload a clear screenshot for <strong>EVERY team member</strong> logged into their official <strong>IEMCRP portal</strong> with their <strong>Student Information page open</strong> (where their Enrollment Number is clearly visible).
+                    </p>
+                  </div>
+
+                  {/* Member IEMCRP Screenshot Cards */}
+                  <div className="space-y-3 pt-1">
+                    <span className="font-pixel text-[10px] text-[#86efac] block uppercase tracking-wider">
+                      MEMBER IEMCRP SCREENSHOT CHECKLIST ({activeLeadTeam.members.filter(m => Boolean(iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl)).length} / {activeLeadTeam.members.length} UPLOADED):
+                    </span>
+
+                    {activeLeadTeam.members.map((m, idx) => {
+                      const screenshotUrl = iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl;
+                      const isUploading = uploadingMemberId === m.id;
+
+                      return (
+                        <div
+                          key={m.id || idx}
+                          className={`p-3 border rounded-xs transition-all space-y-2 ${screenshotUrl
+                              ? 'bg-[#0f2112] border-[#34783a]'
+                              : 'bg-[#1a1c1a] border-[#443818]'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2 font-silkscreen text-[10.5px]">
+                              <span className="bg-[#1e3b21] text-[#4ade80] px-2 py-0.5 rounded-xs font-pixel text-[9px]">
+                                {m.isLead ? 'Cpt / Lead' : `Member ${idx}`}
+                              </span>
+                              <span className="font-bold text-white">{m.name}</span>
+                              <span className="text-[#94a3b8]">({m.email})</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-[10px] text-[#f4c151] bg-[#141618] px-2 py-0.5 rounded-xs border border-[#2b2e30]">
+                                ENROLLMENT: {m.enrollmentNo || 'NOT PROVIDED'}
+                              </span>
+                              {screenshotUrl ? (
+                                <span className="bg-[#1e4620] text-[#4ade80] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs flex items-center gap-1">
+                                  <CheckCircle2 size={11} /> IEMCRP SCREENSHOT ATTACHED
+                                </span>
+                              ) : (
+                                <span className="bg-[#362710] text-[#f4c151] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs flex items-center gap-1 animate-pulse">
+                                  <AlertTriangle size={11} /> UPLOAD REQUIRED
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Upload & Preview area */}
+                          <div className="flex flex-col sm:flex-row items-center gap-3 pt-1 border-t border-[#254225]">
+                            {screenshotUrl ? (
+                              <div
+                                className="relative group cursor-pointer"
+                                onClick={() => {
+                                  sound.playBlip(500);
+                                  setPreviewImageModal({
+                                    url: screenshotUrl,
+                                    title: `${m.name}'s IEMCRP Student Info Screenshot (Enrollment: ${m.enrollmentNo || 'N/A'})`,
+                                  });
+                                }}
+                              >
+                                <img
+                                  src={screenshotUrl}
+                                  alt={`${m.name} IEMCRP Screenshot`}
+                                  className="w-36 h-20 object-cover border border-[#4ade80] rounded-xs shadow-md group-hover:border-white transition-all"
+                                />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[9px] font-silkscreen text-[#86efac] gap-1 transition-opacity">
+                                  <Eye size={13} /> CLICK TO ZOOM
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-36 h-20 bg-[#09120a] border border-dashed border-[#f4c151]/50 rounded-xs flex flex-col items-center justify-center text-center p-2">
+                                <CloudUpload size={20} className="text-[#f4c151] mb-1" />
+                                <span className="font-silkscreen text-[8px] text-[#d0d7e0]">NO SCREENSHOT</span>
+                              </div>
+                            )}
+
+                            <div className="grow space-y-1 text-left w-full sm:w-auto">
+                              <p className="font-silkscreen text-[9.5px] text-[#cfe8ff]">
+                                Upload <strong>{m.name}'s</strong> IEMCRP Logged-In Student Information page:
+                              </p>
+                              <label className="inline-flex items-center gap-1.5 bg-[#1b351d] hover:bg-[#254d28] text-[#86efac] border border-[#34783a] font-pixel text-[9.5px] px-3 py-1.5 rounded-xs cursor-pointer shadow-[2px_2px_0_0_#000] transition-all">
+                                <Upload size={12} />
+                                {isUploading ? 'UPLOADING...' : screenshotUrl ? 'CHANGE SCREENSHOT' : 'SELECT IEMCRP SCREENSHOT'}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleIemcrpScreenshotSelect(m.id, file);
+                                  }}
+                                  disabled={isUploading}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {iemcrpSubmitMessage && (
+                    <div
+                      className={`p-2.5 rounded-xs font-silkscreen text-[10px] ${iemcrpSubmitMessage.type === 'success'
+                          ? 'bg-[#1b381e] text-[#86efac] border border-[#2e6333]'
+                          : 'bg-[#3b1c1c] text-[#f87171] border border-[#6b2d2d]'
+                        }`}
+                    >
+                      {iemcrpSubmitMessage.text}
+                    </div>
+                  )}
+
+                  {/* Confirmation Button */}
+                  {activeLeadTeam.paymentStatus !== 'payment_verified' ? (
+                    <button
+                      type="button"
+                      disabled={!allScreenshotsUploaded || isSubmittingFee}
+                      onClick={handleSubmitIemcrpVerifications}
+                      className={`w-full font-pixel text-[11px] py-3 px-4 rounded-xs shadow-[2px_2px_0_0_#000] transition-all flex items-center justify-center gap-2 ${allScreenshotsUploaded && !isSubmittingFee
+                          ? 'bg-[#1e4620] hover:bg-[#275c2a] border-2 border-[#4ade80] text-[#86efac] cursor-pointer'
+                          : 'bg-[#182019] border-2 border-[#2c402e] text-[#5b735e] cursor-not-allowed'
+                        }`}
+                    >
+                      <CheckCircle2 size={16} />
+                      {isSubmittingFee
+                        ? '[ SUBMITTING VERIFICATIONS... ]'
+                        : allScreenshotsUploaded
+                          ? '[ SUBMIT IEMCRP SCREENSHOTS & CLAIM FREE PHASE 2 PASS TICKET ]'
+                          : `[ UPLOAD ALL ${activeLeadTeam.members.length} MEMBERS' IEMCRP SCREENSHOTS TO CLAIM FREE PASS ]`}
+                    </button>
+                  ) : (
+                    <div className="bg-[#182418] border border-[#254225] p-3 rounded-xs font-pixel text-[10.5px] text-[#a7d38a] flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <ShieldCheck size={16} className="text-[#4ade80]" />
+                        FREE REGISTRATION CONFIRMED &amp; TICKET ISSUED ({activeLeadTeam.ticketPassId})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('phase2_status')}
+                        className="font-silkscreen text-[8.5px] text-[#00f0ff] hover:underline"
+                      >
+                        [ VIEW PASS TICKET ]
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const upiId = '9434364001@pz';
+            const teamNum = activeLeadTeam?.id ? String(activeLeadTeam.id).replace(/^team-/, '') : '0000';
+            const upiRemark = `cognitia-p2-tid-${teamNum}`;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+              `upi://pay?pa=${upiId}&pn=Cognitia%20Hackathon&am=${feeAmount}&cu=INR&tn=${upiRemark}`
             )}`;
 
             return (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                {/* Left: Dynamic UPI QR Code Display */}
-                <div className="md:col-span-5 p-3.5 bg-[#141618] border-2 border-[#2b2e30] rounded-md flex flex-col items-center justify-between text-center space-y-2.5">
-                  <span className="font-pixel text-[11px] text-[#f4c151] flex items-center gap-1.5">
-                    <QrCode size={14} /> UPI QR CODE
-                  </span>
-
-                  {/* Generated Dynamic UPI QR Code */}
-                  <div className="p-2.5 bg-white rounded-md border-4 border-[#3a4149] shadow-[0_0_12px_rgba(244,193,81,0.3)]">
-                    <img
-                      src={phase1QrUrl}
-                      alt="Dynamic UPI QR Code ₹50"
-                      className="w-44 h-44 sm:w-48 sm:h-48 object-contain pixelated"
-                    />
+              <div className="space-y-3">
+                {/* Header Banner */}
+                <div className="p-3 bg-[#141618] border-2 border-[#2b2e30] rounded-md space-y-1">
+                  <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
+                    <span className="font-pixel text-[12px] sm:text-[13px] text-[#f4c151] flex items-center gap-1.5">
+                      <CreditCard size={15} /> STEP 3: PHASE 2 ENTRY FEE (₹200) &amp; PAYMENT SCREENSHOT UPLOAD
+                    </span>
+                    {activeLeadTeam.paymentStatus === 'payment_verified' ? (
+                      <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1">
+                        <CheckCircle2 size={11} /> PAYMENT VERIFIED BY ADMIN
+                      </span>
+                    ) : activeLeadTeam.paymentStatus === 'payment_pending' ? (
+                      <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1 animate-pulse">
+                        <Clock size={11} /> VERIFICATION PENDING BY ADMIN
+                      </span>
+                    ) : (
+                      <span className="bg-[#241818] text-[#eb5147] border border-[#422525] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1">
+                        <AlertTriangle size={11} /> PHASE 2 FEE UNPAID (₹200)
+                      </span>
+                    )}
                   </div>
-
-                  {/* UPI Details Box */}
-                  <div className="w-full space-y-1">
-                    <div className="flex items-center justify-between bg-[#090b0d] border border-[#2b2e30] px-2.5 py-1.5 rounded-xs font-mono text-[10px]">
-                      <span className="text-[#8f9396] font-silkscreen text-[9px]">UPI ID:</span>
-                      <span className="text-[#00f0ff] font-bold">{phase1UpiId}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sound.playBlip(700);
-                          navigator.clipboard.writeText(phase1UpiId);
-                          setCopiedUpi(true);
-                          setTimeout(() => setCopiedUpi(false), 2000);
-                        }}
-                        className="text-[#f4c151] hover:underline font-pixel text-[9px] cursor-pointer"
-                      >
-                        {copiedUpi ? 'COPIED!' : 'COPY'}
-                      </button>
-                    </div>
-                    <div className="font-mono text-[9px] text-[#a7d38a] space-y-0.5 pt-0.5">
-                      <p>ENTRY FEE: <span className="font-bold text-[#f4c151]">₹{phase1Amount} INR</span></p>
-                      <p className="text-[8.5px] text-[#8f9396]">REMARK: <span className="text-white font-bold">{phase1Remark}</span></p>
-                    </div>
-                  </div>
+                  <p className="font-silkscreen text-[10.5px] text-[#d0d7e0] pt-1 leading-normal">
+                    Scan the UPI QR code below to pay the mandatory <strong className="text-[#f4c151]">Phase 2 Team Entry Fee (₹200)</strong>. After paying via GPay/PhonePe/Paytm, upload your payment receipt screenshot and enter your 12-digit UTR Transaction Ref ID below for admin verification.
+                  </p>
                 </div>
 
-                {/* Right: Payment Reference ID / UTR Form */}
-                <div className="md:col-span-7 p-3.5 bg-[#141618] border-2 border-[#2b2e30] rounded-md flex flex-col justify-between space-y-3">
-                  <div>
-                    <span className="font-pixel text-[11px] text-[#6fb3d9] block border-b border-[#2b2e30] pb-1.5 mb-2.5">
-                      ENTER PAYMENT TRANSACTION DETAILS
+                {/* Verified Success Card */}
+                {activeLeadTeam.paymentStatus === 'payment_verified' && (
+                  <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md shadow-[0_0_16px_rgba(37,82,43,0.5)] space-y-3">
+                    <div className="flex items-center gap-2 text-[#a7d38a]">
+                      <ShieldCheck size={20} className="text-[#4ade80]" />
+                      <span className="font-pixel text-[13px] sm:text-[14px] text-[#4ade80]">
+                        🎉 PHASE 2 FEE VERIFIED &amp; ENTRY CONFIRMED!
+                      </span>
+                    </div>
+                    <p className="font-silkscreen text-[11px] text-[#cfe8ff] leading-relaxed">
+                      Your Phase 2 entry fee has been verified by the Cognitia Admin team. Your team <strong>{activeLeadTeam.teamName}</strong> is officially confirmed for Phase 2!
+                    </p>
+                  </div>
+                )}
+
+                {/* Verification Pending Warning Card */}
+                {activeLeadTeam.paymentStatus === 'payment_pending' && (
+                  <div className="p-3.5 bg-[#241d14] border-2 border-[#544622] rounded-md space-y-1.5">
+                    <div className="flex items-center gap-2 text-[#f2933d]">
+                      <Clock size={18} className="text-[#f4c151] animate-spin" />
+                      <span className="font-pixel text-[11.5px] sm:text-[12.5px] text-[#f4c151]">
+                        ⌛ PAYMENT VERIFICATION PENDING BY ADMIN
+                      </span>
+                    </div>
+                    <p className="font-silkscreen text-[10px] text-[#d0d7e0] leading-relaxed">
+                      Your Phase 2 payment details (UTR ID: <strong className="font-mono text-white">{activeLeadTeam.paymentTransactionId}</strong>) have been received. The Cognitia Admin team is currently verifying the transaction.
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                  {/* Left: Dynamic UPI QR Code Display */}
+                  <div className="md:col-span-5 p-3.5 bg-[#141618] border-2 border-[#2b2e30] rounded-md flex flex-col items-center justify-between text-center space-y-2.5">
+                    <span className="font-pixel text-[11px] text-[#f4c151] flex items-center gap-1.5">
+                      <QrCode size={14} /> UPI QR CODE (₹200)
                     </span>
 
-                    {feeMessage && (
-                      <div
-                        className={`p-2.5 rounded-xs border font-silkscreen text-[9.5px] flex items-center gap-1.5 mb-2.5 ${feeMessage.type === 'success'
-                          ? 'bg-[#142417] border-[#25522b] text-[#86efac]'
-                          : 'bg-[#261414] border-[#522525] text-[#fca5a5]'
-                          }`}
-                      >
-                        {feeMessage.type === 'success' ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
-                        <span>{feeMessage.text}</span>
-                      </div>
-                    )}
+                    <div className="p-2.5 bg-white rounded-md border-4 border-[#3a4149] shadow-[0_0_12px_rgba(244,193,81,0.3)]">
+                      <img
+                        src={qrUrl}
+                        alt="Dynamic UPI QR Code ₹200"
+                        className="w-44 h-44 sm:w-48 sm:h-48 object-contain pixelated"
+                      />
+                    </div>
 
-                    <form onSubmit={handleFeePaymentSubmit} className="space-y-2.5">
-                      <div>
-                        <label className="block font-silkscreen text-[9.5px] text-[#8f9396] mb-1">
-                          12-Digit UPI UTR / Ref ID <span className="text-[#eb5147]">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          maxLength={12}
-                          disabled={activeLeadTeam.paymentStatus !== 'unpaid'}
-                          placeholder="e.g. 423910582910"
-                          value={feeUtrId}
-                          onChange={(e) => setFeeUtrId(e.target.value.replace(/\D/g, ''))}
-                          className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#00f0ff] font-mono text-sm px-2.5 py-1.5 rounded-xs focus:border-[#00f0ff] focus:outline-none disabled:opacity-75 disabled:cursor-not-allowed"
-                        />
-                        <span className="font-silkscreen text-[8.5px] text-[#7d8285] block mt-0.5">
-                          Enter the 12-digit UTR/Ref number from GPay, PhonePe, or Paytm receipt.
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="block font-silkscreen text-[9.5px] text-[#8f9396] mb-1">
-                          Payment Screenshot Proof (Max 1 MB) <span className="text-[#a7d38a]">*</span>
-                        </label>
-
-                        {/* Direct File Upload Button */}
-                        {activeLeadTeam.paymentStatus === 'unpaid' && (
-                          <label className="cursor-pointer font-pixel text-[9px] bg-[#1e2329] border border-[#3a4149] hover:border-[#a7d38a] text-[#a7d38a] py-2 px-3 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] w-full transition-all">
-                            <CloudUpload size={14} />
-                            {isUploadingPayment
-                              ? 'UPLOADING SCREENSHOT...'
-                              : feeProofUrl
-                                ? 'CHANGE PAYMENT SCREENSHOT (MAX 1 MB)'
-                                : 'SELECT & UPLOAD SCREENSHOT IMAGE (MAX 1 MB)'}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handlePhase1ScreenshotUpload}
-                              className="hidden"
-                            />
-                          </label>
-                        )}
-
-                        {/* Screenshot Preview Card */}
-                        {feeProofUrl && (
-                          <div className="mt-2 p-2 bg-[#090b0d] border border-[#254225] rounded-xs space-y-1.5">
-                            <div className="flex items-center justify-between font-silkscreen text-[8px] text-[#a7d38a]">
-                              <span>📷 ATTACHED RECEIPT PREVIEW (MAX 1 MB VERIFIED):</span>
-                              {activeLeadTeam.paymentStatus === 'unpaid' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFeeProofUrl('');
-                                    setFeeProofFileName('');
-                                  }}
-                                  className="text-[#eb5147] hover:underline"
-                                >
-                                  [Remove]
-                                </button>
-                              )}
-                            </div>
-                            <div className="border border-[#2b2e30] rounded-xs overflow-hidden h-28 bg-black">
-                              <img src={feeProofUrl} alt="Phase 1 Payment Screenshot" className="w-full h-full object-contain" />
-                            </div>
-                            {feeProofFileName && (
-                              <span className="font-mono text-[8px] text-[#8f9396] block truncate">
-                                File: {feeProofFileName}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {activeLeadTeam.paymentStatus === 'unpaid' ? (
+                    <div className="w-full space-y-1">
+                      <div className="flex items-center justify-between bg-[#090b0d] border border-[#2b2e30] px-2.5 py-1.5 rounded-xs font-mono text-[10px]">
+                        <span className="text-[#8f9396] font-silkscreen text-[9px]">UPI ID:</span>
+                        <span className="text-[#00f0ff] font-bold">{upiId}</span>
                         <button
-                          type="submit"
-                          disabled={isSubmittingFee}
-                          className="w-full bg-[#182418] border-2 border-[#254225] hover:border-[#a7d38a] font-pixel text-[11px] text-[#a7d38a] uppercase py-2.5 px-3 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer mt-3"
+                          type="button"
+                          onClick={() => {
+                            sound.playBlip(700);
+                            navigator.clipboard.writeText(upiId);
+                            setCopiedUpi(true);
+                            setTimeout(() => setCopiedUpi(false), 2000);
+                          }}
+                          className="text-[#f4c151] hover:underline font-pixel text-[9px] cursor-pointer"
                         >
-                          <CheckCircle2 size={13} /> SUBMIT ₹50 PAYMENT FOR ADMIN VERIFICATION
+                          {copiedUpi ? 'COPIED!' : 'COPY'}
                         </button>
-                      ) : (
-                        <div className="p-2.5 bg-[#142417] border border-[#25522b] rounded-xs font-silkscreen text-[9.5px] text-[#86efac] flex items-center justify-center gap-1.5 mt-3">
-                          <CheckCircle2 size={13} className="text-[#4ade80]" />
-                          <span>
-                            {activeLeadTeam.paymentStatus === 'payment_verified'
-                              ? 'PAYMENT VERIFIED BY ADMIN — REGISTRATION CONFIRMED'
-                              : 'PAYMENT SUBMITTED — VERIFICATION PENDING BY ADMIN'}
-                          </span>
-                        </div>
-                      )}
-                    </form>
+                      </div>
+                      <div className="font-mono text-[9px] text-[#a7d38a] space-y-0.5 pt-0.5">
+                        <p>EXTERNAL ENTRY FEE: <span className="font-bold text-[#f4c151]">₹{feeAmount} INR</span></p>
+                        <p className="text-[8.5px] text-[#8f9396]">REMARK: <span className="text-white font-bold">{upiRemark}</span></p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="pt-2 border-t border-[#2b2e30] flex items-center justify-between text-[9px] font-silkscreen text-[#7d8285]">
-                    <span>PAYMENT ENCRYPTED BY UPI GATEWAY</span>
-                    <span className="text-[#f4c151]">₹50 ENTRY FEE</span>
+                  {/* Right: Payment Reference ID / UTR Form */}
+                  <div className="md:col-span-7 p-3.5 bg-[#141618] border-2 border-[#2b2e30] rounded-md flex flex-col justify-between space-y-3">
+                    <div>
+                      <span className="font-pixel text-[11px] text-[#6fb3d9] block border-b border-[#2b2e30] pb-1.5 mb-2.5">
+                        ENTER PHASE 2 PAYMENT TRANSACTION DETAILS
+                      </span>
+
+                      {feeMessage && (
+                        <div
+                          className={`p-2.5 rounded-xs border font-silkscreen text-[9.5px] flex items-center gap-1.5 mb-2.5 ${feeMessage.type === 'success'
+                            ? 'bg-[#142417] border-[#25522b] text-[#86efac]'
+                            : 'bg-[#261414] border-[#522525] text-[#fca5a5]'
+                            }`}
+                        >
+                          {feeMessage.type === 'success' ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
+                          <span>{feeMessage.text}</span>
+                        </div>
+                      )}
+
+                      <form onSubmit={handleFeePaymentSubmit} className="space-y-2.5">
+                        <div>
+                          <label className="block font-silkscreen text-[9.5px] text-[#8f9396] mb-1">
+                            12-Digit UPI UTR / Ref ID <span className="text-[#eb5147]">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={12}
+                            disabled={activeLeadTeam.paymentStatus !== 'unpaid'}
+                            placeholder="e.g. 423910582910"
+                            value={feeUtrId}
+                            onChange={(e) => setFeeUtrId(e.target.value.replace(/\D/g, ''))}
+                            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#00f0ff] font-mono text-sm px-2.5 py-1.5 rounded-xs focus:border-[#00f0ff] focus:outline-none disabled:opacity-75 disabled:cursor-not-allowed"
+                          />
+                          <span className="font-silkscreen text-[8.5px] text-[#7d8285] block mt-0.5">
+                            Enter the 12-digit UTR/Ref number from GPay, PhonePe, or Paytm receipt.
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="block font-silkscreen text-[9.5px] text-[#8f9396] mb-1">
+                            Payment Screenshot Proof (Max 1 MB) <span className="text-[#a7d38a]">*</span>
+                          </label>
+
+                          {/* Direct File Upload Button */}
+                          {activeLeadTeam.paymentStatus === 'unpaid' && (
+                            <label className="cursor-pointer font-pixel text-[9px] bg-[#1e2329] border border-[#3a4149] hover:border-[#a7d38a] text-[#a7d38a] py-2 px-3 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] w-full transition-all">
+                              <CloudUpload size={14} />
+                              {isUploadingPayment
+                                ? 'UPLOADING SCREENSHOT...'
+                                : feeProofUrl
+                                  ? 'CHANGE PAYMENT SCREENSHOT (MAX 1 MB)'
+                                  : 'SELECT & UPLOAD SCREENSHOT IMAGE (MAX 1 MB)'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handlePhase1ScreenshotUpload}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+
+                          {/* Screenshot Preview Card */}
+                          {feeProofUrl && (
+                            <div className="mt-2 p-2 bg-[#090b0d] border border-[#254225] rounded-xs space-y-1.5">
+                              <div className="flex items-center justify-between font-silkscreen text-[8px] text-[#a7d38a]">
+                                <span>📷 ATTACHED RECEIPT PREVIEW (MAX 1 MB VERIFIED):</span>
+                                {activeLeadTeam.paymentStatus === 'unpaid' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFeeProofUrl('');
+                                      setFeeProofFileName('');
+                                    }}
+                                    className="text-[#eb5147] hover:underline"
+                                  >
+                                    [Remove]
+                                  </button>
+                                )}
+                              </div>
+                              <div className="border border-[#2b2e30] rounded-xs overflow-hidden h-28 bg-black">
+                                <img src={feeProofUrl} alt="Payment Screenshot" className="w-full h-full object-contain" />
+                              </div>
+                              {feeProofFileName && (
+                                <span className="font-mono text-[8px] text-[#8f9396] block truncate">
+                                  File: {feeProofFileName}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {activeLeadTeam.paymentStatus === 'unpaid' ? (
+                          <button
+                            type="submit"
+                            disabled={isSubmittingFee}
+                            className="w-full bg-[#182418] border-2 border-[#254225] hover:border-[#a7d38a] font-pixel text-[11px] text-[#a7d38a] uppercase py-2.5 px-3 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer mt-3"
+                          >
+                            <CheckCircle2 size={13} /> SUBMIT ₹200 PAYMENT FOR ADMIN VERIFICATION
+                          </button>
+                        ) : (
+                          <div className="p-2.5 bg-[#142417] border border-[#25522b] rounded-xs font-silkscreen text-[9.5px] text-[#86efac] flex items-center justify-center gap-1.5 mt-3">
+                            <CheckCircle2 size={13} className="text-[#4ade80]" />
+                            <span>
+                              {activeLeadTeam.paymentStatus === 'payment_verified'
+                                ? 'PAYMENT VERIFIED BY ADMIN — REGISTRATION CONFIRMED'
+                                : 'PAYMENT SUBMITTED — VERIFICATION PENDING BY ADMIN'}
+                            </span>
+                          </div>
+                        )}
+                      </form>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#2b2e30] flex items-center justify-between text-[9px] font-silkscreen text-[#7d8285]">
+                      <span>PAYMENT ENCRYPTED BY UPI GATEWAY</span>
+                      <span className="text-[#f4c151]">₹200 ENTRY FEE</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1988,18 +2306,16 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               }}
               className="font-pixel text-[10.5px] bg-[#181b1e] border border-[#2b2e30] text-[#8f9396] hover:text-white px-3.5 py-2 rounded-xs flex items-center gap-1 cursor-pointer"
             >
-              <ArrowLeft size={13} /> BACK TO TRACK PREFERENCES
+              <ArrowLeft size={13} /> BACK TO TRACK SELECTION
             </button>
 
-            {activeLeadTeam.paymentStatus === 'payment_verified' && (
-              <button
-                type="button"
-                onClick={() => handleProceedToNextTab('submission')}
-                className="w-full sm:w-auto font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#00f0ff] text-[#00f0ff] px-4 py-2 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer hover:bg-[#25354a]"
-              >
-                NEXT: PHASE 1 - DELIVERABLES <ArrowRight size={13} />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => handleProceedToNextTab('phase2_status')}
+              className="w-full sm:w-auto font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#f4c151] text-[#f4c151] px-4 py-2 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer hover:bg-[#25354a]"
+            >
+              NEXT: PHASE 2 SELECTION &amp; PASS TICKET <ArrowRight size={13} />
+            </button>
           </div>
         </div>
       )}
@@ -2263,7 +2579,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                 <>
                   {/* Step 2: Payment Submitted & Verification Pending */}
                   {activeLeadTeam.phase2PaymentStatus === 'payment_pending' &&
-                   (activeLeadTeam.phase2PaymentTransactionId || activeLeadTeam.phase2PaymentScreenshotUrl) ? (
+                    (activeLeadTeam.phase2PaymentTransactionId || activeLeadTeam.phase2PaymentScreenshotUrl) ? (
                     <div className="p-4 bg-[#141618] border-2 border-[#544622] rounded-md space-y-3">
                       <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
                         <span className="font-pixel text-[10px] text-[#f4c151] flex items-center gap-1.5">
@@ -2275,7 +2591,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                       </div>
 
                       <div className="p-3 bg-[#090b0d] border border-[#2b2e30] rounded-xs font-silkscreen text-[9px] text-[#cfe8ff] space-y-1.5">
-                        <p>Your Phase 2 offline entry fee payment details (₹500) have been submitted to Cognitia Admin for verification.</p>
+                        <p>Your Phase 2 offline entry fee payment details (₹200) have been submitted to Cognitia Admin for verification.</p>
                         {activeLeadTeam.phase2PaymentTransactionId && (
                           <p className="font-mono text-[10px] text-[#f4c151]">
                             SUBMITTED UTR / TRANS ID: <span className="font-bold text-white">{activeLeadTeam.phase2PaymentTransactionId}</span>
@@ -2319,7 +2635,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                             <p className="text-[#cfe8ff] font-pixel text-[8px]">PAYMENT INSTRUCTIONS:</p>
                             <p>1. Open Google Pay, PhonePe, Paytm, or BHIM.</p>
                             <p>2. Scan the dynamic QR code above. Amount &amp; Remark will be auto-filled.</p>
-                            <p>3. Complete ₹500 payment and copy the Transaction / UTR ID.</p>
+                            <p>3. Complete ₹200 payment and copy the Transaction / UTR ID.</p>
                             <p>4. Enter Transaction ID &amp; upload receipt screenshot below.</p>
                           </div>
 
@@ -2545,7 +2861,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               </div>
 
               <p className="font-silkscreen text-[9px] text-[#d1d5db]">
-                Congratulations! Your Phase 2 offline entry fee payment (₹500) has been verified by the Cognitia Admin team. Your official Offline Pass Ticket is generated below.
+                Congratulations! Your Phase 2 offline entry fee payment (₹200) has been verified by the Cognitia Admin team. Your official Offline Pass Ticket is generated below.
               </p>
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -2660,25 +2976,71 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   </div>
                 </div>
 
-                {/* Full Team Roster & Member Details */}
-                <div className="border-t border-[#2b2e30] pt-2 space-y-1">
-                  <span className="font-silkscreen text-[7.5px] text-[#a7d38a] uppercase block">
-                    ADMITTED PARTICIPANTS ROSTER ({activeLeadTeam.members.length}):
+                {/* Individual Member Pass Badges & Unique Gate QRs */}
+                <div className="border-t border-[#2b2e30] pt-3 space-y-2">
+                  <span className="font-silkscreen text-[8.5px] text-[#a7d38a] uppercase block tracking-wider">
+                    INDIVIDUAL MEMBER PASS BADGES &amp; UNIQUE GATE SCAN QR CODES ({activeLeadTeam.members.length}):
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-silkscreen text-[7.5px]">
-                    {activeLeadTeam.members.map((m, idx) => (
-                      <div key={m.id || idx} className="bg-[#090b0d] border border-[#2b2e30] p-1.5 rounded-xs text-[#cfe8ff]">
-                        <div className="flex items-center justify-between font-bold">
-                          <span>{m.name} {m.isLead ? '(LEAD)' : ''}</span>
-                          <span className="text-[#8f9396] font-normal">{m.role || 'Member'}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {activeLeadTeam.members.map((m, idx) => {
+                      const memberPassId = m.memberPassId || `COG26-M${String(activeLeadTeam.id).slice(-3)}-${idx + 1}`;
+                      const qrContent = `COGNITIA-2026-PASS-MEMBER:${memberPassId}:${activeLeadTeam.id}:${m.name}:${m.enrollmentNo || 'N/A'}`;
+                      const memberQrUrl = m.memberQrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrContent)}`;
+
+                      return (
+                        <div key={m.id || idx} className="bg-[#0e1215] border-2 border-[#2b4466] p-3 rounded-xs text-[#cfe8ff] space-y-2 relative overflow-hidden">
+                          <div className="flex items-center justify-between border-b border-[#2b2e30] pb-1.5">
+                            <span className="font-pixel text-[9.5px] text-[#f4c151] flex items-center gap-1">
+                              {m.isLead ? '👑 TEAM LEAD PASS' : `👤 MEMBER PASS #${idx + 1}`}
+                            </span>
+                            <span className="font-mono text-[8.5px] text-[#4ade80] bg-[#142417] px-2 py-0.5 border border-[#25522b] rounded-xs font-bold">
+                              {memberPassId}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="space-y-1 font-silkscreen text-[8px] grow">
+                              <p className="font-bold text-white text-[10.5px]">{m.name}</p>
+                              <p className="text-[#8f9396]">{m.role || 'Participant'}</p>
+                              {m.enrollmentNo && (
+                                <p className="text-[#86efac] font-mono font-bold">
+                                  ENROLLMENT: {m.enrollmentNo}
+                                </p>
+                              )}
+                              <p className="text-[#6fb3d9]">{m.email}</p>
+                              {m.checkInStatus === 'checked_in' ? (
+                                <span className="inline-flex items-center gap-1 bg-[#182418] text-[#a7d38a] border border-[#254225] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
+                                  <CheckCircle2 size={9} /> GATE CHECKED IN ({m.checkInTimestamp || 'OK'})
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 bg-[#1c1f24] text-[#8f9396] border border-[#2b2e30] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
+                                  ⚪ NOT CHECKED IN
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Member Unique Gate QR */}
+                            <div
+                              className="bg-black p-1 rounded-xs border border-[#4ade80] flex flex-col items-center shrink-0 cursor-pointer group"
+                              onClick={() => {
+                                sound.playBlip(500);
+                                setPreviewImageModal({
+                                  url: memberQrUrl,
+                                  title: `Official Pass QR - ${m.name} (${memberPassId})`,
+                                });
+                              }}
+                            >
+                              <img
+                                src={memberQrUrl}
+                                alt={`${m.name} Pass QR`}
+                                className="w-16 h-16 bg-white p-0.5 rounded-xs object-contain group-hover:scale-105 transition-transform"
+                              />
+                              <span className="font-mono text-[6px] text-[#4ade80] mt-0.5">CLICK ZOOM</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-[7px] text-[#8f9396] font-mono mt-0.5 flex flex-wrap gap-x-2">
-                          {m.email && <span>{m.email}</span>}
-                          {m.phone && <span>{m.phone}</span>}
-                          {m.githubId && <span className="text-[#6fb3d9]">@{m.githubId}</span>}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -2696,7 +3058,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
               <div className="p-3 bg-[#141618] border border-[#2b2e30] rounded-xs space-y-2 font-silkscreen text-[9px]">
                 <p className="text-[#d1d5db]">
-                  Your Phase 2 entry fee payment details (₹500) have been received and logged for admin verification.
+                  Your Phase 2 entry fee payment details (₹200) have been received and logged for admin verification.
                 </p>
                 {(activeLeadTeam.phase2PaymentTransactionId || paymentTxId) && (
                   <p className="text-[#f4c151] font-mono text-[10px]">
@@ -2735,7 +3097,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               <Ticket size={32} className="text-[#b180ff] mx-auto animate-pulse" />
               <h4 className="font-pixel text-[12px] text-[#f4c151]">NO PHASE 2 PAYMENT SUBMITTED YET</h4>
               <p className="font-silkscreen text-[9.5px] text-[#8f9396] max-w-md mx-auto">
-                You have not submitted your Phase 2 offline entry fee payment details (₹500) yet. Please navigate to the Phase 2 tab to complete your payment and submit your UTR ID &amp; receipt screenshot.
+                You have not submitted your Phase 2 offline entry fee payment details (₹200) yet. Please navigate to the Phase 2 tab to complete your payment and submit your UTR ID &amp; receipt screenshot.
               </p>
               <button
                 type="button"
@@ -2755,6 +3117,56 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         <span>ALL TEAM DATA SYNCED TO CLOUD</span>
         <span className="text-[#a7d38a]">COGNITIA 2026</span>
       </div>
+
+      {/* LIGHTBOX FULL RESOLUTION IMAGE INSPECTOR */}
+      {previewImageModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={() => setPreviewImageModal(null)}
+          >
+            <div
+              className="relative max-w-4xl max-h-[90vh] w-full bg-[#0a0c0e] border-2 border-[#f4c151] rounded-md p-3 sm:p-4 flex flex-col space-y-2 shadow-[0_0_40px_rgba(0,0,0,0.9)] cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
+                <span className="font-pixel text-[11px] text-[#f4c151] flex items-center gap-1.5 truncate pr-2">
+                  <Eye size={14} className="shrink-0" /> {previewImageModal.title || 'FULL RESOLUTION IMAGE INSPECTOR'}
+                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={previewImageModal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-silkscreen text-[8.5px] bg-[#1e2329] text-[#00f0ff] border border-[#3a4149] hover:border-[#00f0ff] px-2.5 py-1 rounded-xs flex items-center gap-1"
+                  >
+                    <ExternalLink size={11} /> OPEN ORIGINAL
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImageModal(null)}
+                    className="text-[#8f9396] hover:text-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-auto max-h-[76vh] flex justify-center items-center bg-black/80 rounded-xs p-2">
+                <img
+                  src={previewImageModal.url}
+                  alt={previewImageModal.title || 'Preview'}
+                  className="max-w-full max-h-[72vh] object-contain rounded-xs border border-[#2b2e30]"
+                />
+              </div>
+
+              <div className="font-silkscreen text-[8px] text-[#8f9396] text-center pt-1">
+                Click anywhere outside or press CLOSE to exit image inspector.
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

@@ -1,4 +1,18 @@
 import {
+  collection,
+  doc,
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  getDocs,
+} from 'firebase/firestore';
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from 'firebase/storage';
+import { db, storage } from '../config/firebase';
+import {
   TeamRegistration,
   ProjectSubmission,
   TeamMember,
@@ -10,16 +24,20 @@ import {
 const STORAGE_KEY_TEAMS = 'cognitia_firebase_teams_v1';
 const STORAGE_KEY_AUTH = 'cognitia_lead_session_v1';
 
+type TeamsChangeListener = (teams: TeamRegistration[]) => void;
+
 class FirebaseService {
   private teams: TeamRegistration[] = [];
+  private listeners: TeamsChangeListener[] = [];
+  private isFirestoreConnected: boolean = false;
 
   constructor() {
     this.loadFromStorage();
+    this.initFirestoreSync();
   }
 
   private loadFromStorage() {
     try {
-      // Import/Migrate legacy AWS keys if present, then purge them
       const legacyAwsTeams = localStorage.getItem('cognitia_aws_teams_v2');
       const stored = localStorage.getItem(STORAGE_KEY_TEAMS);
 
@@ -38,10 +56,8 @@ class FirebaseService {
         this.teams = [];
       }
 
-      // Purge legacy storage keys
       localStorage.removeItem('cognitia_aws_teams_v1');
       localStorage.removeItem('cognitia_aws_teams_v2');
-      localStorage.removeItem('cognitia_lead_session_v1');
     } catch {
       this.teams = [];
     }
@@ -51,27 +67,123 @@ class FirebaseService {
     try {
       localStorage.setItem(STORAGE_KEY_TEAMS, JSON.stringify(this.teams));
     } catch (e) {
-      console.warn('Failed to save to local storage', e);
+      console.warn('[FirebaseService] Failed to save to local storage', e);
     }
   }
 
-  // Google Cloud Storage / Firebase Storage Upload Layer
+  private notifyListeners() {
+    this.listeners.forEach((listener) => {
+      try {
+        listener([...this.teams]);
+      } catch (err) {
+        console.error('[FirebaseService] Listener error:', err);
+      }
+    });
+  }
+
+  public subscribeToTeamsChange(listener: TeamsChangeListener): () => void {
+    this.listeners.push(listener);
+    listener([...this.teams]);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
+  private initFirestoreSync() {
+    if (!db) {
+      console.warn('[FirebaseService] Firestore DB instance not initialized');
+      return;
+    }
+
+    try {
+      const teamsRef = collection(db, 'teams');
+      onSnapshot(
+        teamsRef,
+        (snapshot) => {
+          this.isFirestoreConnected = true;
+          const remoteTeams: TeamRegistration[] = [];
+          snapshot.forEach((docSnap) => {
+            if (docSnap.exists()) {
+              remoteTeams.push(docSnap.data() as TeamRegistration);
+            }
+          });
+
+          // Sort by registeredAt descending
+          remoteTeams.sort((a, b) => {
+            const timeA = new Date(a.registeredAt || 0).getTime();
+            const timeB = new Date(b.registeredAt || 0).getTime();
+            return timeB - timeA;
+          });
+
+          if (remoteTeams.length > 0) {
+            this.teams = remoteTeams;
+            this.saveToStorage();
+            this.notifyListeners();
+          }
+        },
+        (error) => {
+          console.warn('[FirebaseService] Firestore real-time listener notice:', error.message);
+        }
+      );
+    } catch (err) {
+      console.warn('[FirebaseService] Error setting up Firestore listener:', err);
+    }
+  }
+
+  // Google Cloud Storage (GCS) / Firebase Storage Upload Layer
   public async uploadFileToGCS(
     file: File,
-    folder: 'ppts' | 'screenshots' | 'payments'
+    folder: 'ppts' | 'screenshots' | 'payments' | 'iemcrp'
   ): Promise<{ url: string; fileName: string }> {
-    return new Promise((resolve, reject) => {
-      const MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB limit
-      if (folder === 'payments' && file.size > MAX_FILE_SIZE_BYTES) {
-        reject(new Error(`FILE_TOO_LARGE: Image size ${(file.size / (1024 * 1024)).toFixed(2)} MB exceeds 1 MB limit.`));
-        return;
+    const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      throw new Error(`FILE_TOO_LARGE: File size ${(file.size / (1024 * 1024)).toFixed(2)} MB exceeds 10 MB limit.`);
+    }
+
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storagePath = `submissions/${folder}/${Date.now()}_${sanitizedName}`;
+
+    // Option 1: Direct Google Cloud Storage (GCS) Signed URL Endpoint if provided
+    const gcsApiUrl = import.meta.env.VITE_GCS_UPLOAD_API_URL;
+    if (gcsApiUrl) {
+      try {
+        const res = await fetch(gcsApiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: file.name, path: storagePath, contentType: file.type }),
+        });
+        if (res.ok) {
+          const { uploadUrl, publicUrl } = await res.json();
+          const putRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type },
+            body: file,
+          });
+          if (putRes.ok) {
+            console.log(`[Google Cloud Storage Upload] Direct GCS Success: ${publicUrl}`);
+            return { url: publicUrl || uploadUrl.split('?')[0], fileName: file.name };
+          }
+        }
+      } catch (gcsErr) {
+        console.warn('[GCS Signed Upload] Signed URL upload failed, attempting Firebase GCS SDK:', gcsErr);
       }
+    }
 
-      const bucket = (import.meta as any).env?.VITE_FIREBASE_STORAGE_BUCKET || 'cognitia-2026.appspot.com';
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const gcsPath = `submissions/${folder}/${Date.now()}_${sanitizedName}`;
-      console.log(`[Google Cloud Storage Upload] Target bucket: gs://${bucket}/${gcsPath}`);
+    // Option 2: Firebase Storage / Google Cloud Storage SDK
+    if (storage) {
+      try {
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(storageRef);
+        console.log(`[Google Cloud Storage Upload] SDK Success: ${downloadUrl}`);
+        return { url: downloadUrl, fileName: file.name };
+      } catch (err) {
+        console.warn('[Google Cloud Storage Upload] SDK upload failed or unconfigured, using fallback encoder:', err);
+      }
+    }
 
+    // Fallback: Canvas compressed Data URL for images or FileReader Data URL for files
+    return new Promise((resolve, reject) => {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -80,8 +192,8 @@ class FirebaseService {
           img.onload = () => {
             try {
               const canvas = document.createElement('canvas');
-              const MAX_WIDTH = 800;
-              const MAX_HEIGHT = 800;
+              const MAX_WIDTH = 1024;
+              const MAX_HEIGHT = 1024;
               let width = img.width;
               let height = img.height;
 
@@ -102,7 +214,7 @@ class FirebaseService {
               const ctx = canvas.getContext('2d');
               if (ctx) {
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
                 resolve({ url: compressedDataUrl, fileName: file.name });
                 return;
               }
@@ -127,7 +239,7 @@ class FirebaseService {
     });
   }
 
-  // Alias for backward compatibility if needed
+  // Alias for backward compatibility
   public async uploadFileToFirebaseStorage(
     file: File,
     folder: 'ppts' | 'screenshots' | 'payments'
@@ -135,7 +247,7 @@ class FirebaseService {
     return this.uploadFileToGCS(file, folder);
   }
 
-  // Check if an email address is already registered across any team or team member
+  // Check if an email address is already registered
   public isEmailRegistered(email: string, excludeTeamId?: string): boolean {
     const normalized = email.trim().toLowerCase();
     if (!normalized) return false;
@@ -149,7 +261,7 @@ class FirebaseService {
     return false;
   }
 
-  // Check if a GitHub handle is already registered across any team or team member
+  // Check if a GitHub handle is already registered
   public isGitHubRegistered(githubId: string, excludeTeamId?: string): boolean {
     const normalized = githubId.trim().replace(/^@/, '').toLowerCase();
     if (!normalized) return false;
@@ -162,6 +274,45 @@ class FirebaseService {
     return false;
   }
 
+  // Helper method to sanitize team document for Phase 2 database & storage cleanliness
+  private sanitizeTeamForPhase2(team: TeamRegistration): TeamRegistration {
+    const cleanTeam: TeamRegistration = { ...team };
+    // Remove obsolete Phase 1 submission & payment legacy fields
+    delete cleanTeam.submission;
+    if (cleanTeam.phase2PaymentStatus || cleanTeam.phase2PaymentScreenshotUrl || cleanTeam.phase2PaymentTransactionId) {
+      delete cleanTeam.paymentScreenshotUrl;
+      delete cleanTeam.paymentTransactionId;
+      delete cleanTeam.paymentSubmittedAt;
+    }
+    return cleanTeam;
+  }
+
+  // Helper method to sync a team document to Firestore
+  private async syncTeamToFirestore(team: TeamRegistration): Promise<void> {
+    if (!db) return;
+    try {
+      const cleanTeam = this.sanitizeTeamForPhase2(team);
+      const teamDocRef = doc(db, 'teams', team.id);
+      await setDoc(teamDocRef, cleanTeam, { merge: true });
+    } catch (err) {
+      console.warn(`[Firestore Sync] Failed to sync team ${team.id} to Firestore:`, err);
+    }
+  }
+
+  // Helper method to check if a team is an IEM/UEM all-student team (qualifying for ₹0 free registration)
+  public checkIsIemUemTeam(members: TeamMember[]): { isIemUemTeam: boolean; feeAmount: number } {
+    if (!members || members.length === 0) {
+      return { isIemUemTeam: false, feeAmount: 200 };
+    }
+    const allIemUem = members.every((m) =>
+      Boolean(m.isIemUemStudent && m.enrollmentNo && m.enrollmentNo.trim().length >= 4)
+    );
+    return {
+      isIemUemTeam: allIemUem,
+      feeAmount: allIemUem ? 0 : 200,
+    };
+  }
+
   // Team Lead Authentication & Registration
   public async registerTeamLead(data: {
     teamName: string;
@@ -170,6 +321,9 @@ class FirebaseService {
     passwordHash: string;
     leadGitHubId: string;
     leadName: string;
+    collegeName?: string;
+    isIemUemStudent?: boolean;
+    enrollmentNo?: string;
   }): Promise<{ success: boolean; team?: TeamRegistration; message?: string }> {
     const cleanEmail = data.leadEmail.trim().toLowerCase();
     const cleanGitHub = data.leadGitHubId.trim().replace(/^@/, '').toLowerCase();
@@ -188,6 +342,21 @@ class FirebaseService {
       };
     }
 
+    const leadMember: TeamMember = {
+      id: `mem-lead-${Date.now()}`,
+      name: data.leadName || 'Team Lead',
+      email: cleanEmail,
+      phone: data.leadPhone,
+      role: 'Team Lead',
+      githubId: cleanGitHub,
+      isLead: true,
+      collegeName: data.collegeName || (data.isIemUemStudent ? 'IEM / UEM' : ''),
+      isIemUemStudent: !!data.isIemUemStudent,
+      enrollmentNo: data.enrollmentNo?.trim() || '',
+    };
+
+    const feeInfo = this.checkIsIemUemTeam([leadMember]);
+
     const newTeam: TeamRegistration = {
       id: `team-${Date.now()}`,
       teamName: data.teamName,
@@ -197,43 +366,136 @@ class FirebaseService {
       isMembersLocked: false,
       registeredAt: new Date().toISOString(),
       phase2Status: 'pending',
+      paymentStatus: feeInfo.isIemUemTeam ? 'payment_verified' : 'unpaid',
+      phase2PaymentStatus: feeInfo.isIemUemTeam ? 'payment_verified' : 'unpaid',
+      isIemUemTeam: feeInfo.isIemUemTeam,
+      phase2FeeAmount: feeInfo.feeAmount,
+      attendanceStatus: 'not_checked_in',
+      members: [leadMember],
+    };
+
+    if (feeInfo.isIemUemTeam) {
+      const randomDigits = Math.floor(1000 + Math.random() * 9000);
+      newTeam.ticketPassId = `COGNITIA-2026-PASS-${randomDigits}`;
+      newTeam.ticketIssuedAt = new Date().toISOString();
+    }
+
+    this.teams.unshift(newTeam);
+    this.saveToStorage();
+    this.notifyListeners();
+    this.setLeadSession(newTeam.id);
+
+    // Sync doc to Firestore
+    await this.syncTeamToFirestore(newTeam);
+
+    return { success: true, team: newTeam };
+  }
+
+  // Admin Direct Team Credentials Insertion
+  public async adminCreateTeam(data: {
+    teamName: string;
+    leadName: string;
+    leadEmail: string;
+    leadPhone: string;
+    passwordHash: string;
+    customTeamId?: string;
+    leadGitHubId?: string;
+    members?: TeamMember[];
+    trackPreferences?: string[];
+  }): Promise<{ success: boolean; team?: TeamRegistration; message?: string }> {
+    const cleanEmail = data.leadEmail.trim().toLowerCase();
+
+    // Check if team lead already exists
+    const existingIndex = this.teams.findIndex((t) => t.leadEmail.toLowerCase() === cleanEmail);
+    if (existingIndex !== -1) {
+      const existing = this.teams[existingIndex];
+      existing.teamName = data.teamName;
+      existing.leadPhone = data.leadPhone;
+      existing.leadPasswordHash = data.passwordHash;
+
+      if (data.members && data.members.length > 0) {
+        existing.members = data.members;
+      }
+      if (data.trackPreferences) {
+        existing.trackPreferences = data.trackPreferences;
+      }
+
+      const feeCheck = this.checkIsIemUemTeam(existing.members);
+      existing.isIemUemTeam = feeCheck.isIemUemTeam;
+      existing.phase2FeeAmount = feeCheck.feeAmount;
+
+      this.saveToStorage();
+      this.notifyListeners();
+      await this.syncTeamToFirestore(existing);
+
+      return { success: true, team: existing, message: 'Existing team updated with new credentials!' };
+    }
+
+    const leadMember: TeamMember = data.members && data.members.length > 0 ? data.members[0] : {
+      id: `mem-lead-${Date.now()}`,
+      name: data.leadName || 'Team Lead',
+      email: cleanEmail,
+      phone: data.leadPhone,
+      role: 'Team Lead',
+      githubId: data.leadGitHubId || '',
+      isLead: true,
+      collegeName: 'IEM / UEM',
+      isIemUemStudent: true,
+      enrollmentNo: '',
+    };
+
+    const teamMembers = data.members && data.members.length > 0 ? data.members : [leadMember];
+    const feeCheck = this.checkIsIemUemTeam(teamMembers);
+
+    const teamId = data.customTeamId && data.customTeamId.trim()
+      ? data.customTeamId.trim()
+      : `COG26-T${Math.floor(100 + Math.random() * 900)}`;
+
+    const newTeam: TeamRegistration = {
+      id: teamId,
+      teamName: data.teamName,
+      leadEmail: cleanEmail,
+      leadPhone: data.leadPhone,
+      leadPasswordHash: data.passwordHash,
+      isMembersLocked: false,
+      registeredAt: new Date().toISOString(),
+      phase2Status: 'pending',
       paymentStatus: 'unpaid',
       phase2PaymentStatus: 'unpaid',
+      isIemUemTeam: feeCheck.isIemUemTeam,
+      phase2FeeAmount: feeCheck.feeAmount,
       attendanceStatus: 'not_checked_in',
-      members: [
-        {
-          id: `mem-lead-${Date.now()}`,
-          name: data.leadName || 'Team Lead',
-          email: cleanEmail,
-          phone: data.leadPhone,
-          role: 'Team Lead',
-          githubId: cleanGitHub,
-          isLead: true,
-        },
-      ],
+      members: teamMembers,
+      trackPreferences: data.trackPreferences || ['', '', '', '', ''],
     };
 
     this.teams.unshift(newTeam);
     this.saveToStorage();
-    this.setLeadSession(newTeam.id);
+    this.notifyListeners();
+    await this.syncTeamToFirestore(newTeam);
 
     return { success: true, team: newTeam };
   }
 
   public async loginTeamLead(
-    email: string,
+    identifier: string,
     passwordHash: string
   ): Promise<{ success: boolean; team?: TeamRegistration; message?: string }> {
+    const cleanQuery = identifier.trim().toLowerCase();
+
     const team = this.teams.find(
-      (t) => t.leadEmail.toLowerCase() === email.trim().toLowerCase()
+      (t) =>
+        t.id.toLowerCase() === cleanQuery ||
+        t.leadEmail.toLowerCase() === cleanQuery ||
+        (t.ticketPassId && t.ticketPassId.toLowerCase() === cleanQuery)
     );
 
     if (!team) {
-      return { success: false, message: 'No registered team found with this email address.' };
+      return { success: false, message: `No registered team found with Team ID (TID) '${identifier.trim()}'.` };
     }
 
-    if (team.leadPasswordHash && team.leadPasswordHash !== passwordHash) {
-      return { success: false, message: 'Invalid password. Please check your credentials.' };
+    if (team.leadPasswordHash && team.leadPasswordHash !== passwordHash.trim()) {
+      return { success: false, message: 'Incorrect password. Please verify team credentials.' };
     }
 
     this.setLeadSession(team.id);
@@ -285,12 +547,28 @@ class FirebaseService {
       }
     }
 
+    const feeInfo = this.checkIsIemUemTeam(members);
+
     this.teams[index].teamName = teamName;
     this.teams[index].members = members;
+    this.teams[index].isIemUemTeam = feeInfo.isIemUemTeam;
+    this.teams[index].phase2FeeAmount = feeInfo.feeAmount;
+
+    if (feeInfo.isIemUemTeam && !this.teams[index].ticketPassId) {
+      const randomDigits = Math.floor(1000 + Math.random() * 9000);
+      this.teams[index].ticketPassId = `COGNITIA-2026-PASS-${randomDigits}`;
+      this.teams[index].ticketIssuedAt = new Date().toISOString();
+      this.teams[index].paymentStatus = 'payment_verified';
+      this.teams[index].phase2PaymentStatus = 'payment_verified';
+    }
+
     if (isMembersLocked !== undefined) {
       this.teams[index].isMembersLocked = isMembersLocked;
     }
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(this.teams[index]);
 
     return { success: true, team: this.teams[index] };
   }
@@ -316,6 +594,9 @@ class FirebaseService {
     team.isTrackLocked = true;
     team.trackLockedAt = new Date().toISOString();
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
 
     return { success: true, team };
   }
@@ -339,6 +620,9 @@ class FirebaseService {
 
     team.submission = submission;
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
 
     return { success: true, submission, team };
   }
@@ -353,6 +637,9 @@ class FirebaseService {
 
     team.phase2Status = status;
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
     return { success: true, team };
   }
 
@@ -362,6 +649,9 @@ class FirebaseService {
 
     team.rsvpConfirmed = true;
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
     return { success: true, team };
   }
 
@@ -378,6 +668,9 @@ class FirebaseService {
     team.paymentTransactionId = transactionId || team.paymentTransactionId;
     team.paymentSubmittedAt = new Date().toISOString();
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
 
     return { success: true, team };
   }
@@ -395,6 +688,9 @@ class FirebaseService {
     team.phase2PaymentTransactionId = transactionId || team.phase2PaymentTransactionId;
     team.phase2PaymentSubmittedAt = new Date().toISOString();
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
 
     return { success: true, team };
   }
@@ -408,6 +704,9 @@ class FirebaseService {
 
     team.paymentStatus = status;
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
 
     return { success: true, team };
   }
@@ -430,6 +729,9 @@ class FirebaseService {
     }
 
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
 
     return { success: true, team, ticketId };
   }
@@ -448,36 +750,132 @@ class FirebaseService {
     team.ticketPassId = ticketId;
     team.ticketIssuedAt = new Date().toISOString();
     this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
 
     return { success: true, team, ticketId };
+  }
+
+  public async submitIemcrpVerifications(
+    teamId: string,
+    updatedMembers: TeamMember[]
+  ): Promise<{ success: boolean; team?: TeamRegistration; ticketId?: string }> {
+    const team = this.teams.find((t) => t.id === teamId);
+    if (!team) return { success: false };
+
+    team.members = updatedMembers;
+    team.isIemUemTeam = true;
+    team.phase2FeeAmount = 0;
+    team.iemcrpScreenshotsSubmitted = true;
+    team.iemcrpScreenshotsSubmittedAt = new Date().toISOString();
+
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const ticketId = team.ticketPassId || `COGNITIA-2026-PASS-${randomDigits}`;
+
+    team.paymentStatus = 'payment_verified';
+    team.phase2PaymentStatus = 'payment_verified';
+    team.ticketPassId = ticketId;
+    team.ticketIssuedAt = new Date().toISOString();
+
+    this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
+
+    return { success: true, team, ticketId };
+  }
+
+  public ensureMemberPassIds(team: TeamRegistration): TeamRegistration {
+    let teamUpdated = false;
+    const teamNum = String(team.id || '').replace(/^team-/, '');
+
+    if (!team.members) team.members = [];
+
+    team.members = team.members.map((m, idx) => {
+      let memberPassId = m.memberPassId;
+      if (!memberPassId) {
+        teamUpdated = true;
+        const randDigits = Math.floor(1000 + Math.random() * 9000);
+        memberPassId = `COG26-M${teamNum.slice(-3)}-${idx + 1}${randDigits}`;
+      }
+
+      const qrContent = `COGNITIA-2026-PASS-MEMBER:${memberPassId}:${team.id}:${m.name}:${m.enrollmentNo || 'N/A'}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrContent)}`;
+
+      return {
+        ...m,
+        memberPassId,
+        memberQrCodeUrl: qrUrl,
+        checkInStatus: m.checkInStatus || 'not_checked_in',
+      };
+    });
+
+    if (teamUpdated) {
+      this.saveToStorage();
+    }
+    return team;
   }
 
   public async markAttendance(
     query: string,
     status: AttendanceStatus
-  ): Promise<{ success: boolean; team?: TeamRegistration; message?: string }> {
+  ): Promise<{ success: boolean; team?: TeamRegistration; matchedMember?: TeamMember; message?: string }> {
     const clean = query.trim().toLowerCase();
-    if (!clean) return { success: false, message: 'Please enter a valid Pass Ticket ID or Team ID.' };
+    if (!clean) return { success: false, message: 'Please enter a valid Pass Ticket ID, Member Pass ID, or Team ID.' };
 
-    const team = this.teams.find(
-      (t) =>
-        t.id.toLowerCase() === clean ||
-        (t.ticketPassId && t.ticketPassId.toLowerCase() === clean)
-    );
+    let matchedMember: TeamMember | undefined = undefined;
+
+    const team = this.teams.find((t) => {
+      this.ensureMemberPassIds(t);
+      if (t.id.toLowerCase() === clean || (t.ticketPassId && t.ticketPassId.toLowerCase() === clean)) {
+        return true;
+      }
+      const foundMem = t.members.find(
+        (m) =>
+          m.id.toLowerCase() === clean ||
+          (m.memberPassId && m.memberPassId.toLowerCase() === clean) ||
+          (m.enrollmentNo && m.enrollmentNo.toLowerCase() === clean)
+      );
+      if (foundMem) {
+        matchedMember = foundMem;
+        return true;
+      }
+      return false;
+    });
 
     if (!team) {
-      return { success: false, message: `No registered team matching Ticket/ID '${query}' was found.` };
+      return { success: false, message: `No registered team or member matching '${query}' was found.` };
+    }
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (matchedMember) {
+      matchedMember.checkInStatus = status;
+      matchedMember.checkInTimestamp = status === 'checked_in' ? timestamp : undefined;
+    } else {
+      team.members.forEach((m) => {
+        m.checkInStatus = status;
+        m.checkInTimestamp = status === 'checked_in' ? timestamp : undefined;
+      });
     }
 
     team.attendanceStatus = status;
-    team.checkInTimestamp = status === 'checked_in' ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined;
-    this.saveToStorage();
+    team.checkInTimestamp = status === 'checked_in' ? timestamp : undefined;
 
-    return { success: true, team };
+    this.saveToStorage();
+    this.notifyListeners();
+    await this.syncTeamToFirestore(team);
+
+    const msg = matchedMember
+      ? `Member '${matchedMember.name}' (${matchedMember.memberPassId || matchedMember.role}) marked ${status.toUpperCase()}!`
+      : `Team '${team.teamName}' (All ${team.members.length} members) marked ${status.toUpperCase()}!`;
+
+    return { success: true, team, matchedMember, message: msg };
   }
 
   public getAllRegistrations(): TeamRegistration[] {
-    return [...this.teams];
+    return this.teams.map((t) => this.ensureMemberPassIds(t));
   }
 
   public clearAllData(): void {
@@ -488,7 +886,9 @@ class FirebaseService {
     } catch {
       // Ignore storage errors
     }
+    this.notifyListeners();
   }
 }
 
 export const firebaseService = new FirebaseService();
+

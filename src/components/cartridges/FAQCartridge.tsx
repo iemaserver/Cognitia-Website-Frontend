@@ -47,8 +47,8 @@ const FAQ_ITEMS: FAQItem[] = [
     category: 'GENERAL',
     question: 'IS THERE ANY REGISTRATION OR CONFIRMATION FEE?',
     answer:
-      'Initial team registration requires a fee of ₹50 via our official Google Form. Selected teams are required to pay ₹250 to confirm their selection, and a cashback of ₹50 is provided to each selected team after payment (net ₹200).',
-    highlights: ['₹50 initial registration fee', '₹250 selection confirmation', '₹50 cashback provided'],
+      'Phase 2 offline round registration is completely FREE (₹0 Waiver) for verified IEM/UEM student teams. For external/mixed teams, the Phase 2 team entry fee is ₹200.',
+    highlights: ['₹0 Free Waiver for IEM/UEM teams', '₹200 Phase 2 fee for external teams'],
   },
   {
     id: 3,

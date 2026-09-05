@@ -205,11 +205,10 @@ export function MembersCartridge() {
                 sound.playBlip(600);
                 setActiveCategory(cat);
               }}
-              className={`px-2 py-0.5 rounded-sm border cursor-pointer transition-colors ${
-                activeCategory === cat
+              className={`px-2 py-0.5 rounded-sm border cursor-pointer transition-colors ${activeCategory === cat
                   ? 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444] font-bold'
                   : 'bg-[#0a0c0e]/50 text-[#8f9396] border-[#38bdf8]/20 hover:bg-[#38bdf8]/10'
-              }`}
+                }`}
             >
               {cat}
             </button>
@@ -293,7 +292,7 @@ export function MembersCartridge() {
           <Terminal className="h-3 w-3 text-[#ef4444]" />
           <span>MEMBERS.ROM · OFFICIAL TEAM DIRECTORY</span>
         </div>
-        <span className="text-[#38bdf8]">COGNITIA 2026 • IEM IT DEPARTMENT</span>
+        <span className="text-[#38bdf8]">COGNITIA 2026 • IEM IT & CSE DEPARTMENT</span>
       </div>
     </div>
   );

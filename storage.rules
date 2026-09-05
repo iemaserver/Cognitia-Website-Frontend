@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to validate image screenshot proof file types for Phase 2
+    function isPhase2AllowedImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // Helper function to enforce 10 MB file size limit
+    function isUnderMaxSize() {
+      return request.resource.size <= 10 * 1024 * 1024; // 10 MB limit
+    }
+
+    // Phase 2 Submissions: Payment Receipt Screenshots & IEMCRP Student Info Screenshots
+    match /submissions/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isPhase2AllowedImage() && isUnderMaxSize();
+      allow delete: if true;
+    }
+
+    // Phase 2 Team Specific Assets (Receipts, Member Pass QR Codes, Badges)
+    match /teams/{teamId}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isPhase2AllowedImage() && isUnderMaxSize();
+      allow delete: if true;
+    }
+
+    // Global Catch-All Rule: Allows admins to read, view, download & manage ALL files across the bucket
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
+

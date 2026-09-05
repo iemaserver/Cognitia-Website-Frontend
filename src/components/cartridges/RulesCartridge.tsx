@@ -52,7 +52,7 @@ const OFFICIAL_RULES: RuleCategory[] = [
       'Attendance may be monitored throughout the hackathon, including during overnight hours.',
       'Participants must remain within the designated hackathon venue during the event unless permission is granted by the organizers.',
       'Participants must follow proper dress attire including proper full trousers all throughout the hackathon.',
-      'Initial team registration requires a fee of ₹50. Selected teams are required to pay ₹250 to confirm their selection. A cashback of ₹50 will be provided to each selected team after payment.',
+      'Phase 2 registration fee is ₹200 for external/mixed teams, and ₹0 (Free Waiver) for verified IEM/UEM student teams.',
     ],
     enforcement: 'Inaccurate details, refusal of ID verification, or non-compliance with venue rules will invalidate team selection.',
   },
