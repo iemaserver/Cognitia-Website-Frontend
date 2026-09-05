@@ -19,10 +19,14 @@ import {
   Phase2SelectionStatus,
   Phase2PaymentStatus,
   AttendanceStatus,
+  MealType,
+  MemberMealCoupons,
+  MealSessionConfig,
 } from '../types';
 
 const STORAGE_KEY_TEAMS = 'cognitia_firebase_teams_v1';
 const STORAGE_KEY_AUTH = 'cognitia_lead_session_v1';
+const STORAGE_KEY_MEAL_SESSION = 'cognitia_meal_session_v1';
 
 type TeamsChangeListener = (teams: TeamRegistration[]) => void;
 
@@ -30,10 +34,89 @@ class FirebaseService {
   private teams: TeamRegistration[] = [];
   private listeners: TeamsChangeListener[] = [];
   private isFirestoreConnected: boolean = false;
+  private activeMealSession: MealType | 'none' = 'none';
+  private mealSessionListeners: ((session: MealType | 'none') => void)[] = [];
 
   constructor() {
     this.loadFromStorage();
     this.initFirestoreSync();
+    this.initMealSessionSync();
+  }
+
+  private initMealSessionSync() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_MEAL_SESSION);
+      if (stored && ['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch', 'none'].includes(stored)) {
+        this.activeMealSession = stored as MealType | 'none';
+      }
+    } catch {
+      // Ignore
+    }
+
+    if (!db) return;
+
+    try {
+      const docRef = doc(db, 'system_config', 'meal_session');
+      onSnapshot(docRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data && data.activeMealSession) {
+            this.activeMealSession = data.activeMealSession as MealType | 'none';
+            try {
+              localStorage.setItem(STORAGE_KEY_MEAL_SESSION, this.activeMealSession);
+            } catch {
+              // Ignore
+            }
+            this.notifyMealSessionListeners();
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('[FirebaseService] Meal session sync error:', e);
+    }
+  }
+
+  private notifyMealSessionListeners() {
+    this.mealSessionListeners.forEach((l) => {
+      try {
+        l(this.activeMealSession);
+      } catch (err) {
+        console.error('[FirebaseService] Meal session listener error:', err);
+      }
+    });
+  }
+
+  public subscribeToMealSession(listener: (session: MealType | 'none') => void): () => void {
+    this.mealSessionListeners.push(listener);
+    listener(this.activeMealSession);
+    return () => {
+      this.mealSessionListeners = this.mealSessionListeners.filter((l) => l !== listener);
+    };
+  }
+
+  public getActiveMealSession(): MealType | 'none' {
+    return this.activeMealSession;
+  }
+
+  public async setActiveMealSession(meal: MealType | 'none'): Promise<{ success: boolean; activeMealSession: MealType | 'none' }> {
+    this.activeMealSession = meal;
+    try {
+      localStorage.setItem(STORAGE_KEY_MEAL_SESSION, meal);
+    } catch {
+      // Ignore
+    }
+    this.notifyMealSessionListeners();
+
+    if (db) {
+      try {
+        const docRef = doc(db, 'system_config', 'meal_session');
+        await setDoc(docRef, { activeMealSession: meal, updatedAt: new Date().toISOString() }, { merge: true });
+      } catch (e) {
+        console.warn('[FirebaseService] Failed to sync meal session to Firestore:', e);
+      }
+    }
+
+    return { success: true, activeMealSession: meal };
   }
 
   private loadFromStorage() {
@@ -880,6 +963,86 @@ class FirebaseService {
       : `Team '${team.teamName}' (All ${team.members.length} members) marked ${status.toUpperCase()}!`;
 
     return { success: true, team, matchedMember, message: msg };
+  }
+
+  public async markMealRedeemed(
+    query: string,
+    mealType: MealType
+  ): Promise<{ success: boolean; team?: TeamRegistration; matchedMember?: TeamMember; message?: string }> {
+    const clean = query.trim().toLowerCase();
+    if (!clean) return { success: false, message: 'Invalid food coupon QR code or pass ID.' };
+
+    let matchedMember: TeamMember | undefined = undefined;
+
+    const team = this.teams.find((t) => {
+      this.ensureMemberPassIds(t);
+      if (t.id.toLowerCase() === clean || (t.ticketPassId && t.ticketPassId.toLowerCase() === clean)) {
+        return true;
+      }
+      const foundMem = t.members.find(
+        (m) =>
+          m.id.toLowerCase() === clean ||
+          (m.memberPassId && m.memberPassId.toLowerCase() === clean) ||
+          (m.enrollmentNo && m.enrollmentNo.toLowerCase() === clean)
+      );
+      if (foundMem) {
+        matchedMember = foundMem;
+        return true;
+      }
+      return false;
+    });
+
+    if (!team) {
+      return { success: false, message: `No participant or team matching pass '${query}' was found.` };
+    }
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
+
+    // Check if already redeemed
+    const currentCoupons = matchedMember ? matchedMember.meals || {} : team.meals || {};
+    if (currentCoupons[mealType]?.redeemed) {
+      const prevRedeemedAt = currentCoupons[mealType]?.redeemedAt || 'earlier';
+      return {
+        success: false,
+        team,
+        matchedMember,
+        message: `🛑 ALREADY SERVED! ${matchedMember ? matchedMember.name : team.teamName} has ALREADY redeemed ${mealType.replace('_', ' ').toUpperCase()} on ${prevRedeemedAt}.`,
+      };
+    }
+
+    // Mark redeemed
+    const redemptionRecord = {
+      redeemed: true,
+      redeemedAt: timestamp,
+      redeemedByAdmin: 'Cognitia Admin',
+    };
+
+    if (matchedMember) {
+      if (!matchedMember.meals) matchedMember.meals = {};
+      matchedMember.meals[mealType] = redemptionRecord;
+    } else {
+      if (!team.meals) team.meals = {};
+      team.meals[mealType] = redemptionRecord;
+    }
+
+    this.saveToStorage();
+    this.notifyListeners();
+    await this.syncTeamToFirestore(team);
+
+    const mealName =
+      mealType === 'day1_dinner'
+        ? 'Day 1 Dinner'
+        : mealType === 'day1_snacks'
+        ? 'Day 1 Late Night Snacks'
+        : mealType === 'day2_breakfast'
+        ? 'Day 2 Breakfast'
+        : 'Day 2 Lunch';
+
+    const successMsg = matchedMember
+      ? `✅ MEAL SERVED! ${mealName} marked REDEEMED for '${matchedMember.name}' (${team.teamName}) at ${timestamp}.`
+      : `✅ MEAL SERVED! ${mealName} marked REDEEMED for Team '${team.teamName}' at ${timestamp}.`;
+
+    return { success: true, team, matchedMember, message: successMsg };
   }
 
   public getAllRegistrations(): TeamRegistration[] {

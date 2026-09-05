@@ -43,7 +43,9 @@ import {
   ExternalLink,
   Eye,
   X,
+  Utensils,
 } from 'lucide-react';
+import { MealType } from '../../types';
 
 const AVAILABLE_TRACKS = [
   {
@@ -163,6 +165,14 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [isSubmittingFee, setIsSubmittingFee] = useState<boolean>(false);
   const [feeMessage, setFeeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
+  const [activeMealSession, setActiveMealSession] = useState<MealType | 'none'>('none');
+
+  useEffect(() => {
+    const unsubscribe = firebaseService.subscribeToMealSession((session) => {
+      setActiveMealSession(session);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (activeLeadTeam) {
@@ -3038,6 +3048,72 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                               <span className="font-mono text-[6px] text-[#4ade80] mt-0.5">CLICK ZOOM</span>
                             </div>
                           </div>
+
+                          {/* LIVE FOOD COUPON BOX FOR THIS MEMBER */}
+                          {activeMealSession !== 'none' && (
+                            <div className="mt-2 p-2 bg-[#141d18] border border-[#4ade80]/60 rounded-xs space-y-1.5">
+                              <div className="flex items-center justify-between border-b border-[#25522b] pb-1 font-silkscreen text-[8px]">
+                                <span className="text-[#4ade80] font-bold flex items-center gap-1">
+                                  <Utensils size={11} />
+                                  {activeMealSession === 'day1_dinner'
+                                    ? 'DAY 1 - DINNER COUPON'
+                                    : activeMealSession === 'day1_snacks'
+                                    ? 'DAY 1 - LATE NIGHT SNACKS'
+                                    : activeMealSession === 'day2_breakfast'
+                                    ? 'DAY 2 - BREAKFAST COUPON'
+                                    : 'DAY 2 - LUNCH COUPON'}
+                                </span>
+                                <span className="bg-[#1e4620] text-[#4ade80] px-1.5 py-0.5 rounded-xs border border-[#34783a] text-[7px] font-pixel">
+                                  MEAL ACTIVE
+                                </span>
+                              </div>
+
+                              {m.checkInStatus === 'checked_in' || activeLeadTeam.attendanceStatus === 'checked_in' ? (
+                                m.meals?.[activeMealSession]?.redeemed ? (
+                                  <div className="p-1.5 bg-[#182418] border border-[#25522b] rounded-xs text-center font-silkscreen text-[8px] text-[#4ade80] space-y-0.5">
+                                    <div className="flex items-center justify-center gap-1 font-bold">
+                                      <CheckCircle2 size={12} className="text-[#4ade80]" /> MEAL SERVED &amp; REDEEMED
+                                    </div>
+                                    <p className="text-[7px] text-[#86efac]">
+                                      Claimed on {m.meals[activeMealSession]?.redeemedAt || 'Today'}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-between gap-2 p-1.5 bg-[#0a0f0c] border border-[#25522b] rounded-xs">
+                                    <div className="space-y-0.5 font-silkscreen text-[7.5px] text-[#86efac]">
+                                      <p className="font-pixel text-[8px] text-[#4ade80]">SHOW QR AT CATERING DESK</p>
+                                      <p className="text-[7px] text-[#8f9396]">Scan for instant meal validation</p>
+                                    </div>
+                                    <div
+                                      className="bg-white p-1 rounded-xs border border-[#4ade80] shrink-0 cursor-pointer"
+                                      onClick={() => {
+                                        sound.playBlip(500);
+                                        const foodQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+                                          `COG26-FOOD:${activeMealSession}:${memberPassId}:${m.id}`
+                                        )}`;
+                                        setPreviewImageModal({
+                                          url: foodQrUrl,
+                                          title: `FOOD COUPON QR - ${m.name} (${activeMealSession.replace('_', ' ').toUpperCase()})`,
+                                        });
+                                      }}
+                                    >
+                                      <img
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                                          `COG26-FOOD:${activeMealSession}:${memberPassId}:${m.id}`
+                                        )}`}
+                                        alt="Meal Coupon QR"
+                                        className="w-14 h-14 object-contain"
+                                      />
+                                    </div>
+                                  </div>
+                                )
+                              ) : (
+                                <div className="p-1.5 bg-[#1f1a14] border border-[#453420] rounded-xs text-center font-silkscreen text-[7.5px] text-[#f4c151]">
+                                  🔒 COUPON LOCKED: Present ticket at venue gate to unlock.
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

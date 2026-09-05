@@ -79,6 +79,25 @@ export interface FAQItem {
   category: string;
 }
 
+export type Phase2SelectionStatus = 'pending' | 'selected' | 'waitlisted' | 'not_selected';
+export type Phase2PaymentStatus = 'unpaid' | 'payment_pending' | 'payment_verified';
+export type AttendanceStatus = 'not_checked_in' | 'checked_in';
+
+export type MealType = 'day1_dinner' | 'day1_snacks' | 'day2_breakfast' | 'day2_lunch';
+
+export interface MealRedemptionRecord {
+  redeemed: boolean;
+  redeemedAt?: string;
+  redeemedByAdmin?: string;
+}
+
+export type MemberMealCoupons = Partial<Record<MealType, MealRedemptionRecord>>;
+
+export interface MealSessionConfig {
+  activeMealSession: MealType | 'none';
+  updatedAt?: string;
+}
+
 export interface TeamMember {
   id: string;
   name: string;
@@ -96,6 +115,8 @@ export interface TeamMember {
   memberQrCodeUrl?: string;
   checkInStatus?: AttendanceStatus;
   checkInTimestamp?: string;
+  // Food Coupons Redemption Records
+  meals?: MemberMealCoupons;
 }
 
 export interface ProjectSubmission {
@@ -114,10 +135,6 @@ export interface ProjectSubmission {
   submittedAt: string;
   updatedAt: string;
 }
-
-export type Phase2SelectionStatus = 'pending' | 'selected' | 'waitlisted' | 'not_selected';
-export type Phase2PaymentStatus = 'unpaid' | 'payment_pending' | 'payment_verified';
-export type AttendanceStatus = 'not_checked_in' | 'checked_in';
 
 export interface TeamRegistration {
   id: string;
@@ -155,4 +172,6 @@ export interface TeamRegistration {
   // Offline Attendance Fields
   attendanceStatus?: AttendanceStatus;
   checkInTimestamp?: string;
+  // Food Coupons Redemption Records for Whole Team Pass
+  meals?: MemberMealCoupons;
 }

@@ -32,9 +32,10 @@ import {
   Clock,
   Upload,
   RefreshCw,
+  Utensils,
 } from 'lucide-react';
 import { firebaseService } from '../../services/firebaseService';
-import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus } from '../../types';
+import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus, MealType } from '../../types';
 import { sound } from '../../utils/audio';
 
 export const AdminCartridge: React.FC = () => {
@@ -76,6 +77,24 @@ export const AdminCartridge: React.FC = () => {
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+
+  // Food Coupons State
+  const [activeMealSession, setActiveMealSession] = useState<MealType | 'none'>('none');
+  const [foodCouponModalData, setFoodCouponModalData] = useState<{
+    matchedTeam: TeamRegistration;
+    matchedMember?: TeamMember;
+    mealType: MealType;
+    passId: string;
+    alreadyRedeemed?: boolean;
+    redeemedAt?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = firebaseService.subscribeToMealSession((session) => {
+      setActiveMealSession(session);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!showLiveScannerModal) {
@@ -306,6 +325,67 @@ export const AdminCartridge: React.FC = () => {
     if (!queryToSearch) return;
 
     sound.playBlip(600);
+
+    // Food Coupon QR Detection
+    if (queryToSearch.includes('COG26-FOOD:')) {
+      const parts = queryToSearch.split(':');
+      // Format: COG26-FOOD:day1_dinner:passId:memberId
+      const targetMealType = (parts[1] || 'day1_dinner') as MealType;
+      const targetPassId = parts[2] || queryToSearch;
+      const targetMemberId = parts[3];
+
+      let foodMember: TeamMember | undefined = undefined;
+      const foodTeam = teams.find((t) => {
+        if (t.id.toLowerCase() === targetPassId.toLowerCase() || (t.ticketPassId && t.ticketPassId.toLowerCase() === targetPassId.toLowerCase())) return true;
+        const found = t.members.find(
+          (m) =>
+            m.id === targetMemberId ||
+            (m.memberPassId && m.memberPassId.toLowerCase() === targetPassId.toLowerCase()) ||
+            m.id.toLowerCase() === targetPassId.toLowerCase()
+        );
+        if (found) {
+          foodMember = found;
+          return true;
+        }
+        return false;
+      });
+
+      if (!foodTeam) {
+        sound.playBlip(300);
+        setScanMessage({
+          type: 'error',
+          text: `Food Coupon Invalid: No registered team or participant matching pass '${targetPassId}' was found.`,
+        });
+        return;
+      }
+
+      // Check venue check-in status
+      const isCheckedIn = foodMember ? foodMember.checkInStatus === 'checked_in' : foodTeam.attendanceStatus === 'checked_in';
+      if (!isCheckedIn) {
+        sound.playBlip(300);
+        setScanMessage({
+          type: 'error',
+          text: `🛑 CANNOT SERVE MEAL: Participant '${foodMember ? foodMember.name : foodTeam.teamName}' HAS NOT CHECKED IN AT VENUE GATE YET!`,
+        });
+        return;
+      }
+
+      const existingMeals = foodMember ? foodMember.meals || {} : foodTeam.meals || {};
+      const redemption = existingMeals[targetMealType];
+
+      sound.playBoot();
+      setShowLiveScannerModal(false);
+      setFoodCouponModalData({
+        matchedTeam: foodTeam,
+        matchedMember: foodMember,
+        mealType: targetMealType,
+        passId: targetPassId,
+        alreadyRedeemed: !!redemption?.redeemed,
+        redeemedAt: redemption?.redeemedAt,
+      });
+      return;
+    }
+
     const clean = queryToSearch.toLowerCase();
     let matchedMember: TeamMember | undefined = undefined;
 
@@ -810,6 +890,107 @@ Cognitia 2026 Organizing Team`;
             className="font-pixel text-[8px] sm:text-[9px] bg-[#261414] border border-[#522525] text-[#eb5147] hover:bg-[#381c1c] px-3 py-1.5 rounded-xs flex items-center gap-1 cursor-pointer"
           >
             <LogOut size={12} /> EXIT ADMIN
+          </button>
+        </div>
+      </div>
+
+      {/* GLOBAL FOOD COUPONS SESSION CONTROLLER */}
+      <div className="p-3.5 bg-[#141d18] border-2 border-[#4ade80]/60 rounded-md space-y-2.5 shadow-[0_0_20px_rgba(74,222,128,0.15)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#25522b] pb-2 gap-2">
+          <div className="flex items-center gap-2 text-[#4ade80]">
+            <Utensils size={16} />
+            <span className="font-pixel text-[11px] sm:text-[12px]">
+              FOOD COUPONS ACTIVE SESSION CONTROLLER
+            </span>
+          </div>
+          <div className="font-silkscreen text-[8px] bg-[#1a2d1e] text-[#86efac] border border-[#2e5934] px-2.5 py-1 rounded-xs">
+            CURRENTLY ACTIVE: <strong className="text-[#4ade80] uppercase font-bold">{activeMealSession === 'none' ? 'OFF (NO COUPONS REVEALED)' : activeMealSession.replace('_', ' ')}</strong>
+          </div>
+        </div>
+
+        <p className="font-silkscreen text-[8.5px] text-[#cfe8ff]">
+          Click any meal button below to enable that food coupon QR for all checked-in attendees across the app:
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              sound.playBoot();
+              await firebaseService.setActiveMealSession('day1_dinner');
+            }}
+            className={`font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              activeMealSession === 'day1_dinner'
+                ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
+                : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
+            }`}
+          >
+            <span>🍱 DAY 1 DINNER</span>
+            {activeMealSession === 'day1_dinner' && <span className="text-[7px] text-[#4ade80] font-silkscreen">● ACTIVE NOW</span>}
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              sound.playBoot();
+              await firebaseService.setActiveMealSession('day1_snacks');
+            }}
+            className={`font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              activeMealSession === 'day1_snacks'
+                ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
+                : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
+            }`}
+          >
+            <span>🍕 DAY 1 SNACKS</span>
+            {activeMealSession === 'day1_snacks' && <span className="text-[7px] text-[#4ade80] font-silkscreen">● ACTIVE NOW</span>}
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              sound.playBoot();
+              await firebaseService.setActiveMealSession('day2_breakfast');
+            }}
+            className={`font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              activeMealSession === 'day2_breakfast'
+                ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
+                : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
+            }`}
+          >
+            <span>🥐 DAY 2 BREAKFAST</span>
+            {activeMealSession === 'day2_breakfast' && <span className="text-[7px] text-[#4ade80] font-silkscreen">● ACTIVE NOW</span>}
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              sound.playBoot();
+              await firebaseService.setActiveMealSession('day2_lunch');
+            }}
+            className={`font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              activeMealSession === 'day2_lunch'
+                ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
+                : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
+            }`}
+          >
+            <span>🍱 DAY 2 LUNCH</span>
+            {activeMealSession === 'day2_lunch' && <span className="text-[7px] text-[#4ade80] font-silkscreen">● ACTIVE NOW</span>}
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              sound.playBlip(300);
+              await firebaseService.setActiveMealSession('none');
+            }}
+            className={`col-span-2 sm:col-span-1 font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              activeMealSession === 'none'
+                ? 'bg-[#261414] border-[#eb5147] text-[#eb5147]'
+                : 'bg-[#170f0f] border-[#522525] text-[#fca5a5] hover:border-[#eb5147]'
+            }`}
+          >
+            <span>🚫 DISABLE ALL</span>
+            {activeMealSession === 'none' && <span className="text-[7px] text-[#eb5147] font-silkscreen">● OFF</span>}
           </button>
         </div>
       </div>
@@ -1941,6 +2122,114 @@ Cognitia 2026 Organizing Team`;
               >
                 CANCEL &amp; CLOSE SCANNER
               </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* INTERACTIVE FOOD COUPON VERIFICATION & REDEMPTION MODAL */}
+      {foodCouponModalData &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+            <div className={`bg-[#0c0e11] border-2 rounded-md max-w-lg w-full p-4 space-y-4 shadow-[0_0_40px_rgba(74,222,128,0.4)] font-sans ${foodCouponModalData.alreadyRedeemed ? 'border-[#eb5147]' : 'border-[#4ade80]'}`}>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2.5">
+                <div className="flex items-center gap-2 text-[#4ade80]">
+                  <Utensils size={22} className={foodCouponModalData.alreadyRedeemed ? 'text-[#eb5147]' : 'text-[#4ade80]'} />
+                  <span className={`font-pixel text-[12px] sm:text-[14px] ${foodCouponModalData.alreadyRedeemed ? 'text-[#eb5147]' : 'text-[#4ade80]'}`}>
+                    FOOD COUPON VALIDATION &bull; {foodCouponModalData.mealType.replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFoodCouponModalData(null)}
+                  className="text-[#8f9396] hover:text-white cursor-pointer p-1"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Already Redeemed Alert Banner */}
+              {foodCouponModalData.alreadyRedeemed ? (
+                <div className="bg-[#261414] border-2 border-[#522525] p-3 rounded-xs text-center space-y-1 font-silkscreen text-[9.5px] text-[#fca5a5]">
+                  <AlertTriangle size={24} className="mx-auto text-[#eb5147]" />
+                  <p className="font-bold text-[11px] text-[#eb5147]">🛑 MEAL ALREADY SERVED &amp; REDEEMED!</p>
+                  <p>This coupon was previously redeemed on: <span className="font-mono text-white font-bold">{foodCouponModalData.redeemedAt || 'Earlier Session'}</span></p>
+                  <p className="text-[8px] text-[#8f9396]">Duplicate meal claim blocked by Cognitia Catering Audit.</p>
+                </div>
+              ) : (
+                <div className="bg-[#142417] border border-[#25522b] p-3 rounded-xs text-center space-y-1 font-silkscreen text-[9.5px] text-[#86efac]">
+                  <CheckCircle2 size={24} className="mx-auto text-[#4ade80]" />
+                  <p className="font-bold text-[11px] text-[#4ade80]">VALID MEAL COUPON VERIFIED ✓</p>
+                  <p>Participant is checked in at venue and eligible for <strong className="text-white uppercase font-bold">{foodCouponModalData.mealType.replace('_', ' ')}</strong>.</p>
+                </div>
+              )}
+
+              {/* Participant & Team Info Card */}
+              <div className="bg-[#141618] border border-[#2b2e30] p-3.5 rounded-xs space-y-2.5">
+                <div className="flex items-center justify-between font-silkscreen text-[9px]">
+                  <span className="text-[#6fb3d9] font-bold">
+                    TEAM ID: {foodCouponModalData.matchedTeam.id}
+                  </span>
+                  <span className="bg-[#1c2836] text-[#00f0ff] border border-[#00f0ff]/40 px-2 py-0.5 rounded-xs font-mono font-bold">
+                    PASS: {foodCouponModalData.passId}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-pixel text-[13px] sm:text-[14px] text-white">
+                    {foodCouponModalData.matchedMember
+                      ? `${foodCouponModalData.matchedMember.name} (${foodCouponModalData.matchedMember.role})`
+                      : `TEAM: ${foodCouponModalData.matchedTeam.teamName} (FULL TEAM PASS)`}
+                  </h3>
+                  <p className="font-silkscreen text-[10px] text-[#cfe8ff]">
+                    TEAM NAME: <strong className="text-[#f4c151]">{foodCouponModalData.matchedTeam.teamName}</strong>
+                  </p>
+                  {foodCouponModalData.matchedMember && (
+                    <div className="space-y-0.5 font-silkscreen text-[9px] text-[#bbf7d0]">
+                      <p>COLLEGE / INSTITUTION: {foodCouponModalData.matchedMember.isIemUemStudent ? `IEM / UEM (Roll: ${foodCouponModalData.matchedMember.enrollmentNo || 'N/A'})` : foodCouponModalData.matchedMember.collegeName || 'External'}</p>
+                      {foodCouponModalData.matchedMember.email && <p className="text-[#93c5fd]">EMAIL: {foodCouponModalData.matchedMember.email}</p>}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-1">
+                {!foodCouponModalData.alreadyRedeemed ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      sound.playBoot();
+                      const res = await firebaseService.markMealRedeemed(
+                        foodCouponModalData.passId,
+                        foodCouponModalData.mealType
+                      );
+                      if (res.success && res.team) {
+                        loadAdminData();
+                        setFoodCouponModalData({
+                          ...foodCouponModalData,
+                          alreadyRedeemed: true,
+                          redeemedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        });
+                      } else if (res.message) {
+                        alert(res.message);
+                      }
+                    }}
+                    className="w-full bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-2 border-[#25522b] hover:border-[#4ade80] font-pixel text-[11px] uppercase py-3 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000]"
+                  >
+                    <Utensils size={16} /> CONFIRM &amp; MARK MEAL SERVED
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setFoodCouponModalData(null)}
+                  className="w-full bg-[#1c1f24] hover:bg-[#2b2e35] text-white border border-[#3a4149] font-pixel text-[9.5px] py-2 rounded-xs cursor-pointer"
+                >
+                  CLOSE / SCAN NEXT COUPON
+                </button>
+              </div>
             </div>
           </div>,
           document.body
