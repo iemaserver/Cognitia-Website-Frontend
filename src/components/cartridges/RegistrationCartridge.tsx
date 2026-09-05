@@ -267,19 +267,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [isEditingTeam, setIsEditingTeam] = useState(false);
   const [isMembersLocked, setIsMembersLocked] = useState<boolean>(false);
 
-  const isPaymentSubmittedOrVerified = Boolean(
-    activeLeadTeam && (
-      activeLeadTeam.paymentStatus === 'payment_verified' ||
-      activeLeadTeam.paymentStatus === 'payment_pending' ||
-      activeLeadTeam.paymentTransactionId ||
-      activeLeadTeam.paymentScreenshotUrl
-    )
-  );
-
   const isRosterLockedEffective = Boolean(
     isMembersLocked ||
-    isDeadlinePassed ||
-    isPaymentSubmittedOrVerified
+    isDeadlinePassed
   );
 
   // New Member Form
@@ -528,10 +518,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       alert('Registration deadline has completed. Team members can no longer be added.');
       return;
     }
-    if (isPaymentSubmittedOrVerified) {
-      alert('Team roster is permanently locked and members cannot be added.');
-      return;
-    }
     if (isMembersLocked) {
       alert('Team roster is currently locked. Unlock roster to add members before deadline.');
       return;
@@ -607,10 +593,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const startEditingMember = (m: TeamMember) => {
     if (isDeadlinePassed) {
       alert('Registration deadline has completed. Member details can no longer be edited.');
-      return;
-    }
-    if (isPaymentSubmittedOrVerified) {
-      alert('Phase 1 entry fee payment has been submitted/verified. Team roster is permanently locked.');
       return;
     }
     if (isMembersLocked) {
@@ -743,10 +725,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const handleRemoveMember = (id: string) => {
     if (isDeadlinePassed) {
       alert('Registration deadline has completed. Team members can no longer be removed.');
-      return;
-    }
-    if (isPaymentSubmittedOrVerified) {
-      alert('Phase 1 entry fee payment has been submitted/verified. Team roster is permanently locked.');
       return;
     }
     if (isMembersLocked) {
@@ -2332,36 +2310,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
       {/* TAB 2: DELIVERABLES */}
       {activeTab === 'submission' && (
-        activeLeadTeam.paymentStatus !== 'payment_verified' ? (
-          <div className="p-6 bg-[#141618] border-2 border-[#544622] rounded-md text-center space-y-4 my-auto">
-            <div className="flex justify-center">
-              <Clock size={44} className="animate-spin text-[#f4c151]" />
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="font-pixel text-[13px] sm:text-[14px] text-[#f4c151] uppercase">
-                {activeLeadTeam.paymentStatus === 'payment_pending'
-                  ? '⌛ PAYMENT VERIFICATION PENDING BY ADMIN'
-                  : '🔒 PHASE 1 FEES PAYMENT REQUIRED'}
-              </h3>
-              <p className="font-silkscreen text-[10.5px] text-[#ffd17d] max-w-lg mx-auto leading-relaxed">
-                {activeLeadTeam.paymentStatus === 'payment_pending'
-                  ? `Your ₹50 payment details (UTR ID: ${activeLeadTeam.paymentTransactionId || 'Submitted'}) have been received and are currently being verified by the Cognitia Admin team. Deliverables submission will unlock automatically as soon as your payment is verified.`
-                  : 'You must pay and verify your ₹50 registration fee in Phase 1 Fees Payment before you can submit Phase 1 Deliverables.'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                sound.playBlip(500);
-                setActiveTab('fee_payment');
-              }}
-              className="font-pixel text-[10.5px] bg-[#241d14] border-2 border-[#f4c151] text-[#f4c151] hover:bg-[#382b1c] px-4 py-2 rounded-xs cursor-pointer shadow-[2px_2px_0_0_#000]"
-            >
-              GO TO PHASE 1 FEES PAYMENT
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleProjectSubmit} className="space-y-3 grow overflow-y-auto">
+        <form onSubmit={handleProjectSubmit} className="space-y-3 grow overflow-y-auto">
             {submitMessage && (
               <div
                 className={`p-2.5 rounded-xs border font-silkscreen text-[8px] flex items-center gap-1.5 ${submitMessage.type === 'success'
@@ -2524,8 +2473,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               </button>
             </div>
           </form>
-        )
-      )}
+        )}
 
       {/* TAB 3: PHASE 2 OFFLINE ROUND & DYNAMIC UPI QR PAYMENT & TICKET */}
       {activeTab === 'phase2' && (
