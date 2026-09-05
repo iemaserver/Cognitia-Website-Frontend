@@ -284,6 +284,14 @@ class FirebaseService {
       delete cleanTeam.paymentTransactionId;
       delete cleanTeam.paymentSubmittedAt;
     }
+    // Delete transient QR image URLs from member objects so zero QR image URLs/blobs are saved in database
+    if (cleanTeam.members) {
+      cleanTeam.members = cleanTeam.members.map((m) => {
+        const cleanMember = { ...m };
+        delete cleanMember.memberQrCodeUrl;
+        return cleanMember;
+      });
+    }
     return cleanTeam;
   }
 

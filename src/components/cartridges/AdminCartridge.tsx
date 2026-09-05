@@ -28,6 +28,8 @@ import {
   Phone,
   Plus,
   Trash2,
+  Camera,
+  Clock,
 } from 'lucide-react';
 import { firebaseService } from '../../services/firebaseService';
 import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus } from '../../types';
@@ -56,9 +58,15 @@ export const AdminCartridge: React.FC = () => {
   const [copiedTemplate, setCopiedTemplate] = useState<boolean>(false);
   const [previewImageModal, setPreviewImageModal] = useState<{ url: string; title: string } | null>(null);
 
-  // Attendance Scanner Bar State
+  // Attendance Scanner Bar & Verification Popup Modal State
   const [scanQuery, setScanQuery] = useState<string>('');
   const [scanMessage, setScanMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showLiveScannerModal, setShowLiveScannerModal] = useState<boolean>(false);
+  const [attendanceModalData, setAttendanceModalData] = useState<{
+    matchedTeam: TeamRegistration;
+    matchedMember?: TeamMember;
+    scanQueryStr: string;
+  } | null>(null);
 
   useEffect(() => {
     const authSession = sessionStorage.getItem('cognitia_admin_auth');
@@ -170,27 +178,47 @@ export const AdminCartridge: React.FC = () => {
   };
 
   // QR / Ticket Pass ID Attendance Scan
-  const handleAttendanceScanSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setScanMessage(null);
+  const handleAttendanceScanSubmit = (e?: React.FormEvent, customQuery?: string) => {
+    if (e) e.preventDefault();
+    const queryToSearch = (customQuery || scanQuery).trim();
+    if (!queryToSearch) return;
 
-    if (!scanQuery.trim()) {
-      setScanMessage({ type: 'error', text: 'Please scan or enter a Pass Ticket ID or Team ID.' });
-      return;
-    }
+    sound.playBlip(600);
+    const clean = queryToSearch.toLowerCase();
+    let matchedMember: TeamMember | undefined = undefined;
 
-    const res = await firebaseService.markAttendance(scanQuery, 'checked_in');
-    if (res.success && res.team) {
+    const matchedTeam = teams.find((t) => {
+      if (t.id.toLowerCase() === clean || (t.ticketPassId && t.ticketPassId.toLowerCase() === clean)) {
+        return true;
+      }
+      const foundMem = t.members.find(
+        (m) =>
+          m.id.toLowerCase() === clean ||
+          (m.memberPassId && m.memberPassId.toLowerCase() === clean) ||
+          (m.enrollmentNo && m.enrollmentNo.toLowerCase() === clean)
+      );
+      if (foundMem) {
+        matchedMember = foundMem;
+        return true;
+      }
+      return false;
+    });
+
+    if (matchedTeam) {
       sound.playBoot();
-      loadAdminData();
-      setScanMessage({
-        type: 'success',
-        text: `✓ ATTENDANCE MARKED PRESENT: Team '${res.team.teamName}' (${res.team.ticketPassId || res.team.id})`,
+      setAttendanceModalData({
+        matchedTeam,
+        matchedMember,
+        scanQueryStr: queryToSearch,
       });
-      setScanQuery('');
+      setScanMessage(null);
+      setShowLiveScannerModal(false);
     } else {
       sound.playBlip(300);
-      setScanMessage({ type: 'error', text: res.message || 'Verification failed.' });
+      setScanMessage({
+        type: 'error',
+        text: `No registered participant team or member matching '${queryToSearch}' was found.`,
+      });
     }
   };
 
@@ -639,6 +667,16 @@ Cognitia 2026 Organizing Team`;
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => {
+              sound.playBlip(600);
+              setShowLiveScannerModal(true);
+            }}
+            className="font-pixel text-[8px] sm:text-[9px] bg-[#1c2836] border border-[#00f0ff] text-[#00f0ff] hover:bg-[#25374d] px-3 py-1.5 rounded-xs flex items-center gap-1 cursor-pointer"
+          >
+            <Camera size={12} /> LIVE SCANNER
+          </button>
           <button
             onClick={exportToCSV}
             className="font-pixel text-[8px] sm:text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-3 py-1.5 rounded-xs flex items-center gap-1 cursor-pointer"
@@ -1514,6 +1552,208 @@ Cognitia 2026 Organizing Team`;
               <div className="font-silkscreen text-[8px] text-[#8f9396] text-center pt-1">
                 Click anywhere outside or press CLOSE to exit image inspector.
               </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* INTERACTIVE VENUE ATTENDANCE VERIFICATION POPUP MODAL */}
+      {attendanceModalData &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+            <div className="bg-[#0c0e11] border-2 border-[#4ade80] rounded-md max-w-lg w-full p-4 space-y-4 shadow-[0_0_40px_rgba(74,222,128,0.4)] font-sans">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[#25522b] pb-2.5">
+                <div className="flex items-center gap-2 text-[#4ade80]">
+                  <UserCheck size={22} className="text-[#4ade80]" />
+                  <span className="font-pixel text-[12px] sm:text-[14px] text-[#4ade80]">
+                    GATE ATTENDANCE VERIFICATION
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAttendanceModalData(null)}
+                  className="text-[#8f9396] hover:text-white cursor-pointer p-1"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Participant & Team Info Card */}
+              <div className="bg-[#142417] border border-[#25522b] p-3.5 rounded-xs space-y-2.5">
+                <div className="flex items-center justify-between font-silkscreen text-[9px]">
+                  <span className="text-[#86efac] font-bold">
+                    TEAM ID: {attendanceModalData.matchedTeam.id}
+                  </span>
+                  <span className="bg-[#1e4620] text-[#86efac] border border-[#34783a] px-2 py-0.5 rounded-xs">
+                    PASS: {attendanceModalData.matchedMember?.memberPassId || attendanceModalData.matchedTeam.ticketPassId || 'N/A'}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-pixel text-[13px] sm:text-[14px] text-white">
+                    {attendanceModalData.matchedMember
+                      ? `${attendanceModalData.matchedMember.name} (${attendanceModalData.matchedMember.role})`
+                      : `TEAM: ${attendanceModalData.matchedTeam.teamName} (ALL MEMBERS)`}
+                  </h3>
+                  <p className="font-silkscreen text-[10px] text-[#cfe8ff]">
+                    TEAM NAME: <strong className="text-[#f4c151]">{attendanceModalData.matchedTeam.teamName}</strong>
+                  </p>
+                  {attendanceModalData.matchedMember && (
+                    <div className="space-y-0.5 font-silkscreen text-[9px] text-[#bbf7d0]">
+                      <p>INSTITUTION: {attendanceModalData.matchedMember.isIemUemStudent ? `IEM / UEM (Roll: ${attendanceModalData.matchedMember.enrollmentNo || 'N/A'})` : attendanceModalData.matchedMember.collegeName || 'External'}</p>
+                      {attendanceModalData.matchedMember.email && <p className="text-[#93c5fd]">EMAIL: {attendanceModalData.matchedMember.email}</p>}
+                      {attendanceModalData.matchedMember.phone && <p className="text-[#93c5fd]">PHONE: {attendanceModalData.matchedMember.phone}</p>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Current Status Indicator */}
+                <div className="pt-2 border-t border-[#25522b] flex items-center justify-between font-silkscreen text-[9.5px]">
+                  <span className="text-[#8fa892]">CURRENT GATE STATUS:</span>
+                  {(attendanceModalData.matchedMember ? attendanceModalData.matchedMember.checkInStatus === 'checked_in' : attendanceModalData.matchedTeam.attendanceStatus === 'checked_in') ? (
+                    <span className="bg-[#1e4620] text-[#4ade80] border border-[#34783a] px-2.5 py-1 rounded-xs flex items-center gap-1 font-bold shadow-[0_0_10px_rgba(74,222,128,0.3)]">
+                      <CheckCircle2 size={13} /> PRESENT AT VENUE
+                    </span>
+                  ) : (
+                    <span className="bg-[#382b18] text-[#f4c151] border border-[#594424] px-2.5 py-1 rounded-xs flex items-center gap-1 font-bold">
+                      <Clock size={13} /> NOT CHECKED IN (ABSENT)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Action Buttons */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const query = attendanceModalData.matchedMember?.memberPassId || attendanceModalData.matchedTeam.id;
+                    const res = await firebaseService.markAttendance(query, 'checked_in');
+                    if (res.success && res.team) {
+                      sound.playBoot();
+                      loadAdminData();
+                      setAttendanceModalData({
+                        ...attendanceModalData,
+                        matchedTeam: res.team,
+                        matchedMember: res.matchedMember || attendanceModalData.matchedMember,
+                      });
+                    }
+                  }}
+                  className="bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-2 border-[#25522b] hover:border-[#4ade80] font-pixel text-[10.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000]"
+                >
+                  <UserCheck size={14} /> MARK PRESENT
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const query = attendanceModalData.matchedMember?.memberPassId || attendanceModalData.matchedTeam.id;
+                    const res = await firebaseService.markAttendance(query, 'not_checked_in');
+                    if (res.success && res.team) {
+                      sound.playBlip(300);
+                      loadAdminData();
+                      setAttendanceModalData({
+                        ...attendanceModalData,
+                        matchedTeam: res.team,
+                        matchedMember: res.matchedMember || attendanceModalData.matchedMember,
+                      });
+                    }
+                  }}
+                  className="bg-[#261414] hover:bg-[#3d1d1d] text-[#eb5147] border-2 border-[#522525] hover:border-[#eb5147] font-pixel text-[10.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000]"
+                >
+                  <X size={14} /> MARK ABSENT
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-[#25522b] pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTeamModal(attendanceModalData.matchedTeam);
+                    setAttendanceModalData(null);
+                  }}
+                  className="text-[#6fb3d9] hover:underline font-pixel text-[9px] cursor-pointer flex items-center gap-1"
+                >
+                  <Eye size={12} /> INSPECT TEAM DETAILS
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAttendanceModalData(null)}
+                  className="bg-[#1c1f24] hover:bg-[#2b2e35] text-white border border-[#3a4149] font-pixel text-[9px] px-3 py-1.5 rounded-xs cursor-pointer"
+                >
+                  CLOSE / SCAN NEXT
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* LIVE QR CAMERA SCANNER MODAL */}
+      {showLiveScannerModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+            <div className="bg-[#0a0c0e] border-2 border-[#00f0ff] rounded-md max-w-md w-full p-4 space-y-3 shadow-[0_0_40px_rgba(0,240,255,0.4)]">
+              <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
+                <span className="font-pixel text-[12px] text-[#00f0ff] flex items-center gap-2">
+                  <Camera size={18} /> LIVE CAMERA QR SCANNER
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowLiveScannerModal(false)}
+                  className="text-[#8f9396] hover:text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-3 bg-[#141618] border border-[#2b2e30] rounded-xs text-center space-y-2">
+                <span className="font-silkscreen text-[9.5px] text-[#8f9396] block">
+                  POINT DEVICE CAMERA AT PARTICIPANT TICKET PASS OR MEMBER QR CODE
+                </span>
+                <div className="relative w-full h-48 bg-black border-2 border-dashed border-[#00f0ff] rounded-xs flex items-center justify-center overflow-hidden">
+                  <QrCode size={48} className="text-[#00f0ff]/40 animate-pulse" />
+                  <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-0.5 bg-[#00f0ff] shadow-[0_0_10px_#000]" />
+                </div>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAttendanceScanSubmit(e);
+                }}
+                className="space-y-2"
+              >
+                <label className="font-silkscreen text-[8.5px] text-[#8f9396] block">
+                  MANUAL / SCANNER INPUT FALLBACK:
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Paste/scan QR string or enter Pass ID..."
+                    value={scanQuery}
+                    onChange={(e) => setScanQuery(e.target.value)}
+                    className="grow bg-[#0c0e10] border border-[#2b2e30] text-[#00f0ff] font-mono text-xs px-3 py-1.5 rounded-xs focus:border-[#00f0ff] focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-[#1c2836] border border-[#00f0ff] text-[#00f0ff] font-pixel text-[9px] px-3 py-1.5 rounded-xs cursor-pointer"
+                  >
+                    VERIFY
+                  </button>
+                </div>
+              </form>
+
+              <button
+                type="button"
+                onClick={() => setShowLiveScannerModal(false)}
+                className="w-full bg-[#1c1f24] hover:bg-[#282d34] text-[#8f9396] border border-[#3a4149] font-pixel text-[9px] py-2 rounded-xs cursor-pointer"
+              >
+                CANCEL &amp; CLOSE SCANNER
+              </button>
             </div>
           </div>,
           document.body
