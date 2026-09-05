@@ -260,25 +260,6 @@ export const AdminCartridge: React.FC = () => {
     }
   };
 
-  const handlePhase1PaymentStatusChange = async (teamId: string, newStatus: Phase2PaymentStatus) => {
-    const team = teams.find((t) => t.id === teamId);
-    if (newStatus === 'payment_verified' && team) {
-      const hasProof = team.paymentTransactionId || (team.paymentScreenshotUrl && !team.paymentScreenshotUrl.includes('placeholder'));
-      if (!hasProof) {
-        sound.playBlip(300);
-        alert(`❌ CANNOT VERIFY PHASE 1 PAYMENT:\n\nTeam '${team.teamName}' has not submitted Phase 1 payment details (UTR ID or receipt screenshot) yet.`);
-        return;
-      }
-    }
-    sound.playBoot();
-    const res = await firebaseService.updatePhase1PaymentStatus(teamId, newStatus);
-    if (res.success && res.team) {
-      loadAdminData();
-      if (selectedTeamModal && selectedTeamModal.id === teamId) {
-        setSelectedTeamModal(res.team);
-      }
-    }
-  };
 
   const handlePhase2PaymentStatusChange = async (teamId: string, newStatus: Phase2PaymentStatus) => {
     const team = teams.find((t) => t.id === teamId);

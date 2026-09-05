@@ -692,32 +692,6 @@ class FirebaseService {
     return { success: true, team };
   }
 
-  // Project Deliverable Submission (PPT, Github, Screenshots)
-  public async saveProjectSubmission(
-    teamId: string,
-    submissionData: Omit<ProjectSubmission, 'id' | 'teamId' | 'submittedAt' | 'updatedAt'>
-  ): Promise<{ success: boolean; submission?: ProjectSubmission; team?: TeamRegistration }> {
-    const team = this.teams.find((t) => t.id === teamId);
-    if (!team) return { success: false };
-
-    const now = new Date().toISOString();
-    const submission: ProjectSubmission = {
-      ...submissionData,
-      id: team.submission?.id || `sub-${Date.now()}`,
-      teamId,
-      submittedAt: team.submission?.submittedAt || now,
-      updatedAt: now,
-    };
-
-    team.submission = submission;
-    this.saveToStorage();
-    this.notifyListeners();
-
-    await this.syncTeamToFirestore(team);
-
-    return { success: true, submission, team };
-  }
-
   // PHASE 2 OFFLINE ROUND & SELECTION METHODS
   public async updatePhase2Selection(
     teamId: string,
@@ -746,26 +720,6 @@ class FirebaseService {
     return { success: true, team };
   }
 
-  public async submitPaymentScreenshot(
-    teamId: string,
-    screenshotUrl: string,
-    transactionId?: string
-  ): Promise<{ success: boolean; team?: TeamRegistration }> {
-    const team = this.teams.find((t) => t.id === teamId);
-    if (!team) return { success: false };
-
-    team.paymentStatus = 'payment_pending';
-    team.paymentScreenshotUrl = screenshotUrl;
-    team.paymentTransactionId = transactionId || team.paymentTransactionId;
-    team.paymentSubmittedAt = new Date().toISOString();
-    this.saveToStorage();
-    this.notifyListeners();
-
-    await this.syncTeamToFirestore(team);
-
-    return { success: true, team };
-  }
-
   public async submitPhase2PaymentDetails(
     teamId: string,
     screenshotUrl: string,
@@ -778,22 +732,6 @@ class FirebaseService {
     team.phase2PaymentScreenshotUrl = screenshotUrl;
     team.phase2PaymentTransactionId = transactionId || team.phase2PaymentTransactionId;
     team.phase2PaymentSubmittedAt = new Date().toISOString();
-    this.saveToStorage();
-    this.notifyListeners();
-
-    await this.syncTeamToFirestore(team);
-
-    return { success: true, team };
-  }
-
-  public async updatePhase1PaymentStatus(
-    teamId: string,
-    status: Phase2PaymentStatus
-  ): Promise<{ success: boolean; team?: TeamRegistration }> {
-    const team = this.teams.find((t) => t.id === teamId);
-    if (!team) return { success: false };
-
-    team.paymentStatus = status;
     this.saveToStorage();
     this.notifyListeners();
 

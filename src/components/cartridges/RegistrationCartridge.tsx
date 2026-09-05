@@ -576,6 +576,12 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       alert('Please LOCK YOUR TEAM ROSTER before proceeding to track selection or next steps.');
       return;
     }
+    if ((targetTab === 'fee_payment' || targetTab === 'phase2' || targetTab === 'phase2_status') && !activeLeadTeam?.rsvpConfirmed) {
+      sound.playBlip(300);
+      alert('Please CONFIRM YOUR PHASE 2 OFFLINE PARTICIPATION RSVP in Track Selection before proceeding to Payment.');
+      setActiveTab('tracks_selection');
+      return;
+    }
     if ((targetTab === 'fee_payment' || targetTab === 'phase2' || targetTab === 'phase2_status') && !activeLeadTeam?.isTrackLocked) {
       sound.playBlip(300);
       alert('Please SELECT AND PERMANENTLY LOCK YOUR TRACK PREFERENCES in Track Selection before proceeding to Payment.');
@@ -603,14 +609,14 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     setIsSubmittingFee(true);
     sound.playBoot();
-    const res = await firebaseService.submitPaymentScreenshot(activeLeadTeam.id, feeProofUrl, cleanUtr);
+    const res = await firebaseService.submitPhase2PaymentDetails(activeLeadTeam.id, feeProofUrl, cleanUtr);
     setIsSubmittingFee(false);
 
     if (res.success && res.team) {
       setActiveLeadTeam(res.team);
       setFeeMessage({
         type: 'success',
-        text: '₹50 Payment details submitted successfully! Status marked VERIFICATION PENDING BY ADMIN.',
+        text: '₹200 Phase 2 Payment details submitted successfully! Status marked VERIFICATION PENDING BY ADMIN.',
       });
     } else {
       setFeeMessage({ type: 'error', text: 'Payment submission failed. Please try again.' });
@@ -658,6 +664,10 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
   const handleConfirmLockTrack = async () => {
     if (!activeLeadTeam) return;
+    if (!activeLeadTeam.rsvpConfirmed) {
+      alert('Please confirm your team\'s Phase 2 Offline Participation RSVP above before locking track preferences.');
+      return;
+    }
     if (activeLeadTeam.isTrackLocked) {
       alert('Track preferences are already permanently locked.');
       return;
@@ -1417,6 +1427,40 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               Rank all 5 challenge tracks in order of preference (Preference 1 through 5). <strong className="text-[#eb5147]">ONCE CONFIRMED &amp; LOCKED, YOUR PREFERENCE LIST CANNOT BE CHANGED FOR THE ENTIRE HACKATHON.</strong>
             </p>
           </div>
+
+          {/* Phase 2 Offline RSVP Confirmation Box */}
+          {!activeLeadTeam.rsvpConfirmed ? (
+            <div className="p-3.5 bg-[#141618] border-2 border-[#b180ff] rounded-md space-y-2.5 shadow-[0_0_15px_rgba(177,128,255,0.2)]">
+              <div className="flex items-center justify-between border-b border-[#2b1f3d] pb-2">
+                <span className="font-pixel text-[11px] sm:text-[12px] text-[#b180ff] flex items-center gap-1.5">
+                  <Sparkles size={16} className="text-[#b180ff]" />
+                  STEP 2: CONFIRM OFFLINE PARTICIPATION RSVP
+                </span>
+                <span className="bg-[#2b1f3d] text-[#b180ff] border border-[#482b66] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs font-bold animate-pulse">
+                  RSVP REQUIRED FIRST
+                </span>
+              </div>
+              <p className="font-silkscreen text-[10px] text-[#cfe8ff] leading-relaxed">
+                Cognitia 2026 Phase 2 takes place live at the IEM Campus Auditorium. Please confirm your team's offline participation RSVP before ranking your track preferences.
+              </p>
+              <button
+                type="button"
+                onClick={handleConfirmRsvp}
+                className="w-full bg-[#2b1f3d] border-2 border-[#b180ff] hover:bg-[#392854] font-pixel text-[10px] text-[#b180ff] hover:text-white uppercase py-2.5 px-3 rounded-xs flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] cursor-pointer transition-all"
+              >
+                <Check size={14} /> CONFIRM OFFLINE PARTICIPATION RSVP
+              </button>
+            </div>
+          ) : (
+            <div className="p-3 bg-[#142417] border border-[#25522b] rounded-md flex items-center justify-between">
+              <span className="font-pixel text-[10px] text-[#4ade80] flex items-center gap-1.5">
+                <CheckCircle2 size={14} /> OFFLINE PARTICIPATION RSVP CONFIRMED
+              </span>
+              <span className="font-silkscreen text-[8.5px] text-[#86efac] bg-[#1e4620] px-2 py-0.5 border border-[#34783a] rounded-xs font-bold">
+                PHASE 2 RSVP CONFIRMED
+              </span>
+            </div>
+          )}
 
           {/* Warning Banner if unlocked */}
           {!activeLeadTeam.isTrackLocked ? (
