@@ -30,24 +30,6 @@ export default function App() {
       if (path.includes('admin')) return 'admin';
       if (path.includes('login')) return 'login';
       if (path.includes('register') || path.includes('submit')) return 'register';
-
-      const saved = localStorage.getItem('cognitia_last_cartridge') as CartridgeId;
-      const validCartridges: CartridgeId[] = [
-        'dashboard',
-        'register',
-        'login',
-        'rules',
-        'tracks',
-        'timeline',
-        'sponsors',
-        'members',
-        'prizes',
-        'faq',
-        'admin',
-      ];
-      if (saved && validCartridges.includes(saved)) {
-        return saved;
-      }
     }
     return 'dashboard';
   });
@@ -109,12 +91,6 @@ export default function App() {
     }
   };
 
-  // Sync cartridge selection to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('cognitia_last_cartridge', currentCartridge);
-    }
-  }, [currentCartridge]);
 
   // Initial path routing check (e.g., /admin, /login, /register)
   useEffect(() => {

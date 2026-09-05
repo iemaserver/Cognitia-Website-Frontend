@@ -389,9 +389,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
   const handleLogout = () => {
     sound.playBlip(400);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('cognitia_team_dashboard_tab');
-    }
     firebaseService.logoutTeamLead();
     setActiveLeadTeam(null);
   };
