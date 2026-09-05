@@ -5,14 +5,14 @@ import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAuth } from 'firebase/auth';
 
-// Backend Firebase Account (Your Account - for Firestore Database & Storage)
+// Backend Firebase Account (for Firestore Database & Storage)
 const firebaseBackendConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_GCS_BUCKET_NAME || import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCQviQ7oNGS1_R5oy06m9uhqJv2C4MLOjc',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'cognitia-2k26.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'cognitia-2k26',
+  storageBucket: import.meta.env.VITE_GCS_BUCKET_NAME || import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'cognitia-2k26.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '985000292048',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:985000292048:web:3947fe9298c089a5ec78d5',
 };
 
 // Initialize Backend Firebase App instance
