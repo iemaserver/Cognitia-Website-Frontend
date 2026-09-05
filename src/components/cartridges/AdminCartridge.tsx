@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ShieldCheck,
@@ -30,6 +30,8 @@ import {
   Trash2,
   Camera,
   Clock,
+  Upload,
+  RefreshCw,
 } from 'lucide-react';
 import { firebaseService } from '../../services/firebaseService';
 import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus } from '../../types';
@@ -67,6 +69,126 @@ export const AdminCartridge: React.FC = () => {
     matchedMember?: TeamMember;
     scanQueryStr: string;
   } | null>(null);
+
+  // Live Camera Scanner State & Refs
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+
+  useEffect(() => {
+    if (!showLiveScannerModal) {
+      setIsCameraActive(false);
+      setCameraError(null);
+      return;
+    }
+
+    let currentStream: MediaStream | null = null;
+    let isMounted = true;
+
+    const startStream = async () => {
+      setCameraError(null);
+      setIsCameraActive(false);
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (isMounted) {
+          setCameraError('Camera access requires HTTPS or localhost browser environment.');
+        }
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        }).catch(async () => {
+          return await navigator.mediaDevices.getUserMedia({ video: true });
+        });
+
+        currentStream = stream;
+        if (videoRef.current && isMounted) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute('playsinline', 'true');
+          await videoRef.current.play().catch(() => {});
+          setIsCameraActive(true);
+        }
+      } catch (err: any) {
+        console.error('Camera access error:', err);
+        if (isMounted) {
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            setCameraError('Camera permission was denied by browser. Please allow camera access in address bar / site settings.');
+          } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            setCameraError('No video camera device was detected on your hardware.');
+          } else {
+            setCameraError(`Camera error: ${err.message || 'Unable to open camera'}. Check permissions or use file scanner.`);
+          }
+        }
+      }
+    };
+
+    startStream();
+
+    return () => {
+      isMounted = false;
+      if (currentStream) {
+        currentStream.getTracks().forEach((track) => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, [showLiveScannerModal, facingMode]);
+
+  // Frame detection loop for live video stream
+  useEffect(() => {
+    if (!showLiveScannerModal || !isCameraActive) return;
+
+    let isScanning = true;
+    const intervalId = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.readyState < 2) return;
+
+      if ('BarcodeDetector' in window) {
+        try {
+          const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+          const barcodes = await detector.detect(videoRef.current);
+          if (barcodes && barcodes.length > 0 && isScanning) {
+            const code = barcodes[0].rawValue;
+            if (code) {
+              handleAttendanceScanSubmit(undefined, code);
+            }
+          }
+        } catch (e) {
+          // Frame capture error ignored silently
+        }
+      }
+    }, 300);
+
+    return () => {
+      isScanning = false;
+      clearInterval(intervalId);
+    };
+  }, [showLiveScannerModal, isCameraActive, teams]);
+
+  const handleFileUploadQR = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const imageBitmap = await createImageBitmap(file);
+      if ('BarcodeDetector' in window) {
+        const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+        const barcodes = await detector.detect(imageBitmap);
+        if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+          handleAttendanceScanSubmit(undefined, barcodes[0].rawValue);
+          return;
+        }
+      }
+      alert('Could not detect a QR code from this image. Try a clearer photo or enter the Pass ID manually.');
+    } catch (err) {
+      console.error('File QR scan error:', err);
+      alert('Error parsing uploaded image file.');
+    }
+  };
 
   useEffect(() => {
     const authSession = sessionStorage.getItem('cognitia_admin_auth');
@@ -1700,23 +1822,88 @@ Cognitia 2026 Organizing Team`;
                 <span className="font-pixel text-[12px] text-[#00f0ff] flex items-center gap-2">
                   <Camera size={18} /> LIVE CAMERA QR SCANNER
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowLiveScannerModal(false)}
-                  className="text-[#8f9396] hover:text-white cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    title="Switch Front/Rear Camera"
+                    onClick={() => setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'))}
+                    className="text-[#8f9396] hover:text-[#00f0ff] p-1 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLiveScannerModal(false)}
+                    className="text-[#8f9396] hover:text-white cursor-pointer p-1"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 bg-[#141618] border border-[#2b2e30] rounded-xs text-center space-y-2">
                 <span className="font-silkscreen text-[9.5px] text-[#8f9396] block">
                   POINT DEVICE CAMERA AT PARTICIPANT TICKET PASS OR MEMBER QR CODE
                 </span>
-                <div className="relative w-full h-48 bg-black border-2 border-dashed border-[#00f0ff] rounded-xs flex items-center justify-center overflow-hidden">
-                  <QrCode size={48} className="text-[#00f0ff]/40 animate-pulse" />
-                  <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-0.5 bg-[#00f0ff] shadow-[0_0_10px_#000]" />
+
+                <div className="relative w-full h-56 bg-black border-2 border-dashed border-[#00f0ff] rounded-xs flex items-center justify-center overflow-hidden">
+                  {cameraError ? (
+                    <div className="p-4 text-center space-y-2 font-silkscreen text-[9.5px] text-[#fca5a5]">
+                      <AlertTriangle size={28} className="mx-auto text-[#eb5147]" />
+                      <p className="leading-relaxed">{cameraError}</p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mt-2 bg-[#1c2836] border border-[#00f0ff] text-[#00f0ff] font-pixel text-[9px] px-3 py-1.5 rounded-xs cursor-pointer inline-flex items-center gap-1.5"
+                      >
+                        <Upload size={13} /> UPLOAD QR IMAGE INSTEAD
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                      />
+                      {!isCameraActive && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2 font-pixel text-[10px] text-[#00f0ff]">
+                          <Camera size={32} className="animate-bounce" />
+                          <span>INITIALIZING CAMERA FEED...</span>
+                        </div>
+                      )}
+                      {isCameraActive && (
+                        <>
+                          <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 h-0.5 bg-[#00f0ff] shadow-[0_0_12px_#00f0ff] animate-pulse" />
+                          <div className="absolute bottom-2 right-2 bg-black/70 border border-[#00f0ff]/40 text-[#00f0ff] font-silkscreen text-[8px] px-2 py-0.5 rounded-xs flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-ping" /> LIVE SCANNING
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
+              </div>
+
+              {/* Hidden file input for QR upload */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUploadQR}
+                className="hidden"
+              />
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full bg-[#182330] hover:bg-[#203042] text-[#00f0ff] border border-[#00f0ff]/40 font-pixel text-[9px] py-2 rounded-xs cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Upload size={13} /> UPLOAD QR PHOTO FROM DEVICE
+                </button>
               </div>
 
               <form
