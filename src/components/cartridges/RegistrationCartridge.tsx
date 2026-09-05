@@ -811,7 +811,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
 
     if (!feeProofUrl) {
-      setFeeMessage({ type: 'error', text: 'Please select and upload your payment screenshot image (Max 1 MB) before submitting.' });
+      setFeeMessage({ type: 'error', text: 'Please select and upload your payment screenshot image (Max 5 MB) before submitting.' });
       return;
     }
 
@@ -1018,7 +1018,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
   };
 
-  const MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB limit = 1,048,576 bytes
+  const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB limit
 
   const handlePhase1ScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !activeLeadTeam) return;
@@ -1027,10 +1027,10 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     if (file.size > MAX_FILE_SIZE_BYTES) {
       sound.playBlip(300);
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      alert(`❌ FILE TOO LARGE (${fileSizeMB} MB)\n\nPayment screenshot image size exceeds 1 MB limit. Please compress or select an image under 1 MB.`);
+      alert(`❌ FILE TOO LARGE (${fileSizeMB} MB)\n\nPayment screenshot image size exceeds 5 MB limit. Please compress or select an image under 5 MB.`);
       setFeeMessage({
         type: 'error',
-        text: `File size too large (${fileSizeMB} MB). Maximum image size allowed is 1 MB.`,
+        text: `File size too large (${fileSizeMB} MB). Maximum image size allowed is 5 MB.`,
       });
       return;
     }
@@ -1060,7 +1060,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     if (file.size > MAX_FILE_SIZE_BYTES) {
       sound.playBlip(300);
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      alert(`❌ FILE TOO LARGE (${fileSizeMB} MB)\n\nPayment screenshot image size exceeds 1 MB limit. Please compress or select an image under 1 MB.`);
+      alert(`❌ FILE TOO LARGE (${fileSizeMB} MB)\n\nPayment screenshot image size exceeds 5 MB limit. Please compress or select an image under 5 MB.`);
       return;
     }
 
@@ -2214,7 +2214,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
                         <div>
                           <label className="block font-silkscreen text-[9.5px] text-[#8f9396] mb-1">
-                            Payment Screenshot Proof (Max 1 MB) <span className="text-[#a7d38a]">*</span>
+                            Payment Screenshot Proof (Max 5 MB) <span className="text-[#a7d38a]">*</span>
                           </label>
 
                           {/* Direct File Upload Button */}
@@ -2224,8 +2224,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                               {isUploadingPayment
                                 ? 'UPLOADING SCREENSHOT...'
                                 : feeProofUrl
-                                  ? 'CHANGE PAYMENT SCREENSHOT (MAX 1 MB)'
-                                  : 'SELECT & UPLOAD SCREENSHOT IMAGE (MAX 1 MB)'}
+                                  ? 'CHANGE PAYMENT SCREENSHOT (MAX 5 MB)'
+                                  : 'SELECT & UPLOAD SCREENSHOT IMAGE (MAX 5 MB)'}
                               <input
                                 type="file"
                                 accept="image/*"
@@ -2239,7 +2239,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                           {feeProofUrl && (
                             <div className="mt-2 p-2 bg-[#090b0d] border border-[#254225] rounded-xs space-y-1.5">
                               <div className="flex items-center justify-between font-silkscreen text-[8px] text-[#a7d38a]">
-                                <span>📷 ATTACHED RECEIPT PREVIEW (MAX 1 MB VERIFIED):</span>
+                                <span>📷 ATTACHED RECEIPT PREVIEW (MAX 5 MB VERIFIED):</span>
                                 {activeLeadTeam.paymentStatus === 'unpaid' && (
                                   <button
                                     type="button"

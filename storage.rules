@@ -7,9 +7,9 @@ service firebase.storage {
       return request.resource.contentType.matches('image/.*');
     }
 
-    // Helper function to enforce 10 MB file size limit
+    // Helper function to enforce 5 MB file size limit
     function isUnderMaxSize() {
-      return request.resource.size <= 10 * 1024 * 1024; // 10 MB limit
+      return request.resource.size <= 5 * 1024 * 1024; // 5 MB limit
     }
 
     // Phase 2 Submissions: Payment Receipt Screenshots & IEMCRP Student Info Screenshots

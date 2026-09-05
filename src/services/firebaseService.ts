@@ -135,9 +135,9 @@ class FirebaseService {
     file: File,
     folder: 'ppts' | 'screenshots' | 'payments' | 'iemcrp'
   ): Promise<{ url: string; fileName: string }> {
-    const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit
+    const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB limit
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      throw new Error(`FILE_TOO_LARGE: File size ${(file.size / (1024 * 1024)).toFixed(2)} MB exceeds 10 MB limit.`);
+      throw new Error(`FILE_TOO_LARGE: File size ${(file.size / (1024 * 1024)).toFixed(2)} MB exceeds 5 MB limit.`);
     }
 
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
