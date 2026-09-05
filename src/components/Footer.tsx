@@ -34,7 +34,7 @@ export function Footer() {
           <ul className="space-y-2.5 font-condensed text-[15px] sm:text-[16px] text-[#c0c6e4] tracking-wide">
             <li className="flex items-start gap-2.5">
               <MapPin className="h-4.5 w-4.5 text-[#e53935] shrink-0 mt-0.5" />
-              <span>IEM Gurukul Building, Kolkata</span>
+              <span>IEM Aegis Building, College More, Salt Lake Sector V, Kolkata</span>
             </li>
             <li className="flex items-center gap-2.5">
               <Calendar className="h-4.5 w-4.5 text-[#6ec0ff] shrink-0" />
@@ -60,8 +60,8 @@ export function Footer() {
           <div className="relative rounded-lg overflow-hidden border border-[#2a3765] bg-[#0d152e] shadow-md group max-w-[340px] mt-2">
             <div className="w-full h-32 relative">
               <iframe
-                title="IEM Gurukul Building Kolkata Location Map"
-                src="https://maps.google.com/maps?q=IEM+Gurukul+Campus+Y-12+Sector+V+Salt+Lake+Kolkata&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                title="IEM Aegis Building Kolkata Location Map"
+                src="https://maps.google.com/maps?q=IEM+Aegis+Building+Y-12+Salt+Lake+Sector+V+Kolkata&t=&z=15&ie=UTF8&iwloc=&output=embed"
                 className="w-full h-full border-0 filter brightness-95 contrast-105"
                 loading="lazy"
                 referrerPolicy="no-referrer"
@@ -74,7 +74,7 @@ export function Footer() {
                 SECTOR V, KOLKATA
               </span>
               <a
-                href="https://maps.google.com/?q=IEM+Gurukul+Building+Kolkata"
+                href="https://maps.google.com/?q=IEM+Aegis+Building+College+More+Salt+Lake+Sector+V+Kolkata"
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => sound.playBlip(800)}
