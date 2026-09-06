@@ -39,8 +39,8 @@ const FAQ_ITEMS: FAQItem[] = [
     category: 'GENERAL',
     question: 'WHEN AND WHERE IS COGNITIA 2026 TAKING PLACE?',
     answer:
-      'Cognitia 2026 takes place on 11th and 12th September 2026 at the IEM Gurukul Building, Salt Lake Sector V, Kolkata. It is an intensive 24-hour offline hackathon sprint.',
-    highlights: ['11th-12th September 2026', 'IEM Gurukul Kolkata', '24-Hour Offline Sprint'],
+      'Cognitia 2026 takes place on 11th and 12th September 2026 at the IEM Aegis Building, College More, Kolkata. It is an intensive 24-hour offline hackathon sprint.',
+    highlights: ['11th-12th September 2026', 'IEM Aegis Building, College More, Kolkata', '24-Hour Offline Sprint'],
   },
   {
     id: 2,
@@ -232,11 +232,10 @@ export function FAQCartridge() {
                 borderLeftColor: meta?.color || '#38bdf8',
                 borderLeftWidth: '3px',
               }}
-              className={`rounded-md border backdrop-blur-md transition-all overflow-hidden group/card break-words ${
-                isExpanded
+              className={`rounded-md border backdrop-blur-md transition-all overflow-hidden group/card break-words ${isExpanded
                   ? 'bg-[#0a0c0e]/60 border-[#38bdf8]/30 shadow-md'
                   : 'bg-[#0a0c0e]/35 border-[#38bdf8]/15 hover:bg-[#0a0c0e]/50 hover:border-[#38bdf8]/35'
-              }`}
+                }`}
             >
               {/* Question Row Header */}
               <button
@@ -249,11 +248,10 @@ export function FAQCartridge() {
                   <img
                     src={isExpanded ? '/red_pin.png' : '/white_pin.png'}
                     alt="pointer pin"
-                    className={`w-3.5 h-3.5 object-contain pixelated shrink-0 transition-transform duration-150 ${
-                      isExpanded
+                    className={`w-3.5 h-3.5 object-contain pixelated shrink-0 transition-transform duration-150 ${isExpanded
                         ? 'scale-110'
                         : 'opacity-50 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5'
-                    } pointer-events-none select-none`}
+                      } pointer-events-none select-none`}
                     draggable={false}
                   />
 
@@ -272,9 +270,8 @@ export function FAQCartridge() {
 
                   {/* Question text */}
                   <span
-                    className={`font-pixel text-[9.5px] sm:text-[10.5px] leading-snug transition-colors break-words flex-1 ${
-                      isExpanded ? 'text-[#ef4444]' : 'text-[#cfe8ff] group-hover/btn:text-[#38bdf8]'
-                    }`}
+                    className={`font-pixel text-[9.5px] sm:text-[10.5px] leading-snug transition-colors break-words flex-1 ${isExpanded ? 'text-[#ef4444]' : 'text-[#cfe8ff] group-hover/btn:text-[#38bdf8]'
+                      }`}
                   >
                     {faq.question}
                   </span>
@@ -282,14 +279,12 @@ export function FAQCartridge() {
 
                 {/* Toggle Indicator */}
                 <div
-                  className={`p-1 rounded-sm transition-transform duration-200 shrink-0 ${
-                    isExpanded ? 'bg-[#ef4444]/15 text-[#ef4444]' : 'bg-[#0a0c0e] text-[#8f9396]'
-                  }`}
+                  className={`p-1 rounded-sm transition-transform duration-200 shrink-0 ${isExpanded ? 'bg-[#ef4444]/15 text-[#ef4444]' : 'bg-[#0a0c0e] text-[#8f9396]'
+                    }`}
                 >
                   <ChevronDown
-                    className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                      isExpanded ? 'rotate-180' : ''
-                    }`}
+                    className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''
+                      }`}
                   />
                 </div>
               </button>
@@ -326,11 +321,10 @@ export function FAQCartridge() {
                       <button
                         type="button"
                         onClick={() => handleVote(faq.id, 'yes')}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-sm cursor-pointer border transition-colors ${
-                          vote === 'yes'
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-sm cursor-pointer border transition-colors ${vote === 'yes'
                             ? 'bg-[#38bdf8]/20 border-[#38bdf8] text-[#38bdf8]'
                             : 'bg-[#0a0c0e] border-[#38bdf8]/20 hover:bg-[#38bdf8]/10 text-[#9ca3af]'
-                        }`}
+                          }`}
                       >
                         <ThumbsUp className="h-3 w-3" />
                         <span>YES</span>
@@ -338,11 +332,10 @@ export function FAQCartridge() {
                       <button
                         type="button"
                         onClick={() => handleVote(faq.id, 'no')}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-sm cursor-pointer border transition-colors ${
-                          vote === 'no'
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-sm cursor-pointer border transition-colors ${vote === 'no'
                             ? 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444]'
                             : 'bg-[#0a0c0e] border-[#ef4444]/20 hover:bg-[#ef4444]/10 text-[#9ca3af]'
-                        }`}
+                          }`}
                       >
                         <ThumbsDown className="h-3 w-3" />
                         <span>NO</span>
