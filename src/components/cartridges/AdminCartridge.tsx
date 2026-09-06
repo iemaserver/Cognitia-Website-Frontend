@@ -155,7 +155,7 @@ export const AdminCartridge: React.FC = () => {
         if (videoRef.current && isMounted) {
           videoRef.current.srcObject = stream;
           videoRef.current.setAttribute('playsinline', 'true');
-          await videoRef.current.play().catch(() => {});
+          await videoRef.current.play().catch(() => { });
           setIsCameraActive(true);
         }
       } catch (err: any) {
@@ -375,9 +375,9 @@ export const AdminCartridge: React.FC = () => {
       if (!isIemTeam) {
         const hasPaymentProof = Boolean(
           team.phase2PaymentTransactionId ||
-            (team.phase2PaymentScreenshotUrl && !team.phase2PaymentScreenshotUrl.includes('placeholder')) ||
-            team.paymentTransactionId ||
-            (team.paymentScreenshotUrl && !team.paymentScreenshotUrl.includes('placeholder'))
+          (team.phase2PaymentScreenshotUrl && !team.phase2PaymentScreenshotUrl.includes('placeholder')) ||
+          team.paymentTransactionId ||
+          (team.paymentScreenshotUrl && !team.paymentScreenshotUrl.includes('placeholder'))
         );
 
         if (!hasPaymentProof) {
@@ -1159,11 +1159,10 @@ Cognitia 2026 Organizing Team`;
             sound.playBlip(600);
             setActiveAdminSubTab('food');
           }}
-          className={`w-full px-3 sm:px-4 py-2.5 rounded-xs border transition-all cursor-pointer flex items-center justify-center gap-2 text-center ${
-            activeAdminSubTab === 'food'
-              ? 'bg-[#142417] text-[#4ade80] border-[#4ade80] shadow-[0_0_20px_rgba(74,222,128,0.3)] font-bold'
-              : 'bg-[#0f1411] text-[#86efac]/70 border-[#25522b] hover:text-[#4ade80] hover:border-[#34783a]'
-          }`}
+          className={`w-full px-3 sm:px-4 py-2.5 rounded-xs border transition-all cursor-pointer flex items-center justify-center gap-2 text-center ${activeAdminSubTab === 'food'
+            ? 'bg-[#142417] text-[#4ade80] border-[#4ade80] shadow-[0_0_20px_rgba(74,222,128,0.3)] font-bold'
+            : 'bg-[#0f1411] text-[#86efac]/70 border-[#25522b] hover:text-[#4ade80] hover:border-[#34783a]'
+            }`}
         >
           <Utensils size={16} className="shrink-0" /> <span>🍱 FOOD COUPONS &amp; CATERING AUDIT</span>
         </button>
@@ -1174,11 +1173,10 @@ Cognitia 2026 Organizing Team`;
             sound.playBlip(600);
             setActiveAdminSubTab('teams');
           }}
-          className={`w-full px-3 sm:px-4 py-2.5 rounded-xs border transition-all cursor-pointer flex items-center justify-center gap-2 text-center ${
-            activeAdminSubTab === 'teams'
-              ? 'bg-[#1c2836] text-[#00f0ff] border-[#00f0ff] shadow-[0_0_20px_rgba(0,240,255,0.3)] font-bold'
-              : 'bg-[#121a24] text-[#6fb3d9]/70 border-[#1e2d42] hover:text-[#00f0ff] hover:border-[#38bdf8]'
-          }`}
+          className={`w-full px-3 sm:px-4 py-2.5 rounded-xs border transition-all cursor-pointer flex items-center justify-center gap-2 text-center ${activeAdminSubTab === 'teams'
+            ? 'bg-[#1c2836] text-[#00f0ff] border-[#00f0ff] shadow-[0_0_20px_rgba(0,240,255,0.3)] font-bold'
+            : 'bg-[#121a24] text-[#6fb3d9]/70 border-[#1e2d42] hover:text-[#00f0ff] hover:border-[#38bdf8]'
+            }`}
         >
           <Users size={16} className="shrink-0" /> <span>📊 TEAMS REGISTRATIONS &amp; VENUE ATTENDANCE</span>
         </button>
@@ -1189,157 +1187,128 @@ Cognitia 2026 Organizing Team`;
         <div className="space-y-4 animate-fade-in">
           {/* GLOBAL FOOD COUPONS SESSION CONTROLLER */}
           <div className="p-3.5 bg-[#141d18] border-2 border-[#4ade80]/60 rounded-md space-y-2.5 shadow-[0_0_20px_rgba(74,222,128,0.15)]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#25522b] pb-2 gap-2">
-          <div className="flex items-center gap-2 text-[#4ade80]">
-            <Utensils size={16} />
-            <span className="font-pixel text-[11px] sm:text-[12px]">
-              FOOD COUPONS ACTIVE SESSION CONTROLLER
-            </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#25522b] pb-2 gap-2">
+              <div className="flex items-center gap-2 text-[#4ade80]">
+                <Utensils size={16} />
+                <span className="font-pixel text-[11px] sm:text-[12px]">
+                  FOOD COUPONS ACTIVE SESSION CONTROLLER
+                </span>
+              </div>
+              <div className="font-silkscreen text-[8px] bg-[#1a2d1e] text-[#86efac] border border-[#2e5934] px-2.5 py-1 rounded-xs">
+                CURRENTLY ACTIVE: <strong className="text-[#4ade80] uppercase font-bold">{activeMealSession === 'none' ? 'OFF (NO COUPONS REVEALED)' : activeMealSession.replace('_', ' ')}</strong>
+              </div>
+            </div>
+
+            <p className="font-silkscreen text-[8.5px] text-[#cfe8ff]">
+              Click any meal button below to enable that food coupon QR for all checked-in attendees across the app:
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  sound.playBoot();
+                  await firebaseService.setActiveMealSession('day1_dinner');
+                }}
+                className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${activeMealSession === 'day1_dinner'
+                  ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
+                  : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
+                  }`}
+              >
+                <span>🍱 DAY 1 DINNER</span>
+                {activeMealSession === 'day1_dinner' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  sound.playBoot();
+                  await firebaseService.setActiveMealSession('day1_snacks');
+                }}
+                className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${activeMealSession === 'day1_snacks'
+                  ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
+                  : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
+                  }`}
+              >
+                <span>🍕 DAY 1 SNACKS</span>
+                {activeMealSession === 'day1_snacks' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  sound.playBoot();
+                  await firebaseService.setActiveMealSession('day2_breakfast');
+                }}
+                className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${activeMealSession === 'day2_breakfast'
+                  ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
+                  : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
+                  }`}
+              >
+                <span>🥐 DAY 2 BREAKFAST</span>
+                {activeMealSession === 'day2_breakfast' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  sound.playBoot();
+                  await firebaseService.setActiveMealSession('day2_lunch');
+                }}
+                className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${activeMealSession === 'day2_lunch'
+                  ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
+                  : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
+                  }`}
+              >
+                <span>🍱 DAY 2 LUNCH</span>
+                {activeMealSession === 'day2_lunch' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  sound.playBlip(300);
+                  await firebaseService.setActiveMealSession('none');
+                }}
+                className={`col-span-2 sm:col-span-1 font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${activeMealSession === 'none'
+                  ? 'bg-[#261414] border-[#eb5147] text-[#eb5147]'
+                  : 'bg-[#170f0f] border-[#522525] text-[#fca5a5] hover:border-[#eb5147]'
+                  }`}
+              >
+                <span>🚫 DISABLE ALL</span>
+                {activeMealSession === 'none' && <span className="text-[9px] text-[#eb5147] font-silkscreen font-bold">● OFF</span>}
+              </button>
+            </div>
           </div>
-          <div className="font-silkscreen text-[8px] bg-[#1a2d1e] text-[#86efac] border border-[#2e5934] px-2.5 py-1 rounded-xs">
-            CURRENTLY ACTIVE: <strong className="text-[#4ade80] uppercase font-bold">{activeMealSession === 'none' ? 'OFF (NO COUPONS REVEALED)' : activeMealSession.replace('_', ' ')}</strong>
-          </div>
-        </div>
 
-        <p className="font-silkscreen text-[8.5px] text-[#cfe8ff]">
-          Click any meal button below to enable that food coupon QR for all checked-in attendees across the app:
-        </p>
+          {/* REAL-TIME FOOD DISTRIBUTION TRACKING & AUDIT LOG DASHBOARD */}
+          {(() => {
+            let day1DinnerCount = 0;
+            let day1SnacksCount = 0;
+            let day2BreakfastCount = 0;
+            let day2LunchCount = 0;
+            let totalCheckedInAttendees = 0;
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              sound.playBoot();
-              await firebaseService.setActiveMealSession('day1_dinner');
-            }}
-            className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-              activeMealSession === 'day1_dinner'
-                ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
-                : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
-            }`}
-          >
-            <span>🍱 DAY 1 DINNER</span>
-            {activeMealSession === 'day1_dinner' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
-          </button>
-
-          <button
-            type="button"
-            onClick={async () => {
-              sound.playBoot();
-              await firebaseService.setActiveMealSession('day1_snacks');
-            }}
-            className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-              activeMealSession === 'day1_snacks'
-                ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
-                : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
-            }`}
-          >
-            <span>🍕 DAY 1 SNACKS</span>
-            {activeMealSession === 'day1_snacks' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
-          </button>
-
-          <button
-            type="button"
-            onClick={async () => {
-              sound.playBoot();
-              await firebaseService.setActiveMealSession('day2_breakfast');
-            }}
-            className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-              activeMealSession === 'day2_breakfast'
-                ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
-                : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
-            }`}
-          >
-            <span>🥐 DAY 2 BREAKFAST</span>
-            {activeMealSession === 'day2_breakfast' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
-          </button>
-
-          <button
-            type="button"
-            onClick={async () => {
-              sound.playBoot();
-              await firebaseService.setActiveMealSession('day2_lunch');
-            }}
-            className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-              activeMealSession === 'day2_lunch'
-                ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
-                : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
-            }`}
-          >
-            <span>🍱 DAY 2 LUNCH</span>
-            {activeMealSession === 'day2_lunch' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
-          </button>
-
-          <button
-            type="button"
-            onClick={async () => {
-              sound.playBlip(300);
-              await firebaseService.setActiveMealSession('none');
-            }}
-            className={`col-span-2 sm:col-span-1 font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-              activeMealSession === 'none'
-                ? 'bg-[#261414] border-[#eb5147] text-[#eb5147]'
-                : 'bg-[#170f0f] border-[#522525] text-[#fca5a5] hover:border-[#eb5147]'
-            }`}
-          >
-            <span>🚫 DISABLE ALL</span>
-            {activeMealSession === 'none' && <span className="text-[9px] text-[#eb5147] font-silkscreen font-bold">● OFF</span>}
-          </button>
-        </div>
-      </div>
-
-        {/* REAL-TIME FOOD DISTRIBUTION TRACKING & AUDIT LOG DASHBOARD */}
-        {(() => {
-          let day1DinnerCount = 0;
-          let day1SnacksCount = 0;
-          let day2BreakfastCount = 0;
-          let day2LunchCount = 0;
-          let totalCheckedInAttendees = 0;
-
-          interface FoodAuditRow {
-            id: string;
-            timestamp: string;
-            recipient: string;
-            type: 'Member Pass' | 'Team Pass';
-            passId: string;
-            teamName: string;
-            mealType: MealType;
-            admin: string;
-          }
-
-          const auditLogs: FoodAuditRow[] = [];
-
-          teams.forEach((t) => {
-            const checkedMems = (t.members || []).filter((m) => m.checkInStatus === 'checked_in');
-            totalCheckedInAttendees += checkedMems.length;
-
-            if (t.meals) {
-              (['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).forEach((mKey) => {
-                const rec = t.meals?.[mKey];
-                if (rec?.redeemed) {
-                  if (mKey === 'day1_dinner') day1DinnerCount++;
-                  if (mKey === 'day1_snacks') day1SnacksCount++;
-                  if (mKey === 'day2_breakfast') day2BreakfastCount++;
-                  if (mKey === 'day2_lunch') day2LunchCount++;
-
-                  auditLogs.push({
-                    id: `${t.id}-${mKey}`,
-                    timestamp: rec.redeemedAt || 'Earlier',
-                    recipient: `TEAM: ${t.teamName}`,
-                    type: 'Team Pass',
-                    passId: t.ticketPassId || t.id,
-                    teamName: t.teamName,
-                    mealType: mKey,
-                    admin: rec.redeemedByAdmin || 'Admin',
-                  });
-                }
-              });
+            interface FoodAuditRow {
+              id: string;
+              timestamp: string;
+              recipient: string;
+              type: 'Member Pass' | 'Team Pass';
+              passId: string;
+              teamName: string;
+              mealType: MealType;
+              admin: string;
             }
 
-            (t.members || []).forEach((m) => {
-              if (m.meals) {
+            const auditLogs: FoodAuditRow[] = [];
+
+            teams.forEach((t) => {
+              const checkedMems = (t.members || []).filter((m) => m.checkInStatus === 'checked_in');
+              totalCheckedInAttendees += checkedMems.length;
+
+              if (t.meals) {
                 (['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).forEach((mKey) => {
-                  const rec = m.meals?.[mKey];
+                  const rec = t.meals?.[mKey];
                   if (rec?.redeemed) {
                     if (mKey === 'day1_dinner') day1DinnerCount++;
                     if (mKey === 'day1_snacks') day1SnacksCount++;
@@ -1347,11 +1316,11 @@ Cognitia 2026 Organizing Team`;
                     if (mKey === 'day2_lunch') day2LunchCount++;
 
                     auditLogs.push({
-                      id: `${m.id}-${mKey}`,
+                      id: `${t.id}-${mKey}`,
                       timestamp: rec.redeemedAt || 'Earlier',
-                      recipient: `${m.name} (${m.role || 'Member'})`,
-                      type: 'Member Pass',
-                      passId: m.memberPassId || m.id,
+                      recipient: `TEAM: ${t.teamName}`,
+                      type: 'Team Pass',
+                      passId: t.ticketPassId || t.id,
                       teamName: t.teamName,
                       mealType: mKey,
                       admin: rec.redeemedByAdmin || 'Admin',
@@ -1359,308 +1328,293 @@ Cognitia 2026 Organizing Team`;
                   }
                 });
               }
+
+              (t.members || []).forEach((m) => {
+                if (m.meals) {
+                  (['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).forEach((mKey) => {
+                    const rec = m.meals?.[mKey];
+                    if (rec?.redeemed) {
+                      if (mKey === 'day1_dinner') day1DinnerCount++;
+                      if (mKey === 'day1_snacks') day1SnacksCount++;
+                      if (mKey === 'day2_breakfast') day2BreakfastCount++;
+                      if (mKey === 'day2_lunch') day2LunchCount++;
+
+                      auditLogs.push({
+                        id: `${m.id}-${mKey}`,
+                        timestamp: rec.redeemedAt || 'Earlier',
+                        recipient: `${m.name} (${m.role || 'Member'})`,
+                        type: 'Member Pass',
+                        passId: m.memberPassId || m.id,
+                        teamName: t.teamName,
+                        mealType: mKey,
+                        admin: rec.redeemedByAdmin || 'Admin',
+                      });
+                    }
+                  });
+                }
+              });
             });
-          });
-
-          return (
-            <div className="pt-2 space-y-2.5 border-t border-[#25522b]">
-              <div className="flex items-center justify-between">
-                <span className="font-silkscreen text-[8.5px] text-[#4ade80] uppercase tracking-wider block">
-                  📊 REAL-TIME FOOD DISTRIBUTION AUDIT &amp; TRACKING SUMMARY:
-                </span>
-                <span className="font-mono text-[8px] text-[#86efac] bg-[#1a2d1e] px-2 py-0.5 border border-[#2e5934] rounded-xs">
-                  CHECKED-IN ATTENDEES: <strong>{totalCheckedInAttendees} PARTICIPANTS</strong>
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-silkscreen text-[8.5px]">
-                <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
-                  <span className="text-[#cfe8ff] block">🍱 DAY 1 DINNER:</span>
-                  <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
-                    {day1DinnerCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
-                  </span>
-                </div>
-
-                <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
-                  <span className="text-[#cfe8ff] block">🍕 DAY 1 SNACKS:</span>
-                  <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
-                    {day1SnacksCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
-                  </span>
-                </div>
-
-                <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
-                  <span className="text-[#cfe8ff] block">🥐 DAY 2 BREAKFAST:</span>
-                  <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
-                    {day2BreakfastCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
-                  </span>
-                </div>
-
-                <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
-                  <span className="text-[#cfe8ff] block">🍱 DAY 2 LUNCH:</span>
-                  <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
-                    {day2LunchCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
-                  </span>
-                </div>
-              </div>
-
-              {auditLogs.length > 0 && (
-                <div className="bg-[#0a0d10] border border-[#25522b] p-2.5 rounded-xs space-y-2">
-                  <div className="flex items-center justify-between text-[8px] font-silkscreen">
-                    <span className="text-[#4ade80]">
-                      📋 RECENT FOOD REDEMPTION LOGS ({auditLogs.length} REDEEMED):
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        sound.playBlip(500);
-                        const headers = ['Timestamp', 'Recipient', 'Type', 'Pass ID', 'Team Name', 'Meal Session', 'Verified By'];
-                        const csvRows = [headers.join(',')];
-
-                        auditLogs.forEach((row) => {
-                          const values = [
-                            `"${row.timestamp}"`,
-                            `"${row.recipient}"`,
-                            `"${row.type}"`,
-                            `"${row.passId}"`,
-                            `"${row.teamName}"`,
-                            `"${row.mealType}"`,
-                            `"${row.admin}"`,
-                          ];
-                          csvRows.push(values.join(','));
-                        });
-
-                        const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.join('\n');
-                        const encodedUri = encodeURI(csvContent);
-                        const link = document.createElement('a');
-                        link.setAttribute('href', encodedUri);
-                        link.setAttribute('download', `Cognitia_2026_Food_Redemptions_Audit_${new Date().toISOString().slice(0, 10)}.csv`);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                      className="bg-[#182418] hover:bg-[#203320] text-[#a7d38a] border border-[#254225] px-2 py-0.5 rounded-xs cursor-pointer flex items-center gap-1 font-pixel text-[7.5px]"
-                    >
-                      <Download size={10} /> EXPORT FOOD CSV
-                    </button>
-                  </div>
-
-                  <div className="max-h-36 overflow-y-auto border border-[#2b2e30] rounded-xs font-mono text-[8px]">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-[#121820] text-[#f4c151] sticky top-0 border-b border-[#2b2e30] text-[7.5px]">
-                        <tr>
-                          <th className="p-1">TIME</th>
-                          <th className="p-1">RECIPIENT</th>
-                          <th className="p-1">TEAM</th>
-                          <th className="p-1">MEAL</th>
-                          <th className="p-1 text-right">PASS ID</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#1e2329] text-[#cfe8ff]">
-                        {auditLogs.slice(-15).reverse().map((log) => (
-                          <tr key={log.id} className="hover:bg-[#151c24]">
-                            <td className="p-1 text-[#8f9396]">{log.timestamp}</td>
-                            <td className="p-1 font-bold text-white">{log.recipient}</td>
-                            <td className="p-1 text-[#86efac]">{log.teamName}</td>
-                            <td className="p-1 text-[#00f0ff] uppercase">{log.mealType.replace('_', ' ')}</td>
-                            <td className="p-1 text-right text-[#f4c151]">{log.passId}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* MANUAL PER-MEMBER MEAL SERVED SYSTEM (DROPDOWN & TOGGLE MATRIX) */}
-        <div className="bg-[#0b1015] border-2 border-[#25522b] p-3.5 sm:p-4 rounded-md space-y-4 font-silkscreen shadow-md">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#1e3822] pb-2.5 gap-2">
-            <div className="flex items-center gap-2 text-[#4ade80]">
-              <Utensils size={20} />
-              <span className="font-pixel text-[13px] sm:text-[15px] uppercase font-bold">
-                MANUAL MEAL REDEMPTION SYSTEM &amp; MEMBER MATRIX
-              </span>
-            </div>
-            <span className="text-[10px] sm:text-[11px] text-[#86efac] bg-[#142417] border border-[#25522b] px-3 py-1 rounded-xs font-bold">
-              MANUAL ADMIN OVERRIDE &amp; PER-MEMBER TRACKING
-            </span>
-          </div>
-
-          {/* Dropdown Selectors Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-[10.5px] sm:text-[11.5px]">
-            {/* Select Team */}
-            <div className="space-y-1.5">
-              <label className="text-[#8f9396] block font-bold">1. SELECT REGISTERED TEAM:</label>
-              <select
-                value={selectedManualTeamId}
-                onChange={(e) => {
-                  setSelectedManualTeamId(e.target.value);
-                  setSelectedManualMemberId('all');
-                }}
-                className="w-full bg-[#121820] border border-[#2b2e30] text-[#cfe8ff] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none font-semibold"
-              >
-                <option value="">-- Choose Team ({teams.length} Teams) --</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.teamName} ({t.ticketPassId || t.id})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Select Member */}
-            <div className="space-y-1.5">
-              <label className="text-[#8f9396] block font-bold">2. SELECT TEAM MEMBER:</label>
-              <select
-                value={selectedManualMemberId}
-                onChange={(e) => setSelectedManualMemberId(e.target.value)}
-                disabled={!selectedManualTeamId}
-                className="w-full bg-[#121820] border border-[#2b2e30] text-[#cfe8ff] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none disabled:opacity-40 font-semibold"
-              >
-                <option value="all">-- Whole Team (Full Pass) --</option>
-                {(() => {
-                  const targetT = teams.find((t) => t.id === selectedManualTeamId);
-                  if (!targetT) return null;
-                  return targetT.members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.role || 'Member'}) - {m.checkInStatus === 'checked_in' ? '🟢 PRESENT' : '⚪ ABSENT'}
-                    </option>
-                  ));
-                })()}
-              </select>
-            </div>
-
-            {/* Select Meal */}
-            <div className="space-y-1.5">
-              <label className="text-[#8f9396] block font-bold">3. SELECT MEAL TYPE:</label>
-              <select
-                value={selectedManualMealType}
-                onChange={(e) => setSelectedManualMealType(e.target.value as MealType)}
-                className="w-full bg-[#121820] border border-[#2b2e30] text-[#4ade80] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none font-bold"
-              >
-                <option value="day1_dinner">🍱 Day 1 Dinner</option>
-                <option value="day1_snacks">🍕 Day 1 Late Night Snacks</option>
-                <option value="day2_breakfast">🥐 Day 2 Breakfast</option>
-                <option value="day2_lunch">🍱 Day 2 Lunch</option>
-              </select>
-            </div>
-
-            {/* Action Button */}
-            <div className="space-y-1 flex flex-col justify-end">
-              <button
-                type="button"
-                disabled={!selectedManualTeamId}
-                onClick={async () => {
-                  sound.playBoot();
-                  const targetT = teams.find((t) => t.id === selectedManualTeamId);
-                  if (!targetT) return;
-
-                  const passToMark =
-                    selectedManualMemberId !== 'all'
-                      ? selectedManualMemberId
-                      : targetT.ticketPassId || targetT.id;
-
-                  const res = await firebaseService.markMealRedeemed(passToMark, selectedManualMealType);
-                  if (res.success) {
-                    loadAdminData();
-                    setScanMessage({
-                      type: 'success',
-                      text: res.message || 'Meal status updated manually!',
-                    });
-                  } else if (res.message) {
-                    alert(res.message);
-                  }
-                }}
-                className="w-full bg-[#1e4620] hover:bg-[#28592b] text-[#4ade80] border border-[#4ade80] font-pixel text-[11.5px] sm:text-[12.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] disabled:opacity-40 transition-all font-bold"
-              >
-                <Utensils size={15} /> MARK MEAL SERVED
-              </button>
-            </div>
-          </div>
-
-          {/* Per-Member Meal Tracking Matrix Table for Selected Team */}
-          {selectedManualTeamId ? (() => {
-            const targetT = teams.find((t) => t.id === selectedManualTeamId);
-            if (!targetT) return null;
 
             return (
-              <div className="pt-3 border-t border-[#1e3822] space-y-2.5">
-                <div className="flex items-center justify-between text-[12.5px] sm:text-[14px] font-silkscreen font-bold">
-                  <span className="text-[#f4c151]">
-                    PER-MEMBER MEAL STATUS MATRIX — {targetT.teamName} ({targetT.members.length} MEMBERS):
+              <div className="pt-2 space-y-2.5 border-t border-[#25522b]">
+                <div className="flex items-center justify-between">
+                  <span className="font-silkscreen text-[8.5px] text-[#4ade80] uppercase tracking-wider block">
+                    📊 REAL-TIME FOOD DISTRIBUTION AUDIT &amp; TRACKING SUMMARY:
                   </span>
-                  <span className="text-[#86efac]">
-                    GATE CHECKED IN: {targetT.members.filter((m) => m.checkInStatus === 'checked_in').length} / {targetT.members.length}
+                  <span className="font-mono text-[8px] text-[#86efac] bg-[#1a2d1e] px-2 py-0.5 border border-[#2e5934] rounded-xs">
+                    CHECKED-IN ATTENDEES: <strong>{totalCheckedInAttendees} PARTICIPANTS</strong>
                   </span>
                 </div>
 
-                {/* MOBILE CARD VIEW FOR FOOD MATRIX (PHONE SCREENS < 640px) */}
-                <div className="space-y-3 block sm:hidden">
-                  {/* Full Team Pass Card */}
-                  <div className="bg-[#101924] border-2 border-[#f4c151]/40 p-3 rounded-md space-y-2.5">
-                    <div className="flex items-center justify-between border-b border-[#1e2d42] pb-1.5">
-                      <span className="text-[#f4c151] font-bold text-[13px]">👑 FULL TEAM PASS ({targetT.teamName})</span>
-                      <span className="font-mono text-[11px] font-bold text-[#86efac]">
-                        {targetT.attendanceStatus === 'checked_in' ? '🟢 GATE PASS' : '⚪ NOT CHECKED IN'}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 font-pixel text-[10.5px]">
-                      {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
-                        const isRedeemed = !!targetT.meals?.[mKey]?.redeemed;
-                        return (
-                          <button
-                            key={mKey}
-                            type="button"
-                            onClick={async () => {
-                              sound.playClick();
-                              await firebaseService.toggleMealRedemption(targetT.ticketPassId || targetT.id, mKey);
-                              loadAdminData();
-                            }}
-                            className={`py-2 px-2 rounded-xs border cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${
-                              isRedeemed
-                                ? 'bg-[#261414] text-[#eb5147] border-[#522525]'
-                                : 'bg-[#142417] text-[#4ade80] border-[#25522b]'
-                            }`}
-                          >
-                            <span className="text-[9px] uppercase font-silkscreen">{mKey.replace('_', ' ')}</span>
-                            <span className="font-bold">{isRedeemed ? '✓ SERVED' : '+ SERVE'}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-silkscreen text-[8.5px]">
+                  <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
+                    <span className="text-[#cfe8ff] block">🍱 DAY 1 DINNER:</span>
+                    <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
+                      {day1DinnerCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
+                    </span>
                   </div>
 
-                  {/* Individual Members Cards */}
-                  {targetT.members.map((m) => (
-                    <div key={m.id} className="bg-[#0f1712] border border-[#25522b] p-3 rounded-md space-y-2.5">
-                      <div className="flex items-center justify-between border-b border-[#1e3822] pb-1.5">
-                        <div>
-                          <span className="font-bold text-white block text-[13.5px]">{m.name}</span>
-                          <span className="text-[#8f9396] text-[11px] font-mono">{m.role || 'Member'} ({m.memberPassId || m.id})</span>
-                        </div>
-                        <span className={`font-pixel text-[10px] px-2 py-0.5 rounded-xs ${m.checkInStatus === 'checked_in' ? 'bg-[#182418] text-[#4ade80] border border-[#25522b]' : 'bg-[#1c1f24] text-[#8f9396] border border-[#2b2e30]'}`}>
-                          {m.checkInStatus === 'checked_in' ? '✓ PRESENT' : '⚪ ABSENT'}
+                  <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
+                    <span className="text-[#cfe8ff] block">🍕 DAY 1 SNACKS:</span>
+                    <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
+                      {day1SnacksCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
+                    </span>
+                  </div>
+
+                  <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
+                    <span className="text-[#cfe8ff] block">🥐 DAY 2 BREAKFAST:</span>
+                    <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
+                      {day2BreakfastCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
+                    </span>
+                  </div>
+
+                  <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
+                    <span className="text-[#cfe8ff] block">🍱 DAY 2 LUNCH:</span>
+                    <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
+                      {day2LunchCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
+                    </span>
+                  </div>
+                </div>
+
+                {auditLogs.length > 0 && (
+                  <div className="bg-[#0a0d10] border border-[#25522b] p-2.5 rounded-xs space-y-2">
+                    <div className="flex items-center justify-between text-[8px] font-silkscreen">
+                      <span className="text-[#4ade80]">
+                        📋 RECENT FOOD REDEMPTION LOGS ({auditLogs.length} REDEEMED):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sound.playBlip(500);
+                          const headers = ['Timestamp', 'Recipient', 'Type', 'Pass ID', 'Team Name', 'Meal Session', 'Verified By'];
+                          const csvRows = [headers.join(',')];
+
+                          auditLogs.forEach((row) => {
+                            const values = [
+                              `"${row.timestamp}"`,
+                              `"${row.recipient}"`,
+                              `"${row.type}"`,
+                              `"${row.passId}"`,
+                              `"${row.teamName}"`,
+                              `"${row.mealType}"`,
+                              `"${row.admin}"`,
+                            ];
+                            csvRows.push(values.join(','));
+                          });
+
+                          const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.join('\n');
+                          const encodedUri = encodeURI(csvContent);
+                          const link = document.createElement('a');
+                          link.setAttribute('href', encodedUri);
+                          link.setAttribute('download', `Cognitia_2026_Food_Redemptions_Audit_${new Date().toISOString().slice(0, 10)}.csv`);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="bg-[#182418] hover:bg-[#203320] text-[#a7d38a] border border-[#254225] px-2 py-0.5 rounded-xs cursor-pointer flex items-center gap-1 font-pixel text-[7.5px]"
+                      >
+                        <Download size={10} /> EXPORT FOOD CSV
+                      </button>
+                    </div>
+
+                    <div className="max-h-36 overflow-y-auto border border-[#2b2e30] rounded-xs font-mono text-[8px]">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-[#121820] text-[#f4c151] sticky top-0 border-b border-[#2b2e30] text-[7.5px]">
+                          <tr>
+                            <th className="p-1">TIME</th>
+                            <th className="p-1">RECIPIENT</th>
+                            <th className="p-1">TEAM</th>
+                            <th className="p-1">MEAL</th>
+                            <th className="p-1 text-right">PASS ID</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#1e2329] text-[#cfe8ff]">
+                          {auditLogs.slice(-15).reverse().map((log) => (
+                            <tr key={log.id} className="hover:bg-[#151c24]">
+                              <td className="p-1 text-[#8f9396]">{log.timestamp}</td>
+                              <td className="p-1 font-bold text-white">{log.recipient}</td>
+                              <td className="p-1 text-[#86efac]">{log.teamName}</td>
+                              <td className="p-1 text-[#00f0ff] uppercase">{log.mealType.replace('_', ' ')}</td>
+                              <td className="p-1 text-right text-[#f4c151]">{log.passId}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* MANUAL PER-MEMBER MEAL SERVED SYSTEM (DROPDOWN & TOGGLE MATRIX) */}
+          <div className="bg-[#0b1015] border-2 border-[#25522b] p-3.5 sm:p-4 rounded-md space-y-4 font-silkscreen shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#1e3822] pb-2.5 gap-2">
+              <div className="flex items-center gap-2 text-[#4ade80]">
+                <Utensils size={20} />
+                <span className="font-pixel text-[13px] sm:text-[15px] uppercase font-bold">
+                  MANUAL MEAL REDEMPTION SYSTEM &amp; MEMBER MATRIX
+                </span>
+              </div>
+              <span className="text-[10px] sm:text-[11px] text-[#86efac] bg-[#142417] border border-[#25522b] px-3 py-1 rounded-xs font-bold">
+                MANUAL ADMIN OVERRIDE &amp; PER-MEMBER TRACKING
+              </span>
+            </div>
+
+            {/* Dropdown Selectors Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-[10.5px] sm:text-[11.5px]">
+              {/* Select Team */}
+              <div className="space-y-1.5">
+                <label className="text-[#8f9396] block font-bold">1. SELECT REGISTERED TEAM:</label>
+                <select
+                  value={selectedManualTeamId}
+                  onChange={(e) => {
+                    setSelectedManualTeamId(e.target.value);
+                    setSelectedManualMemberId('all');
+                  }}
+                  className="w-full bg-[#121820] border border-[#2b2e30] text-[#cfe8ff] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none font-semibold"
+                >
+                  <option value="">-- Choose Team ({teams.length} Teams) --</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.teamName} ({t.ticketPassId || t.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Select Member */}
+              <div className="space-y-1.5">
+                <label className="text-[#8f9396] block font-bold">2. SELECT TEAM MEMBER:</label>
+                <select
+                  value={selectedManualMemberId}
+                  onChange={(e) => setSelectedManualMemberId(e.target.value)}
+                  disabled={!selectedManualTeamId}
+                  className="w-full bg-[#121820] border border-[#2b2e30] text-[#cfe8ff] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none disabled:opacity-40 font-semibold"
+                >
+                  <option value="all">-- Whole Team (Full Pass) --</option>
+                  {(() => {
+                    const targetT = teams.find((t) => t.id === selectedManualTeamId);
+                    if (!targetT) return null;
+                    return targetT.members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.role || 'Member'}) - {m.checkInStatus === 'checked_in' ? '🟢 PRESENT' : '⚪ ABSENT'}
+                      </option>
+                    ));
+                  })()}
+                </select>
+              </div>
+
+              {/* Select Meal */}
+              <div className="space-y-1.5">
+                <label className="text-[#8f9396] block font-bold">3. SELECT MEAL TYPE:</label>
+                <select
+                  value={selectedManualMealType}
+                  onChange={(e) => setSelectedManualMealType(e.target.value as MealType)}
+                  className="w-full bg-[#121820] border border-[#2b2e30] text-[#4ade80] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none font-bold"
+                >
+                  <option value="day1_dinner">🍱 Day 1 Dinner</option>
+                  <option value="day1_snacks">🍕 Day 1 Late Night Snacks</option>
+                  <option value="day2_breakfast">🥐 Day 2 Breakfast</option>
+                  <option value="day2_lunch">🍱 Day 2 Lunch</option>
+                </select>
+              </div>
+
+              {/* Action Button */}
+              <div className="space-y-1 flex flex-col justify-end">
+                <button
+                  type="button"
+                  disabled={!selectedManualTeamId}
+                  onClick={async () => {
+                    sound.playBoot();
+                    const targetT = teams.find((t) => t.id === selectedManualTeamId);
+                    if (!targetT) return;
+
+                    const passToMark =
+                      selectedManualMemberId !== 'all'
+                        ? selectedManualMemberId
+                        : targetT.ticketPassId || targetT.id;
+
+                    const res = await firebaseService.markMealRedeemed(passToMark, selectedManualMealType);
+                    if (res.success) {
+                      loadAdminData();
+                      setScanMessage({
+                        type: 'success',
+                        text: res.message || 'Meal status updated manually!',
+                      });
+                    } else if (res.message) {
+                      alert(res.message);
+                    }
+                  }}
+                  className="w-full bg-[#1e4620] hover:bg-[#28592b] text-[#4ade80] border border-[#4ade80] font-pixel text-[11.5px] sm:text-[12.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] disabled:opacity-40 transition-all font-bold"
+                >
+                  <Utensils size={15} /> MARK MEAL SERVED
+                </button>
+              </div>
+            </div>
+
+            {/* Per-Member Meal Tracking Matrix Table for Selected Team */}
+            {selectedManualTeamId ? (() => {
+              const targetT = teams.find((t) => t.id === selectedManualTeamId);
+              if (!targetT) return null;
+
+              return (
+                <div className="pt-3 border-t border-[#1e3822] space-y-2.5">
+                  <div className="flex items-center justify-between text-[12.5px] sm:text-[14px] font-silkscreen font-bold">
+                    <span className="text-[#f4c151]">
+                      PER-MEMBER MEAL STATUS MATRIX — {targetT.teamName} ({targetT.members.length} MEMBERS):
+                    </span>
+                    <span className="text-[#86efac]">
+                      GATE CHECKED IN: {targetT.members.filter((m) => m.checkInStatus === 'checked_in').length} / {targetT.members.length}
+                    </span>
+                  </div>
+
+                  {/* MOBILE CARD VIEW FOR FOOD MATRIX (PHONE SCREENS < 640px) */}
+                  <div className="space-y-3 block sm:hidden">
+                    {/* Full Team Pass Card */}
+                    <div className="bg-[#101924] border-2 border-[#f4c151]/40 p-3 rounded-md space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-[#1e2d42] pb-1.5">
+                        <span className="text-[#f4c151] font-bold text-[13px]">👑 FULL TEAM PASS ({targetT.teamName})</span>
+                        <span className="font-mono text-[11px] font-bold text-[#86efac]">
+                          {targetT.attendanceStatus === 'checked_in' ? '🟢 GATE PASS' : '⚪ NOT CHECKED IN'}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 font-pixel text-[10.5px]">
                         {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
-                          const isRedeemed = !!m.meals?.[mKey]?.redeemed;
+                          const isRedeemed = !!targetT.meals?.[mKey]?.redeemed;
                           return (
                             <button
                               key={mKey}
                               type="button"
                               onClick={async () => {
                                 sound.playClick();
-                                await firebaseService.toggleMealRedemption(m.memberPassId || m.id, mKey);
+                                await firebaseService.toggleMealRedemption(targetT.ticketPassId || targetT.id, mKey);
                                 loadAdminData();
                               }}
-                              className={`py-2 px-2 rounded-xs border cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${
-                                isRedeemed
-                                  ? 'bg-[#261414] text-[#eb5147] border-[#522525]'
-                                  : 'bg-[#142417] text-[#4ade80] border-[#25522b]'
-                              }`}
+                              className={`py-2 px-2 rounded-xs border cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${isRedeemed
+                                ? 'bg-[#261414] text-[#eb5147] border-[#522525]'
+                                : 'bg-[#142417] text-[#4ade80] border-[#25522b]'
+                                }`}
                             >
                               <span className="text-[9px] uppercase font-silkscreen">{mKey.replace('_', ' ')}</span>
                               <span className="font-bold">{isRedeemed ? '✓ SERVED' : '+ SERVE'}</span>
@@ -1669,85 +1623,83 @@ Cognitia 2026 Organizing Team`;
                         })}
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                {/* DESKTOP TABLE VIEW FOR FOOD MATRIX (DESKTOP & TABLET SCREENS ≥ 640px) */}
-                <div className="hidden sm:block w-full max-w-full overflow-x-auto border border-[#2b2e30] rounded-xs font-mono text-[11px] sm:text-[12px]">
-                  <table className="w-full text-left border-collapse min-w-[680px]">
-                    <thead className="bg-[#121820] text-[#00f0ff] border-b border-[#2b2e30] font-pixel text-[10.5px] sm:text-[11.5px]">
-                      <tr>
-                        <th className="py-2.5 px-2.5 min-w-[160px]">RECIPIENT</th>
-                        <th className="py-2.5 px-2.5 text-center min-w-[85px]">GATE</th>
-                        <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 1 DINNER</th>
-                        <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 1 SNACKS</th>
-                        <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 2 BREAKFAST</th>
-                        <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 2 LUNCH</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#1e2329] text-[#cfe8ff] text-[12px] sm:text-[13px]">
-                      {/* Whole Team Pass Row */}
-                      <tr className="bg-[#101924] font-bold">
-                        <td className="p-3 text-[#f4c151] text-[13.5px] sm:text-[15px]">
-                          👑 FULL TEAM PASS ({targetT.teamName})
-                        </td>
-                        <td className="p-3 text-center text-[12px] sm:text-[13px]">
-                          {targetT.attendanceStatus === 'checked_in' ? '🟢 PASS' : '⚪ GATE'}
-                        </td>
-                        {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
-                          const isRedeemed = !!targetT.meals?.[mKey]?.redeemed;
-                          return (
-                            <td key={mKey} className="p-2 text-center">
+                    {/* Individual Members Cards */}
+                    {targetT.members.map((m) => (
+                      <div key={m.id} className="bg-[#0f1712] border border-[#25522b] p-3 rounded-md space-y-2.5">
+                        <div className="flex items-center justify-between border-b border-[#1e3822] pb-1.5">
+                          <div>
+                            <span className="font-bold text-white block text-[13.5px]">{m.name}</span>
+                            <span className="text-[#8f9396] text-[11px] font-mono">{m.role || 'Member'} ({m.memberPassId || m.id})</span>
+                          </div>
+                          <span className={`font-pixel text-[10px] px-2 py-0.5 rounded-xs ${m.checkInStatus === 'checked_in' ? 'bg-[#182418] text-[#4ade80] border border-[#25522b]' : 'bg-[#1c1f24] text-[#8f9396] border border-[#2b2e30]'}`}>
+                            {m.checkInStatus === 'checked_in' ? '✓ PRESENT' : '⚪ ABSENT'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 font-pixel text-[10.5px]">
+                          {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
+                            const isRedeemed = !!m.meals?.[mKey]?.redeemed;
+                            return (
                               <button
+                                key={mKey}
                                 type="button"
                                 onClick={async () => {
                                   sound.playClick();
-                                  await firebaseService.toggleMealRedemption(targetT.ticketPassId || targetT.id, mKey);
+                                  await firebaseService.toggleMealRedemption(m.memberPassId || m.id, mKey);
                                   loadAdminData();
                                 }}
-                                className={`px-3 py-1.5 rounded-xs border text-[11px] sm:text-[12px] cursor-pointer transition-all font-pixel font-bold ${
-                                  isRedeemed
-                                    ? 'bg-[#261414] text-[#eb5147] border-[#522525] hover:bg-[#3d1e1e]'
-                                    : 'bg-[#142417] text-[#4ade80] border-[#25522b] hover:border-[#4ade80]'
-                                }`}
+                                className={`py-2 px-2 rounded-xs border cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${isRedeemed
+                                  ? 'bg-[#261414] text-[#eb5147] border-[#522525]'
+                                  : 'bg-[#142417] text-[#4ade80] border-[#25522b]'
+                                  }`}
                               >
-                                {isRedeemed ? '✓ SERVED' : '+ SERVE'}
+                                <span className="text-[9px] uppercase font-silkscreen">{mKey.replace('_', ' ')}</span>
+                                <span className="font-bold">{isRedeemed ? '✓ SERVED' : '+ SERVE'}</span>
                               </button>
-                            </td>
-                          );
-                        })}
-                      </tr>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-                      {/* Individual Members Rows */}
-                      {targetT.members.map((m) => (
-                        <tr key={m.id} className="hover:bg-[#151c24]">
-                          <td className="p-3">
-                            <span className="font-bold text-white block text-[13.5px] sm:text-[15px]">{m.name}</span>
-                            <span className="text-[#8f9396] text-[11px] sm:text-[12px] font-mono">{m.role || 'Member'} ({m.memberPassId || m.id})</span>
+                  {/* DESKTOP TABLE VIEW FOR FOOD MATRIX (DESKTOP & TABLET SCREENS ≥ 640px) */}
+                  <div className="hidden sm:block w-full max-w-full overflow-x-auto border border-[#2b2e30] rounded-xs font-mono text-[11px] sm:text-[12px]">
+                    <table className="w-full text-left border-collapse min-w-[680px]">
+                      <thead className="bg-[#121820] text-[#00f0ff] border-b border-[#2b2e30] font-pixel text-[10.5px] sm:text-[11.5px]">
+                        <tr>
+                          <th className="py-2.5 px-2.5 min-w-[160px]">RECIPIENT</th>
+                          <th className="py-2.5 px-2.5 text-center min-w-[85px]">GATE</th>
+                          <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 1 DINNER</th>
+                          <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 1 SNACKS</th>
+                          <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 2 BREAKFAST</th>
+                          <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 2 LUNCH</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#1e2329] text-[#cfe8ff] text-[12px] sm:text-[13px]">
+                        {/* Whole Team Pass Row */}
+                        <tr className="bg-[#101924] font-bold">
+                          <td className="p-3 text-[#f4c151] text-[13.5px] sm:text-[15px]">
+                            👑 FULL TEAM PASS ({targetT.teamName})
                           </td>
-                          <td className="p-3 text-center">
-                            {m.checkInStatus === 'checked_in' ? (
-                              <span className="text-[#4ade80] font-bold text-[12.5px] sm:text-[13.5px]">✓ PRESENT</span>
-                            ) : (
-                              <span className="text-[#8f9396] text-[12px] sm:text-[13px]">⚪ ABSENT</span>
-                            )}
+                          <td className="p-3 text-center text-[12px] sm:text-[13px]">
+                            {targetT.attendanceStatus === 'checked_in' ? '🟢 PASS' : '⚪ GATE'}
                           </td>
                           {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
-                            const isRedeemed = !!m.meals?.[mKey]?.redeemed;
+                            const isRedeemed = !!targetT.meals?.[mKey]?.redeemed;
                             return (
                               <td key={mKey} className="p-2 text-center">
                                 <button
                                   type="button"
                                   onClick={async () => {
                                     sound.playClick();
-                                    await firebaseService.toggleMealRedemption(m.memberPassId || m.id, mKey);
+                                    await firebaseService.toggleMealRedemption(targetT.ticketPassId || targetT.id, mKey);
                                     loadAdminData();
                                   }}
-                                  className={`px-3 py-1.5 rounded-xs border text-[11px] sm:text-[12px] cursor-pointer transition-all font-pixel font-bold ${
-                                    isRedeemed
-                                      ? 'bg-[#261414] text-[#eb5147] border-[#522525] hover:bg-[#3d1e1e]'
-                                      : 'bg-[#142417] text-[#4ade80] border-[#25522b] hover:border-[#4ade80]'
-                                  }`}
+                                  className={`px-3 py-1.5 rounded-xs border text-[11px] sm:text-[12px] cursor-pointer transition-all font-pixel font-bold ${isRedeemed
+                                    ? 'bg-[#261414] text-[#eb5147] border-[#522525] hover:bg-[#3d1e1e]'
+                                    : 'bg-[#142417] text-[#4ade80] border-[#25522b] hover:border-[#4ade80]'
+                                    }`}
                                 >
                                   {isRedeemed ? '✓ SERVED' : '+ SERVE'}
                                 </button>
@@ -1755,19 +1707,56 @@ Cognitia 2026 Organizing Team`;
                             );
                           })}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+
+                        {/* Individual Members Rows */}
+                        {targetT.members.map((m) => (
+                          <tr key={m.id} className="hover:bg-[#151c24]">
+                            <td className="p-3">
+                              <span className="font-bold text-white block text-[13.5px] sm:text-[15px]">{m.name}</span>
+                              <span className="text-[#8f9396] text-[11px] sm:text-[12px] font-mono">{m.role || 'Member'} ({m.memberPassId || m.id})</span>
+                            </td>
+                            <td className="p-3 text-center">
+                              {m.checkInStatus === 'checked_in' ? (
+                                <span className="text-[#4ade80] font-bold text-[12.5px] sm:text-[13.5px]">✓ PRESENT</span>
+                              ) : (
+                                <span className="text-[#8f9396] text-[12px] sm:text-[13px]">⚪ ABSENT</span>
+                              )}
+                            </td>
+                            {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
+                              const isRedeemed = !!m.meals?.[mKey]?.redeemed;
+                              return (
+                                <td key={mKey} className="p-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      sound.playClick();
+                                      await firebaseService.toggleMealRedemption(m.memberPassId || m.id, mKey);
+                                      loadAdminData();
+                                    }}
+                                    className={`px-3 py-1.5 rounded-xs border text-[11px] sm:text-[12px] cursor-pointer transition-all font-pixel font-bold ${isRedeemed
+                                      ? 'bg-[#261414] text-[#eb5147] border-[#522525] hover:bg-[#3d1e1e]'
+                                      : 'bg-[#142417] text-[#4ade80] border-[#25522b] hover:border-[#4ade80]'
+                                      }`}
+                                  >
+                                    {isRedeemed ? '✓ SERVED' : '+ SERVE'}
+                                  </button>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            );
-          })() : (
-            <p className="font-silkscreen text-[10px] sm:text-[11px] text-[#8f9396] italic text-center py-2">
-              Select a registered team from the dropdown above to view and manually manage its per-member meal redemption matrix.
-            </p>
-          )}
+              );
+            })() : (
+              <p className="font-silkscreen text-[10px] sm:text-[11px] text-[#8f9396] italic text-center py-2">
+                Select a registered team from the dropdown above to view and manually manage its per-member meal redemption matrix.
+              </p>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       {/* SUB-TAB 2: TEAMS REGISTRATIONS & VENUE ATTENDANCE */}
@@ -1775,540 +1764,557 @@ Cognitia 2026 Organizing Team`;
         <div className="space-y-4 animate-fade-in">
           {/* QUICK VENUE ATTENDANCE CHECK-IN SCANNER */}
           <div className="p-3.5 bg-[#141618] border-2 border-[#254225] rounded-md space-y-2">
-        <div className="flex items-center justify-between border-b border-[#254225] pb-1.5">
-          <span className="font-pixel text-[10px] sm:text-[11px] text-[#a7d38a] flex items-center gap-1.5">
-            <UserCheck size={14} /> LIVE VENUE ATTENDANCE SCANNER &amp; SEARCH
-          </span>
-          <span className="font-silkscreen text-[7.5px] text-[#8fa892]">
-            ENTER TICKET PASS ID (e.g. COGNITIA-2026-PASS-XXXX) OR TEAM ID
-          </span>
-        </div>
-
-        {scanMessage && (
-          <div
-            className={`p-2 rounded-xs border font-silkscreen text-[8.5px] flex items-center gap-1.5 ${scanMessage.type === 'success'
-                ? 'bg-[#142417] border-[#25522b] text-[#86efac]'
-                : 'bg-[#261414] border-[#522525] text-[#fca5a5]'
-              }`}
-          >
-            {scanMessage.type === 'success' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-            <span>{scanMessage.text}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleAttendanceScanSubmit} className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
-            placeholder="Scan QR or enter Ticket Pass ID / Team ID (e.g. COGNITIA-2026-PASS-8192)"
-            value={scanQuery}
-            onChange={(e) => setScanQuery(e.target.value)}
-            className="grow bg-[#0c0e10] border border-[#254225] text-[#00f0ff] font-mono text-xs px-3 py-2 sm:py-1.5 rounded-xs focus:border-[#a7d38a] focus:outline-none"
-          />
-          <button
-            type="submit"
-            className="font-pixel text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-4 py-2 sm:py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
-          >
-            <CheckCircle2 size={12} /> MARK PRESENT
-          </button>
-        </form>
-      </div>
-
-      {/* Filters & Search & Insert Team Button */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-[#141618] p-3 border-2 border-[#2b2e30] rounded-md items-center">
-        <div className="sm:col-span-6 relative">
-          <Search size={14} className="absolute left-2.5 top-2.5 text-[#7d8285]" />
-          <input
-            type="text"
-            placeholder="Search teams by name, lead email, ticket pass ID, UTR ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-mono text-xs pl-8 pr-3 py-1.5 rounded-xs focus:border-[#f4c151] focus:outline-none"
-          />
-        </div>
-
-        <div className="sm:col-span-3 flex items-center gap-1.5">
-          <span className="font-silkscreen text-[8px] text-[#8f9396] shrink-0">FILTER:</span>
-          <select
-            value={selectedTrack}
-            onChange={(e) => setSelectedTrack(e.target.value)}
-            className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[8.5px] px-2 py-1.5 rounded-xs w-full focus:border-[#f4c151] focus:outline-none"
-          >
-            <option value="all">ALL TRACKS</option>
-            <option value="AI / Machine Learning">AI / ML</option>
-            <option value="Web3 / Blockchain">Web3 / Blockchain</option>
-            <option value="Cybersecurity">Cybersecurity</option>
-            <option value="Open Innovation">Open Innovation</option>
-          </select>
-        </div>
-
-        <div className="sm:col-span-3 flex justify-end">
-          <button
-            type="button"
-            onClick={handleOpenAddTeamModal}
-            className="w-full bg-[#1b351d] hover:bg-[#254d28] border border-[#34783a] text-[#86efac] font-pixel text-[9.5px] py-1.5 px-3 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer transition-all flex items-center justify-center gap-1.5"
-          >
-            <Sparkles size={12} className="text-[#86efac]" /> ➕ INSERT TEAM CREDENTIALS
-          </button>
-        </div>
-      </div>
-
-      {/* Track Slots Allocation Live FCFS Summary Bar (4 slots / track) */}
-      {(() => {
-        const allocations = calculateFcfsTrackAllocations(teams);
-        const counts: Record<string, number> = {};
-        allocations.forEach((alloc) => {
-          if (alloc.isQualified && alloc.assignedTrackId) {
-            counts[alloc.assignedTrackId] = (counts[alloc.assignedTrackId] || 0) + 1;
-          }
-        });
-
-        return (
-          <div className="bg-[#090b0d] border border-[#2b4466] p-2.5 rounded-md space-y-1.5 font-silkscreen text-[8px]">
-            <div className="flex items-center justify-between border-b border-[#1e2d42] pb-1">
-              <span className="font-pixel text-[9px] text-[#38bdf8] flex items-center gap-1.5">
-                <Target size={11} /> TRACK SLOTS FCFS ALLOCATION SUMMARY (4 SLOTS PER TRACK MAX)
+            <div className="flex items-center justify-between border-b border-[#254225] pb-1.5">
+              <span className="font-pixel text-[10px] sm:text-[11px] text-[#a7d38a] flex items-center gap-1.5">
+                <UserCheck size={14} /> LIVE VENUE ATTENDANCE SCANNER &amp; SEARCH
               </span>
-              <span className="text-[#8f9396] text-[7.5px]">
-                QUALIFIED GATE TEAMS (2+ PRESENCE): {Array.from(allocations.values()).filter((a) => a.isQualified).length}
+              <span className="font-silkscreen text-[7.5px] text-[#8fa892]">
+                ENTER TICKET PASS ID (e.g. COGNITIA-2026-PASS-XXXX) OR TEAM ID
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-              {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
-                const used = counts[ps.trackId] || 0;
-                const isFull = used >= 4;
-                return (
-                  <div
-                    key={ps.trackId}
-                    className={`p-1.5 rounded-xs border ${
-                      isFull
-                        ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
-                        : used > 0
-                        ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
-                        : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
-                    }`}
-                  >
-                    <span className="font-bold block truncate">{ps.trackName}</span>
-                    <div className="flex items-center justify-between pt-0.5 font-mono text-[7.5px]">
-                      <span>SLOTS: {used} / 4</span>
-                      <span>{isFull ? 'FULL' : `${4 - used} LEFT`}</span>
-                    </div>
-                  </div>
-                );
-              })}
+
+            {scanMessage && (
+              <div
+                className={`p-2 rounded-xs border font-silkscreen text-[8.5px] flex items-center gap-1.5 ${scanMessage.type === 'success'
+                  ? 'bg-[#142417] border-[#25522b] text-[#86efac]'
+                  : 'bg-[#261414] border-[#522525] text-[#fca5a5]'
+                  }`}
+              >
+                {scanMessage.type === 'success' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+                <span>{scanMessage.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleAttendanceScanSubmit} className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="Scan QR or enter Ticket Pass ID / Team ID (e.g. COGNITIA-2026-PASS-8192)"
+                value={scanQuery}
+                onChange={(e) => setScanQuery(e.target.value)}
+                className="grow bg-[#0c0e10] border border-[#254225] text-[#00f0ff] font-mono text-xs px-3 py-2 sm:py-1.5 rounded-xs focus:border-[#a7d38a] focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="font-pixel text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-4 py-2 sm:py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
+              >
+                <CheckCircle2 size={12} /> MARK PRESENT
+              </button>
+            </form>
+          </div>
+
+          {/* Filters & Search & Insert Team Button */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-[#141618] p-3 border-2 border-[#2b2e30] rounded-md items-center">
+            <div className="sm:col-span-6 relative">
+              <Search size={14} className="absolute left-2.5 top-2.5 text-[#7d8285]" />
+              <input
+                type="text"
+                placeholder="Search teams by name, lead email, ticket pass ID, UTR ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-mono text-xs pl-8 pr-3 py-1.5 rounded-xs focus:border-[#f4c151] focus:outline-none"
+              />
+            </div>
+
+            <div className="sm:col-span-3 flex items-center gap-1.5">
+              <span className="font-silkscreen text-[8px] text-[#8f9396] shrink-0">FILTER:</span>
+              <select
+                value={selectedTrack}
+                onChange={(e) => setSelectedTrack(e.target.value)}
+                className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[8.5px] px-2 py-1.5 rounded-xs w-full focus:border-[#f4c151] focus:outline-none"
+              >
+                <option value="all">ALL TRACKS</option>
+                <option value="AI / Machine Learning">AI / ML</option>
+                <option value="Web3 / Blockchain">Web3 / Blockchain</option>
+                <option value="Cybersecurity">Cybersecurity</option>
+                <option value="Open Innovation">Open Innovation</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-3 flex justify-end">
+              <button
+                type="button"
+                onClick={handleOpenAddTeamModal}
+                className="w-full bg-[#1b351d] hover:bg-[#254d28] border border-[#34783a] text-[#86efac] font-pixel text-[9.5px] py-1.5 px-3 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer transition-all flex items-center justify-center gap-1.5"
+              >
+                <Sparkles size={12} className="text-[#86efac]" /> ➕ INSERT TEAM CREDENTIALS
+              </button>
             </div>
           </div>
-        );
-      })()}
 
-      {/* Teams Data Section */}
-      <div className="space-y-3">
-        {/* MOBILE CARD VIEW FOR TEAMS (PHONE SCREENS < 640px) */}
-        <div className="space-y-3 block sm:hidden">
-          {filteredTeams.length === 0 ? (
-            <div className="bg-[#141618] border-2 border-[#2b2e30] p-6 text-center text-[#8f9396] font-silkscreen text-[10px] rounded-md">
-              No Phase 2 registrations or teams found.
-            </div>
-          ) : (
-            filteredTeams.map((t) => {
-              const isIemUemTeam = isIemUemAllStudentTeam(t.members);
-              const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
-              const totalMems = (t.members || []).length;
-              const minReq = Math.min(2, totalMems || 1);
-              const isQualified = checkedCount >= minReq;
+          {/* Track Slots Allocation Live FCFS Summary Bar (4 slots / track) */}
+          {(() => {
+            const allocations = calculateFcfsTrackAllocations(teams);
+            const counts: Record<string, number> = {};
+            allocations.forEach((alloc) => {
+              if (alloc.isQualified && alloc.assignedTrackId) {
+                counts[alloc.assignedTrackId] = (counts[alloc.assignedTrackId] || 0) + 1;
+              }
+            });
 
-              return (
-                <div key={t.id} className="bg-[#141618] border-2 border-[#2b2e30] p-3.5 rounded-md space-y-3 font-sans text-xs text-[#cfe8ff]">
-                  {/* Card Header: Team Name, Pass ID & Category Badge */}
-                  <div className="flex items-start justify-between border-b border-[#2b2e30] pb-2 gap-2">
-                    <div>
-                      <span className="text-[15px] font-bold text-white block">{t.teamName}</span>
-                      <span className="text-[#6fb3d9] font-mono text-[11px] block">{t.leadEmail}</span>
-                      {t.ticketPassId && (
-                        <span className="font-mono text-[11px] text-[#86efac] font-bold block mt-0.5">{t.ticketPassId}</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      {isIemUemTeam ? (
-                        <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
-                          🎓 IEM/UEM
-                        </span>
-                      ) : (
-                        <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
-                          🏫 EXTERNAL
-                        </span>
-                      )}
-                      {t.iemcrpScreenshotsSubmitted && (
-                        <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
-                          📸 PROOFS SUBMITTED
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Controls Stacked Vertically */}
-                  <div className="space-y-2.5 font-silkscreen text-[9.5px]">
-                    {/* 1. Track Assignment */}
-                    <div className="space-y-1">
-                      <label className="text-[#8f9396] block text-[9px] font-bold">TRACK ASSIGNMENT (FCFS / OVERRIDE):</label>
-                      <select
-                        value={t.adminTrackOverride || ''}
-                        onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                        className={`font-silkscreen text-[10px] px-2.5 py-1.5 rounded-xs border cursor-pointer w-full ${
-                          t.adminTrackOverride
-                            ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8] font-bold'
-                            : 'bg-[#090b0d] text-[#38bdf8] border-[#2b2e30]'
-                        }`}
-                      >
-                        <option value="">⚡ AUTO (FCFS: {calculateFcfsTrackAllocations(teams).get(t.id)?.assignedTrackName || 'Allocation'})</option>
-                        {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
-                          <option key={ps.trackId} value={ps.trackName}>
-                            {ps.trackName}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* 2. Selection & Registration Fee */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[#8f9396] block text-[9px] font-bold">PHASE 2 SELECTION:</label>
-                        <select
-                          value={t.phase2Status || 'pending'}
-                          onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
-                          className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${
-                            t.phase2Status === 'selected'
-                              ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
-                              : t.phase2Status === 'waitlisted'
-                              ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
-                              : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
-                          }`}
-                        >
-                          <option value="pending">PENDING</option>
-                          <option value="selected">SELECTED</option>
-                          <option value="waitlisted">WAITLISTED</option>
-                          <option value="not_selected">NOT SELECTED</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[#8f9396] block text-[9px] font-bold">FEE STATUS:</label>
-                        <select
-                          value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
-                          onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
-                          className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${
-                            t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
-                              ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                              : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
-                              ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
-                              : 'bg-[#241818] text-[#eb5147] border-[#422525]'
-                          }`}
-                        >
-                          <option value="unpaid">P2: UNPAID</option>
-                          <option value="payment_pending">P2: PENDING</option>
-                          <option value="payment_verified">P2: VERIFIED</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* 3. Venue Gate Attendance */}
-                    <div className="space-y-1 pt-1">
-                      <label className="text-[#8f9396] block text-[9px] font-bold">VENUE GATE ATTENDANCE:</label>
-                      <button
-                        onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
-                        className={`font-silkscreen text-[10px] px-3 py-2 rounded-xs border flex items-center gap-1.5 cursor-pointer w-full justify-center ${
-                          isQualified
-                            ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                            : checkedCount > 0
-                            ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
-                            : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
-                        }`}
-                      >
-                        <UserCheck size={13} />
-                        {isQualified
-                          ? `PRESENT (${checkedCount}/${totalMems})`
-                          : checkedCount > 0
-                          ? `PARTIAL (${checkedCount}/${totalMems})`
-                          : 'MARK PRESENT'}
-                      </button>
-
-                      {checkedCount > 0 && (
-                        <div className="space-y-1 font-mono text-[9.5px] text-[#8f9396] bg-[#090b0d] p-2 rounded-xs border border-[#1e2d42] mt-1">
-                          {(t.members || []).map((m, mIdx) => (
-                            <div key={mIdx} className="flex items-center justify-between gap-1">
-                              <span className="text-[#cfe8ff] font-semibold">{m.name} ({m.isLead ? 'L' : `M${mIdx+1}`})</span>
-                              <span className={m.checkInStatus === 'checked_in' ? 'text-[#86efac] font-bold' : 'text-[#525866]'}>
-                                {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || 'Checked In') : '—'}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 4. Action Buttons */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2b2e30]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sound.playBlip(500);
-                          setCopiedTemplate(false);
-                          setCreatedCredentialsModal({
-                            teamName: t.teamName,
-                            leadName: t.members?.[0]?.name || 'Team Lead',
-                            leadEmail: t.leadEmail,
-                            password: t.leadPasswordHash || 'Cognitia2026',
-                          });
-                        }}
-                        className="bg-[#182418] border border-[#254225] text-[#86efac] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
-                      >
-                        🔑 CREDS
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sound.playBlip(600);
-                          setSelectedTeamModal(t);
-                        }}
-                        className="bg-[#1e2329] border border-[#3a4149] text-[#f4c151] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
-                      >
-                        🔍 INSPECT
-                      </button>
-                    </div>
-                  </div>
+            return (
+              <div className="bg-[#090b0d] border border-[#2b4466] p-2.5 rounded-md space-y-1.5 font-silkscreen text-[8px]">
+                <div className="flex items-center justify-between border-b border-[#1e2d42] pb-1">
+                  <span className="font-pixel text-[9px] text-[#38bdf8] flex items-center gap-1.5">
+                    <Target size={11} /> TRACK SLOTS FCFS ALLOCATION SUMMARY (4 SLOTS PER TRACK MAX)
+                  </span>
+                  <span className="text-[#8f9396] text-[7.5px]">
+                    QUALIFIED GATE TEAMS (2+ PRESENCE): {Array.from(allocations.values()).filter((a) => a.isQualified).length}
+                  </span>
                 </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* DESKTOP TABLE VIEW FOR TEAMS (DESKTOP & TABLET SCREENS ≥ 640px) */}
-        <div className="hidden sm:block bg-[#141618] border-2 border-[#2b2e30] rounded-md w-full max-w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[960px]">
-            <thead>
-              <tr className="bg-[#1c1f24] border-b-2 border-[#2b2e30] font-pixel text-[10px] sm:text-[10.5px] text-[#8f9396] uppercase whitespace-nowrap">
-                <th className="py-2.5 px-2.5 min-w-[130px]">Team Name</th>
-                <th className="py-2.5 px-2.5 min-w-[130px]">Lead Email</th>
-                <th className="py-2.5 px-2.5 min-w-[145px]">Track Assignment</th>
-                <th className="py-2.5 px-2.5 min-w-[110px]">Phase 2 Selection</th>
-                <th className="py-2.5 px-2.5 min-w-[115px]">IEM/UEM Status</th>
-                <th className="py-2.5 px-2.5 min-w-[140px]">Registration Fee</th>
-                <th className="py-2.5 px-2.5 min-w-[140px]">Gate Attendance</th>
-                <th className="py-2.5 px-2.5 min-w-[95px] text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#2b2e30] font-sans text-xs text-[#cfe8ff]">
-                {filteredTeams.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="p-6 text-center text-[#8f9396] font-silkscreen text-[10px]">
-                      No Phase 2 registrations or teams found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredTeams.map((t) => {
-                    const isIemUemTeam = isIemUemAllStudentTeam(t.members);
-
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                  {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                    const used = counts[ps.trackId] || 0;
+                    const isFull = used >= 4;
                     return (
-                      <tr key={t.id} className="hover:bg-[#1b1f24]">
-                        <td className="py-2.5 px-2.5 font-semibold text-[#cfe8ff]">
-                          <span className="text-[12.5px] sm:text-[13.5px] font-bold block leading-tight">{t.teamName}</span>
+                      <div
+                        key={ps.trackId}
+                        className={`p-1.5 rounded-xs border ${isFull
+                          ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                          : used > 0
+                            ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                            : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
+                          }`}
+                      >
+                        <span className="font-bold block truncate">{ps.trackName}</span>
+                        <div className="flex items-center justify-between pt-0.5 font-mono text-[7.5px]">
+                          <span>SLOTS: {used} / 4</span>
+                          <span>{isFull ? 'FULL' : `${4 - used} LEFT`}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Teams Data Section */}
+          <div className="space-y-3">
+            {/* MOBILE CARD VIEW FOR TEAMS (PHONE SCREENS < 640px) */}
+            <div className="space-y-3 block sm:hidden">
+              {filteredTeams.length === 0 ? (
+                <div className="bg-[#141618] border-2 border-[#2b2e30] p-6 text-center text-[#8f9396] font-silkscreen text-[10px] rounded-md">
+                  No Phase 2 registrations or teams found.
+                </div>
+              ) : (
+                filteredTeams.map((t) => {
+                  const isIemUemTeam = isIemUemAllStudentTeam(t.members);
+                  const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                  const totalMems = (t.members || []).length;
+                  const minReq = Math.min(2, totalMems || 1);
+                  const isQualified = checkedCount >= minReq;
+
+                  return (
+                    <div key={t.id} className="bg-[#141618] border-2 border-[#2b2e30] p-3.5 rounded-md space-y-3 font-sans text-xs text-[#cfe8ff]">
+                      {/* Card Header: Team Name, Pass ID & Category Badge */}
+                      <div className="flex items-start justify-between border-b border-[#2b2e30] pb-2 gap-2">
+                        <div>
+                          <span className="text-[15px] font-bold text-white block">{t.teamName}</span>
+                          <span className="text-[#6fb3d9] font-mono text-[11px] block">{t.leadEmail}</span>
                           {t.ticketPassId && (
-                            <span className="block font-mono text-[10px] text-[#86efac] font-bold mt-0.5">{t.ticketPassId}</span>
+                            <span className="font-mono text-[11px] text-[#86efac] font-bold block mt-0.5">{t.ticketPassId}</span>
                           )}
-                        </td>
-                        <td className="py-2.5 px-2.5 text-[#6fb3d9] font-mono text-[11px] truncate max-w-[130px]" title={t.leadEmail}>
-                          {t.leadEmail}
-                        </td>
-
-                        {/* Track Assignment (FCFS Auto / Admin Override) */}
-                        <td className="py-2.5 px-2.5">
-                          {(() => {
-                            const allocations = calculateFcfsTrackAllocations(teams);
-                            const alloc = allocations.get(t.id);
-                            const currentTrackName = t.adminTrackOverride || alloc?.assignedTrackName || 'NLP & Computer Vision';
-                            const isOverridden = Boolean(t.adminTrackOverride);
-
-                            return (
-                              <div className="space-y-1">
-                                <select
-                                  value={t.adminTrackOverride || ''}
-                                  onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                                  className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer w-full max-w-[145px] truncate ${
-                                    isOverridden
-                                      ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8] font-bold'
-                                      : 'bg-[#141618] text-[#38bdf8] border-[#2b2e30]'
-                                  }`}
-                                  title={isOverridden ? `Admin Overridden: ${currentTrackName}` : `FCFS Auto Assigned: ${currentTrackName}`}
-                                >
-                                  <option value="">⚡ AUTO (FCFS: {alloc?.assignedTrackName || 'Allocation'})</option>
-                                  {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
-                                    <option key={ps.trackId} value={ps.trackName}>
-                                      {ps.trackName}
-                                    </option>
-                                  ))}
-                                </select>
-                                <div className="flex items-center gap-1 text-[8px] font-silkscreen">
-                                  {isOverridden ? (
-                                    <span className="bg-[#581c87] text-[#e9d5ff] px-1.5 py-0.5 rounded-xs border border-[#7e22ce]">
-                                      ⚡ OVERRIDDEN
-                                    </span>
-                                  ) : (
-                                    <span className="bg-[#1c2836] text-[#38bdf8] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30">
-                                      🤖 FCFS {alloc?.slotNumber ? `#${alloc.slotNumber}/4` : 'READY'}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </td>
-
-                        {/* Phase 2 Selection Status */}
-                        <td className="py-2.5 px-2.5">
-                          <select
-                            value={t.phase2Status || 'pending'}
-                            onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
-                            className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${
-                              t.phase2Status === 'selected'
-                                ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
-                                : t.phase2Status === 'waitlisted'
-                                ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
-                                : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
-                            }`}
-                          >
-                            <option value="pending">PENDING</option>
-                            <option value="selected">SELECTED</option>
-                            <option value="waitlisted">WAITLISTED</option>
-                            <option value="not_selected">NOT SELECTED</option>
-                          </select>
-                        </td>
-
-                        {/* IEM / UEM Affiliation Badge */}
-                        <td className="py-2.5 px-2.5">
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
                           {isIemUemTeam ? (
-                            <div className="space-y-1">
-                              <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
-                                🎓 IEM/UEM (FREE)
-                              </span>
-                              {t.iemcrpScreenshotsSubmitted && (
-                                <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1 py-0.5 rounded-xs block w-fit">
-                                  📸 PROOFS OK
-                                </span>
-                              )}
-                            </div>
+                            <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
+                              🎓 IEM/UEM
+                            </span>
                           ) : (
-                            <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
-                              🏫 EXTERNAL (₹200)
+                            <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
+                              🏫 EXTERNAL
                             </span>
                           )}
-                        </td>
+                          {t.iemcrpScreenshotsSubmitted && (
+                            <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
+                              📸 PROOFS SUBMITTED
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                        {/* Phase 2 Fee Status */}
-                        <td className="py-2.5 px-2.5">
+                      {/* Controls Stacked Vertically */}
+                      <div className="space-y-2.5 font-silkscreen text-[9.5px]">
+                        {/* 1. Track Assignment */}
+                        <div className="space-y-1 bg-[#090b0d] p-2 rounded-xs border border-[#2b2e30]">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[#8f9396] block text-[8.5px] font-bold">TRACK ASSIGNMENT:</label>
+                            {t.adminTrackOverride ? (
+                              <span className="bg-[#581c87] text-[#e9d5ff] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#7e22ce] font-bold">
+                                ⚡ OVERRIDDEN
+                              </span>
+                            ) : (
+                              <span className="bg-[#1c2836] text-[#38bdf8] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
+                                🤖 FCFS ALLOCATED
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[#38bdf8] font-pixel text-[10.5px] font-bold leading-snug">
+                            {t.adminTrackOverride || calculateFcfsTrackAllocations(teams).get(t.id)?.assignedTrackName || ''}
+                          </p>
                           <select
-                            value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
-                            onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
-                            className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${
-                              t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
+                            value={t.adminTrackOverride || ''}
+                            onChange={(e) => handleTrackOverride(t.id, e.target.value)}
+                            className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${t.adminTrackOverride
+                              ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8] font-bold'
+                              : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
+                              }`}
+                          >
+                            <option value="">⚡ KEEP AUTO FCFS</option>
+                            {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
+                              <option key={ps.trackId} value={ps.trackName}>
+                                {ps.trackName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* 2. Selection & Registration Fee */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[#8f9396] block text-[9px] font-bold">PHASE 2 SELECTION:</label>
+                            <select
+                              value={t.phase2Status || 'pending'}
+                              onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
+                              className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${t.phase2Status === 'selected'
+                                ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                                : t.phase2Status === 'waitlisted'
+                                  ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                                  : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                                }`}
+                            >
+                              <option value="pending">PENDING</option>
+                              <option value="selected">SELECTED</option>
+                              <option value="waitlisted">WAITLISTED</option>
+                              <option value="not_selected">NOT SELECTED</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[#8f9396] block text-[9px] font-bold">FEE STATUS:</label>
+                            <select
+                              value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
+                              onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
+                              className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
                                 ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
                                 : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
-                                ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
-                                : 'bg-[#241818] text-[#eb5147] border-[#422525]'
-                            }`}
+                                  ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
+                                  : 'bg-[#241818] text-[#eb5147] border-[#422525]'
+                                }`}
+                            >
+                              <option value="unpaid">P2: UNPAID</option>
+                              <option value="payment_pending">P2: PENDING</option>
+                              <option value="payment_verified">P2: VERIFIED</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* 3. Venue Gate Attendance */}
+                        <div className="space-y-1 pt-1">
+                          <label className="text-[#8f9396] block text-[9px] font-bold">VENUE GATE ATTENDANCE:</label>
+                          <button
+                            onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
+                            className={`font-silkscreen text-[10px] px-3 py-2 rounded-xs border flex items-center gap-1.5 cursor-pointer w-full justify-center ${isQualified
+                              ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                              : checkedCount > 0
+                                ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                                : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                              }`}
                           >
-                            <option value="unpaid">P2: UNPAID</option>
-                            <option value="payment_pending">P2: PENDING</option>
-                            <option value="payment_verified">P2: VERIFIED</option>
-                          </select>
-                        </td>
+                            <UserCheck size={13} />
+                            {isQualified
+                              ? `PRESENT (${checkedCount}/${totalMems})`
+                              : checkedCount > 0
+                                ? `PARTIAL (${checkedCount}/${totalMems})`
+                                : 'MARK PRESENT'}
+                          </button>
 
-                        {/* Attendance Status */}
-                        <td className="py-2.5 px-2.5">
-                          {(() => {
-                            const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
-                            const totalMems = (t.members || []).length;
-                            const minReq = Math.min(2, totalMems || 1);
-                            const isQualified = checkedCount >= minReq;
+                          {checkedCount > 0 && (
+                            <div className="space-y-1 font-mono text-[9.5px] text-[#8f9396] bg-[#090b0d] p-2 rounded-xs border border-[#1e2d42] mt-1">
+                              {(t.members || []).map((m, mIdx) => (
+                                <div key={mIdx} className="flex items-center justify-between gap-1">
+                                  <span className="text-[#cfe8ff] font-semibold">{m.name} ({m.isLead ? 'L' : `M${mIdx + 1}`})</span>
+                                  <span className={m.checkInStatus === 'checked_in' ? 'text-[#86efac] font-bold' : 'text-[#525866]'}>
+                                    {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || 'Checked In') : '—'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
-                            return (
-                              <div className="space-y-1">
-                                <button
-                                  onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
-                                  className={`font-silkscreen text-[8px] sm:text-[8.5px] px-2 py-1 rounded-xs border flex items-center gap-1 cursor-pointer w-full justify-center ${
-                                    isQualified
-                                      ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                                      : checkedCount > 0
-                                      ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
-                                      : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
-                                  }`}
-                                  title={
-                                    isQualified
-                                      ? `Verified present at venue (${checkedCount}/${totalMems} members)`
-                                      : `Minimum 2 members required (Current: ${checkedCount}/${totalMems})`
-                                  }
-                                >
-                                  <UserCheck size={10} />
-                                  {isQualified
-                                    ? `PRESENT (${checkedCount}/${totalMems})`
-                                    : checkedCount > 0
-                                    ? `PARTIAL (${checkedCount}/${totalMems})`
-                                    : 'MARK PRESENT'}
-                                </button>
-                                {checkedCount > 0 && (
-                                  <div className="space-y-0.5 font-mono text-[8px] text-[#8f9396] bg-[#090b0d] p-1 rounded-xs border border-[#1e2d42]">
-                                    {(t.members || []).map((m, mIdx) => (
-                                      <div key={mIdx} className="flex items-center justify-between gap-1 truncate">
-                                        <span className="truncate text-[#cfe8ff] font-semibold">{m.name.split(' ')[0]} ({m.isLead ? 'L' : `M${mIdx+1}`})</span>
-                                        <span className={m.checkInStatus === 'checked_in' ? 'text-[#86efac] font-bold' : 'text-[#525866]'}>
-                                          {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || 'OK') : '—'}
-                                        </span>
-                                      </div>
-                                    ))}
+                        {/* 4. Action Buttons */}
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2b2e30]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sound.playBlip(500);
+                              setCopiedTemplate(false);
+                              setCreatedCredentialsModal({
+                                teamName: t.teamName,
+                                leadName: t.members?.[0]?.name || 'Team Lead',
+                                leadEmail: t.leadEmail,
+                                password: t.leadPasswordHash || 'Cognitia2026',
+                              });
+                            }}
+                            className="bg-[#182418] border border-[#254225] text-[#86efac] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
+                          >
+                            🔑 CREDS
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sound.playBlip(600);
+                              setSelectedTeamModal(t);
+                            }}
+                            className="bg-[#1e2329] border border-[#3a4149] text-[#f4c151] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
+                          >
+                            🔍 INSPECT
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* DESKTOP TABLE VIEW FOR TEAMS (DESKTOP & TABLET SCREENS ≥ 640px) */}
+            <div className="hidden sm:block bg-[#141618] border-2 border-[#2b2e30] rounded-md w-full max-w-full overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[960px]">
+                <thead>
+                  <tr className="bg-[#1c1f24] border-b-2 border-[#2b2e30] font-pixel text-[10px] sm:text-[10.5px] text-[#8f9396] uppercase whitespace-nowrap">
+                    <th className="py-2.5 px-2.5 min-w-[130px]">Team Name</th>
+                    <th className="py-2.5 px-2.5 min-w-[130px]">Lead Email</th>
+                    <th className="py-2.5 px-2.5 min-w-[185px]">Track Assignment</th>
+                    <th className="py-2.5 px-2.5 min-w-[110px]">Phase 2 Selection</th>
+                    <th className="py-2.5 px-2.5 min-w-[115px]">IEM/UEM Status</th>
+                    <th className="py-2.5 px-2.5 min-w-[140px]">Registration Fee</th>
+                    <th className="py-2.5 px-2.5 min-w-[140px]">Gate Attendance</th>
+                    <th className="py-2.5 px-2.5 min-w-[95px] text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#2b2e30] font-sans text-xs text-[#cfe8ff]">
+                  {filteredTeams.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-[#8f9396] font-silkscreen text-[10px]">
+                        No Phase 2 registrations or teams found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredTeams.map((t) => {
+                      const isIemUemTeam = isIemUemAllStudentTeam(t.members);
+
+                      return (
+                        <tr key={t.id} className="hover:bg-[#1b1f24]">
+                          <td className="py-2.5 px-2.5 font-semibold text-[#cfe8ff]">
+                            <span className="text-[12.5px] sm:text-[13.5px] font-bold block leading-tight">{t.teamName}</span>
+                            {t.ticketPassId && (
+                              <span className="block font-mono text-[10px] text-[#86efac] font-bold mt-0.5">{t.ticketPassId}</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-2.5 text-[#6fb3d9] font-mono text-[11px] truncate max-w-[130px]" title={t.leadEmail}>
+                            {t.leadEmail}
+                          </td>
+
+                          {/* Track Assignment (FCFS Auto / Admin Override) */}
+                          <td className="py-2.5 px-2.5">
+                            {(() => {
+                              const allocations = calculateFcfsTrackAllocations(teams);
+                              const alloc = allocations.get(t.id);
+                              const currentTrackName = t.adminTrackOverride || alloc?.assignedTrackName || 'Natural Language Processing & Computer Vision';
+                              const isOverridden = Boolean(t.adminTrackOverride);
+
+                              return (
+                                <div className="space-y-1 max-w-[190px]">
+                                  {/* Allocated Track Name Display */}
+                                  <span
+                                    className={`text-[11px] font-bold block leading-tight ${isOverridden ? 'text-[#d8b4fe]' : 'text-[#38bdf8]'
+                                      }`}
+                                    title={currentTrackName}
+                                  >
+                                    {currentTrackName}
+                                  </span>
+
+                                  {/* FCFS / Override Status Badge */}
+                                  <div className="flex items-center gap-1 text-[8px] font-silkscreen">
+                                    {isOverridden ? (
+                                      <span className="bg-[#581c87] text-[#e9d5ff] px-1.5 py-0.5 rounded-xs border border-[#7e22ce] font-bold">
+                                        ⚡ OVERRIDDEN
+                                      </span>
+                                    ) : (
+                                      <span className="bg-[#1c2836] text-[#38bdf8] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
+                                        🤖 FCFS {alloc?.slotNumber ? `#${alloc.slotNumber}/4` : 'ALLOCATED'}
+                                      </span>
+                                    )}
                                   </div>
+
+                                  {/* Admin Override Control */}
+                                  <select
+                                    value={t.adminTrackOverride || ''}
+                                    onChange={(e) => handleTrackOverride(t.id, e.target.value)}
+                                    className={`font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs border cursor-pointer w-full truncate ${isOverridden
+                                      ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8]'
+                                      : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
+                                      }`}
+                                    title={isOverridden ? `Admin Overridden to: ${currentTrackName}` : `FCFS Auto-Allocated: ${currentTrackName}. Select to override.`}
+                                  >
+                                    <option value="">⚡ KEEP AUTO FCFS</option>
+                                    {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
+                                      <option key={ps.trackId} value={ps.trackName}>
+                                        {ps.trackName}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            })()}
+                          </td>
+
+                          {/* Phase 2 Selection Status */}
+                          <td className="py-2.5 px-2.5">
+                            <select
+                              value={t.phase2Status || 'pending'}
+                              onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
+                              className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${t.phase2Status === 'selected'
+                                ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                                : t.phase2Status === 'waitlisted'
+                                  ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                                  : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                                }`}
+                            >
+                              <option value="pending">PENDING</option>
+                              <option value="selected">SELECTED</option>
+                              <option value="waitlisted">WAITLISTED</option>
+                              <option value="not_selected">NOT SELECTED</option>
+                            </select>
+                          </td>
+
+                          {/* IEM / UEM Affiliation Badge */}
+                          <td className="py-2.5 px-2.5">
+                            {isIemUemTeam ? (
+                              <div className="space-y-1">
+                                <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
+                                  🎓 IEM/UEM (FREE)
+                                </span>
+                                {t.iemcrpScreenshotsSubmitted && (
+                                  <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1 py-0.5 rounded-xs block w-fit">
+                                    📸 PROOFS OK
+                                  </span>
                                 )}
                               </div>
-                            );
-                          })()}
-                        </td>
+                            ) : (
+                              <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
+                                🏫 EXTERNAL (₹200)
+                              </span>
+                            )}
+                          </td>
 
-                        <td className="py-2.5 px-2.5 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                sound.playBlip(500);
-                                setCopiedTemplate(false);
-                                setCreatedCredentialsModal({
-                                  teamName: t.teamName,
-                                  leadName: t.members?.[0]?.name || 'Team Lead',
-                                  leadEmail: t.leadEmail,
-                                  password: t.leadPasswordHash || 'Cognitia2026',
-                                });
-                              }}
-                              className="bg-[#182418] border border-[#254225] hover:border-[#4ade80] font-pixel text-[8px] sm:text-[8.5px] text-[#86efac] px-2 py-0.5 rounded-xs cursor-pointer"
-                              title="View & Copy Email Credentials Template"
+                          {/* Phase 2 Fee Status */}
+                          <td className="py-2.5 px-2.5">
+                            <select
+                              value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
+                              onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
+                              className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
+                                ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                                : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
+                                  ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
+                                  : 'bg-[#241818] text-[#eb5147] border-[#422525]'
+                                }`}
                             >
-                              🔑 Creds
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                sound.playBlip(600);
-                                setSelectedTeamModal(t);
-                              }}
-                              className="bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] font-pixel text-[8px] sm:text-[8.5px] text-[#f4c151] px-2 py-0.5 rounded-xs cursor-pointer"
-                            >
-                              INSPECT
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-        </div>
-      </div>
+                              <option value="unpaid">P2: UNPAID</option>
+                              <option value="payment_pending">P2: PENDING</option>
+                              <option value="payment_verified">P2: VERIFIED</option>
+                            </select>
+                          </td>
+
+                          {/* Attendance Status */}
+                          <td className="py-2.5 px-2.5">
+                            {(() => {
+                              const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                              const totalMems = (t.members || []).length;
+                              const minReq = Math.min(2, totalMems || 1);
+                              const isQualified = checkedCount >= minReq;
+
+                              return (
+                                <div className="space-y-1">
+                                  <button
+                                    onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
+                                    className={`font-silkscreen text-[8px] sm:text-[8.5px] px-2 py-1 rounded-xs border flex items-center gap-1 cursor-pointer w-full justify-center ${isQualified
+                                      ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                                      : checkedCount > 0
+                                        ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                                        : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
+                                      }`}
+                                    title={
+                                      isQualified
+                                        ? `Verified present at venue (${checkedCount}/${totalMems} members)`
+                                        : `Minimum 2 members required (Current: ${checkedCount}/${totalMems})`
+                                    }
+                                  >
+                                    <UserCheck size={10} />
+                                    {isQualified
+                                      ? `PRESENT (${checkedCount}/${totalMems})`
+                                      : checkedCount > 0
+                                        ? `PARTIAL (${checkedCount}/${totalMems})`
+                                        : 'MARK PRESENT'}
+                                  </button>
+                                  {checkedCount > 0 && (
+                                    <div className="space-y-0.5 font-mono text-[8px] text-[#8f9396] bg-[#090b0d] p-1 rounded-xs border border-[#1e2d42]">
+                                      {(t.members || []).map((m, mIdx) => (
+                                        <div key={mIdx} className="flex items-center justify-between gap-1 truncate">
+                                          <span className="truncate text-[#cfe8ff] font-semibold">{m.name.split(' ')[0]} ({m.isLead ? 'L' : `M${mIdx + 1}`})</span>
+                                          <span className={m.checkInStatus === 'checked_in' ? 'text-[#86efac] font-bold' : 'text-[#525866]'}>
+                                            {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || 'OK') : '—'}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </td>
+
+                          <td className="py-2.5 px-2.5 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  sound.playBlip(500);
+                                  setCopiedTemplate(false);
+                                  setCreatedCredentialsModal({
+                                    teamName: t.teamName,
+                                    leadName: t.members?.[0]?.name || 'Team Lead',
+                                    leadEmail: t.leadEmail,
+                                    password: t.leadPasswordHash || 'Cognitia2026',
+                                  });
+                                }}
+                                className="bg-[#182418] border border-[#254225] hover:border-[#4ade80] font-pixel text-[8px] sm:text-[8.5px] text-[#86efac] px-2 py-0.5 rounded-xs cursor-pointer"
+                                title="View & Copy Email Credentials Template"
+                              >
+                                🔑 Creds
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  sound.playBlip(600);
+                                  setSelectedTeamModal(t);
+                                }}
+                                className="bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] font-pixel text-[8px] sm:text-[8.5px] text-[#f4c151] px-2 py-0.5 rounded-xs cursor-pointer"
+                              >
+                                INSPECT
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2544,8 +2550,8 @@ Cognitia 2026 Organizing Team`;
                                 type="button"
                                 onClick={() => handleToggleAttendanceStatus(memberPassId, m.checkInStatus)}
                                 className={`font-silkscreen text-[7px] px-2 py-0.5 rounded-xs border flex items-center gap-1 cursor-pointer ${m.checkInStatus === 'checked_in'
-                                    ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                                    : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
+                                  ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                                  : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
                                   }`}
                               >
                                 <UserCheck size={9} />
@@ -2590,11 +2596,10 @@ Cognitia 2026 Organizing Team`;
                       Track slots auto-allocated on FCFS order when 2+ members check in at gate. Admin can manually override below.
                     </p>
                   </div>
-                  <span className={`font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs border ${
-                    selectedTeamModal.adminTrackOverride
-                      ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8]'
-                      : 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                  }`}>
+                  <span className={`font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs border ${selectedTeamModal.adminTrackOverride
+                    ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8]'
+                    : 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                    }`}>
                     {selectedTeamModal.adminTrackOverride ? '⚡ MANUALLY OVERRIDDEN' : '🤖 AUTO FCFS ALLOCATED'}
                   </span>
                 </div>
@@ -2670,9 +2675,8 @@ Cognitia 2026 Organizing Team`;
                             </div>
                           </div>
                           <div className="text-right space-y-0.5">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-xs border font-pixel text-[7px] ${
-                              isChecked ? 'bg-[#182418] text-[#86efac] border-[#25522b]' : 'bg-[#241818] text-[#eb5147] border-[#422525]'
-                            }`}>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-xs border font-pixel text-[7px] ${isChecked ? 'bg-[#182418] text-[#86efac] border-[#25522b]' : 'bg-[#241818] text-[#eb5147] border-[#422525]'
+                              }`}>
                               {isChecked ? '✓ CHECKED IN' : '✗ NOT CHECKED IN'}
                             </span>
                             <span className="block font-mono text-[7.5px] text-[#8f9396]">
@@ -2693,10 +2697,10 @@ Cognitia 2026 Organizing Team`;
                     <Ticket size={13} /> STAGE 4: PHASE 2 REGISTRATION FEE &amp; PASS
                   </span>
                   <span className={`font-silkscreen text-[8px] px-2 py-0.5 rounded-xs border ${selectedTeamModal.phase2PaymentStatus === 'payment_verified' || selectedTeamModal.paymentStatus === 'payment_verified'
-                      ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                      : selectedTeamModal.phase2PaymentStatus === 'payment_pending' || selectedTeamModal.paymentStatus === 'payment_pending'
-                        ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
-                        : 'bg-[#241818] text-[#eb5147] border-[#422525]'
+                    ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                    : selectedTeamModal.phase2PaymentStatus === 'payment_pending' || selectedTeamModal.paymentStatus === 'payment_pending'
+                      ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
+                      : 'bg-[#241818] text-[#eb5147] border-[#422525]'
                     }`}>
                     {selectedTeamModal.phase2PaymentStatus === 'payment_verified' || selectedTeamModal.paymentStatus === 'payment_verified'
                       ? 'OFFLINE PASS ISSUED'
@@ -2761,13 +2765,12 @@ Cognitia 2026 Organizing Team`;
                     <select
                       value={selectedTeamModal.phase2Status || 'pending'}
                       onChange={(e) => handlePhase2StatusChange(selectedTeamModal.id, e.target.value as Phase2SelectionStatus)}
-                      className={`font-pixel text-[8.5px] px-2 py-1.5 rounded-xs w-full cursor-pointer border ${
-                        selectedTeamModal.phase2Status === 'selected'
-                          ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
-                          : selectedTeamModal.phase2Status === 'waitlisted'
+                      className={`font-pixel text-[8.5px] px-2 py-1.5 rounded-xs w-full cursor-pointer border ${selectedTeamModal.phase2Status === 'selected'
+                        ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                        : selectedTeamModal.phase2Status === 'waitlisted'
                           ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
                           : 'bg-[#1c1f24] text-[#cfe8ff] border-[#3a4149]'
-                      }`}
+                        }`}
                     >
                       <option value="pending">PENDING SELECTION</option>
                       <option value="selected">SELECTED FOR PHASE 2</option>
@@ -2834,8 +2837,8 @@ Cognitia 2026 Organizing Team`;
                 <button
                   onClick={() => handleToggleAttendanceStatus(selectedTeamModal.id, selectedTeamModal.attendanceStatus)}
                   className={`font-pixel text-[8px] px-2.5 py-1 rounded-xs border cursor-pointer ${selectedTeamModal.attendanceStatus === 'checked_in'
-                      ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                      : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
+                    ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                    : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
                     }`}
                 >
                   {selectedTeamModal.attendanceStatus === 'checked_in' ? 'TOGGLE ABSENT' : 'MARK PRESENT AT VENUE'}
@@ -3386,13 +3389,12 @@ Cognitia 2026 Organizing Team`;
                       const minReq = Math.min(2, total || 1);
                       const isQualified = checkedCount >= minReq;
                       return (
-                        <div className={`px-3 py-1.5 rounded-xs border text-center font-silkscreen text-[8.5px] ${
-                          isQualified
-                            ? 'bg-[#142417] text-[#4ade80] border-[#25522b] shadow-[0_0_10px_rgba(74,222,128,0.2)]'
-                            : checkedCount > 0
+                        <div className={`px-3 py-1.5 rounded-xs border text-center font-silkscreen text-[8.5px] ${isQualified
+                          ? 'bg-[#142417] text-[#4ade80] border-[#25522b] shadow-[0_0_10px_rgba(74,222,128,0.2)]'
+                          : checkedCount > 0
                             ? 'bg-[#382b18] text-[#f4c151] border-[#594424]'
                             : 'bg-[#261414] text-[#fca5a5] border-[#522525]'
-                        }`}>
+                          }`}>
                           <span className="font-bold block text-[10px]">{checkedCount} / {total} PRESENT</span>
                           <span className="text-[7.5px] opacity-90">{isQualified ? 'FCFS TRACK ALLOCATION READY ✓' : `MIN 2 REQ (${checkedCount}/${total})`}</span>
                         </div>
@@ -3402,11 +3404,10 @@ Cognitia 2026 Organizing Team`;
                 </div>
 
                 {/* Event FCFS Track Rule Banner */}
-                <div className={`p-2.5 rounded-xs border font-silkscreen text-[8px] flex items-center gap-2 ${
-                  (attendanceModalData.matchedTeam.members || []).filter((m) => m.checkInStatus === 'checked_in').length >= Math.min(2, (attendanceModalData.matchedTeam.members || []).length || 1)
-                    ? 'bg-[#142417] text-[#86efac] border-[#25522b]'
-                    : 'bg-[#292218] text-[#f4c151] border-[#594424]'
-                }`}>
+                <div className={`p-2.5 rounded-xs border font-silkscreen text-[8px] flex items-center gap-2 ${(attendanceModalData.matchedTeam.members || []).filter((m) => m.checkInStatus === 'checked_in').length >= Math.min(2, (attendanceModalData.matchedTeam.members || []).length || 1)
+                  ? 'bg-[#142417] text-[#86efac] border-[#25522b]'
+                  : 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                  }`}>
                   <AlertTriangle size={14} className="shrink-0" />
                   <span>
                     <strong>FCFS TRACK ALLOCATION RULE:</strong> At least <strong>2 team members</strong> must check in at the venue gate for event entry &amp; preference-based track distribution.
@@ -3466,11 +3467,10 @@ Cognitia 2026 Organizing Team`;
                       return (
                         <div
                           key={m.id || idx}
-                          className={`p-3 rounded-xs border font-sans text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-colors ${
-                            isCheckedIn
-                              ? 'bg-[#142417]/80 border-[#25522b]'
-                              : 'bg-[#141618] border-[#2b2e30]'
-                          }`}
+                          className={`p-3 rounded-xs border font-sans text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-colors ${isCheckedIn
+                            ? 'bg-[#142417]/80 border-[#25522b]'
+                            : 'bg-[#141618] border-[#2b2e30]'
+                            }`}
                         >
                           <div className="space-y-1 grow">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -3521,11 +3521,10 @@ Cognitia 2026 Organizing Team`;
                                   });
                                 }
                               }}
-                              className={`font-pixel text-[8px] uppercase px-2.5 py-1.5 rounded-xs border cursor-pointer flex items-center gap-1 shadow-[1px_1px_0_0_#000] ${
-                                isCheckedIn
-                                  ? 'bg-[#261414] hover:bg-[#3d1d1d] text-[#eb5147] border-[#522525]'
-                                  : 'bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-[#25522b]'
-                              }`}
+                              className={`font-pixel text-[8px] uppercase px-2.5 py-1.5 rounded-xs border cursor-pointer flex items-center gap-1 shadow-[1px_1px_0_0_#000] ${isCheckedIn
+                                ? 'bg-[#261414] hover:bg-[#3d1d1d] text-[#eb5147] border-[#522525]'
+                                : 'bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-[#25522b]'
+                                }`}
                             >
                               {isCheckedIn ? <X size={10} /> : <UserCheck size={10} />}
                               {isCheckedIn ? 'MARK ABSENT' : 'MARK PRESENT'}
@@ -3900,11 +3899,10 @@ Cognitia 2026 Organizing Team`;
                     {foodCouponModalData.matchedTeam.members.map((m) => (
                       <span
                         key={m.id}
-                        className={`px-2 py-0.5 rounded-xs border text-[7.5px] ${
-                          m.checkInStatus === 'checked_in'
-                            ? 'bg-[#1e4620] text-[#4ade80] border-[#34783a]'
-                            : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
-                        }`}
+                        className={`px-2 py-0.5 rounded-xs border text-[7.5px] ${m.checkInStatus === 'checked_in'
+                          ? 'bg-[#1e4620] text-[#4ade80] border-[#34783a]'
+                          : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                          }`}
                       >
                         {m.checkInStatus === 'checked_in' ? '🟢' : '⚪'} {m.name} ({m.role || 'Member'})
                       </span>

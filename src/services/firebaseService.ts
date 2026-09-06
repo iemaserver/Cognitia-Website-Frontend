@@ -703,6 +703,29 @@ class FirebaseService {
     return { success: true, team };
   }
 
+  // Admin forced modification of team track preference ranking order
+  public async adminUpdateTrackPreferences(
+    teamId: string,
+    trackPreferences: string[]
+  ): Promise<{ success: boolean; team?: TeamRegistration }> {
+    const team = this.teams.find(
+      (t) => t.id === teamId || (t.ticketPassId && t.ticketPassId.toLowerCase() === teamId.toLowerCase())
+    );
+    if (!team) return { success: false };
+
+    team.trackPreferences = trackPreferences;
+    team.isTrackLocked = true;
+    team.trackLockedAt = team.trackLockedAt || new Date().toISOString();
+    if (!team.adminTrackOverride) {
+      team.selectedTrack = trackPreferences[0] || '';
+    }
+    this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
+    return { success: true, team };
+  }
+
   // PHASE 2 OFFLINE ROUND & SELECTION METHODS
   public async updatePhase2Selection(
     teamId: string,
