@@ -1,0 +1,24 @@
+[
+  {
+    "origin": [
+      "https://cognitia-2k26.web.app",
+      "https://cognitia-2026.web.app",
+      "https://cognitia.iem.edu.in",
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://localhost:8080"
+    ],
+    "method": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "HEAD",
+      "OPTIONS"
+    ],
+    "responseHeader": [
+      "*"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

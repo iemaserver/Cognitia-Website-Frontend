@@ -23,7 +23,20 @@ const AdminCartridge = lazy(() => import('./components/cartridges/AdminCartridge
 const RegistrationCartridge = lazy(() => import('./components/cartridges/RegistrationCartridge').then(m => ({ default: m.RegistrationCartridge })));
 const LoginCartridge = lazy(() => import('./components/cartridges/RegistrationCartridge').then(m => ({ default: m.LoginCartridge })));
 
+import { FoodCouponsTabScreen } from './components/FoodCouponsTabScreen';
+
 export default function App() {
+  // Check if standalone Food Coupons page is requested in new tab
+  const isFoodPassMode = typeof window !== 'undefined' && (
+    window.location.pathname.toLowerCase().includes('food') ||
+    window.location.search.toLowerCase().includes('foodpass') ||
+    window.location.search.toLowerCase().includes('foodcoupons')
+  );
+
+  if (isFoodPassMode) {
+    return <FoodCouponsTabScreen />;
+  }
+
   const [currentCartridge, setCurrentCartridge] = useState<CartridgeId>(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();

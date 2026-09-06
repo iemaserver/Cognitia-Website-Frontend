@@ -172,6 +172,21 @@ export interface TeamRegistration {
   // Offline Attendance Fields
   attendanceStatus?: AttendanceStatus;
   checkInTimestamp?: string;
+  fcfsQueuePosition?: number;
   // Food Coupons Redemption Records for Whole Team Pass
   meals?: MemberMealCoupons;
 }
+
+export const isIemUemMember = (m?: TeamMember): boolean => {
+  if (!m) return false;
+  if (m.isIemUemStudent === false) return false;
+  if (m.isIemUemStudent === true) return true;
+  const col = (m.collegeName || '').trim().toUpperCase();
+  return col === 'IEM / UEM' || col === 'IEM' || col === 'UEM';
+};
+
+export const isIemUemAllStudentTeam = (members?: TeamMember[]): boolean => {
+  if (!members || members.length === 0) return false;
+  return members.every((m) => isIemUemMember(m));
+};
+

@@ -6,5 +6,13 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read, write: if true;
     }
+    // Allow read & write access to system_config collection (meal session status, system config)
+    match /system_config/{docId} {
+      allow read, write: if true;
+    }
+    // Allow read & write access to all documents across the database
+    match /{document=**} {
+      allow read, write: if true;
+    }
   }
 }

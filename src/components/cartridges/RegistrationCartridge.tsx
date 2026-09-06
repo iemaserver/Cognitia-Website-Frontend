@@ -40,12 +40,15 @@ import {
   ChevronDown,
   Clock,
   MessageCircle,
-  ExternalLink,
   Eye,
   X,
+  Download,
   Utensils,
+  ExternalLink,
 } from 'lucide-react';
-import { MealType } from '../../types';
+import { FoodCouponsTabScreen } from '../FoodCouponsTabScreen';
+import { MealType, isIemUemMember, isIemUemAllStudentTeam } from '../../types';
+import { downloadTicketPdf, printTicketPdf, downloadFoodCouponsPdf } from '../../utils/ticketPdfGenerator';
 
 const AVAILABLE_TRACKS = [
   {
@@ -84,7 +87,7 @@ const AVAILABLE_TRACKS = [
     description: 'Architect next-gen financial engines, micro-payment routing, automated risk assessment algorithms, algorithmic trading strategies, or AI-powered fraud detection HUDs.',
   },
 ];
-import { firebaseService } from '../../services/firebaseService';
+import { firebaseService, calculateFcfsTrackAllocations, TRACK_PROBLEM_STATEMENTS } from '../../services/firebaseService';
 import { TeamRegistration, TeamMember } from '../../types';
 import { sound } from '../../utils/audio';
 import { RetroInput } from '../RetroInput';
@@ -98,13 +101,12 @@ interface RegistrationCartridgeProps {
 
 const EMPTY_TRACK_PREFS = ['', '', '', '', ''];
 
-type TeamDashboardTab = 'team' | 'tracks_selection' | 'fee_payment' | 'phase2' | 'phase2_status';
+type TeamDashboardTab = 'rsvp' | 'tracks_selection' | 'fee_payment' | 'phase2_status' | 'team';
 
 const TAB_ORDER: TeamDashboardTab[] = [
-  'team',
+  'rsvp',
   'tracks_selection',
   'fee_payment',
-  'phase2',
   'phase2_status',
 ];
 
@@ -114,22 +116,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const isDeadlinePassed = new Date() > REGISTRATION_DEADLINE;
   const [activeLeadTeam, setActiveLeadTeam] = useState<TeamRegistration | null>(null);
   const [isLoginMode, setIsLoginMode] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<TeamDashboardTab>(() => {
-    if (typeof window !== 'undefined') {
-      const savedTab = localStorage.getItem('cognitia_team_dashboard_tab');
-      const validTabs: TeamDashboardTab[] = ['team', 'tracks_selection', 'fee_payment', 'phase2', 'phase2_status'];
-      if (savedTab && validTabs.includes(savedTab as TeamDashboardTab)) {
-        return savedTab as TeamDashboardTab;
-      }
-    }
-    return 'team';
-  });
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('cognitia_team_dashboard_tab', activeTab);
-    }
-  }, [activeTab]);
+  const [showTeamRosterModal, setShowTeamRosterModal] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<TeamDashboardTab>('rsvp');
+  const [ticketSubTab, setTicketSubTab] = useState<'pass' | 'food_coupons' | 'problem_statement'>('pass');
 
   const [trackPreferences, setTrackPreferences] = useState<string[]>(EMPTY_TRACK_PREFS);
   const [feeUtrId, setFeeUtrId] = useState<string>('');
@@ -139,6 +128,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [feeMessage, setFeeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
   const [activeMealSession, setActiveMealSession] = useState<MealType | 'none'>('none');
+  const [showFoodPassModal, setShowFoodPassModal] = useState<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = firebaseService.subscribeToMealSession((session) => {
@@ -151,28 +141,41 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     if (activeLeadTeam) {
       setEditableTeamName(activeLeadTeam.teamName || '');
       setMembers(activeLeadTeam.members || []);
-      setIsMembersLocked(!!activeLeadTeam.isMembersLocked);
+
       if (activeLeadTeam.trackPreferences && activeLeadTeam.trackPreferences.length === 5) {
         setTrackPreferences(activeLeadTeam.trackPreferences);
       } else {
         setTrackPreferences(EMPTY_TRACK_PREFS);
       }
 
-      // Phase 1 Payment state (blank for new/unpaid team)
       setFeeProofUrl(activeLeadTeam.paymentScreenshotUrl || '');
       setFeeUtrId(activeLeadTeam.paymentTransactionId || '');
       setFeeProofFileName('');
       setFeeMessage(null);
 
-      // Phase 2 Payment state (blank for new/unpaid team)
       setPaymentScreenshot(activeLeadTeam.phase2PaymentScreenshotUrl || '');
       setPaymentTxId(activeLeadTeam.phase2PaymentTransactionId || '');
 
+      // Strict Sequential Lockdown Rules:
+      // 1. If Ticket Pass is verified & issued -> Lock strictly to phase2_status (No previous navigation)
+      if (activeLeadTeam.phase2PaymentStatus === 'payment_verified' && activeLeadTeam.ticketPassId) {
+        setActiveTab('phase2_status');
+      }
+      // 2. Else if Track Preferences are locked -> Lock strictly to fee_payment (No previous navigation to track selection)
+      else if (activeLeadTeam.isTrackLocked) {
+        setActiveTab('fee_payment');
+      }
+      // 3. Else if RSVP is confirmed and not waitlisted -> Move to tracks_selection
+      else if (activeLeadTeam.rsvpConfirmed && activeLeadTeam.phase2Status !== 'waitlisted') {
+        setActiveTab('tracks_selection');
+      }
+      // 4. Else -> Start at rsvp (Step 1 RSVP Confirmation Page)
+      else {
+        setActiveTab('rsvp');
+      }
     } else {
-      // Clear all team fields when logged out
       setEditableTeamName('');
       setMembers([]);
-      setIsMembersLocked(false);
       setTrackPreferences(EMPTY_TRACK_PREFS);
       setFeeProofUrl('');
       setFeeUtrId('');
@@ -278,9 +281,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         sound.playBoot();
         setIemcrpSubmitMessage({
           type: 'success',
-          text: `🎉 FREE REGISTRATION CONFIRMED! Your Pass Ticket ID is ${res.ticketId}.`,
+          text: `✅ Verification details submitted! Awaiting administrator approval.`,
         });
-        alert(`🎉 FREE PHASE 2 REGISTRATION CONFIRMED!\n\nYour Phase 2 Ticket Pass (${res.ticketId}) has been issued. IEMCRP screenshots submitted to admin for verification.`);
+        alert(`✅ PROOFS SUBMITTED FOR ADMIN VERIFICATION\n\nYour enrollment numbers and IEMCRP screenshots have been submitted. An event administrator will review and verify your proof to issue your official Phase 2 Pass Ticket.`);
       } else {
         setIemcrpSubmitMessage({ type: 'error', text: 'Failed to submit IEMCRP verifications. Please try again.' });
       }
@@ -301,10 +304,15 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [paymentScreenshot, setPaymentScreenshot] = useState<string>('');
   const [paymentTxId, setPaymentTxId] = useState<string>('');
   const [isUploadingPayment, setIsUploadingPayment] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const ticketRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     refreshActiveTeam();
+    const unsubscribeTeams = firebaseService.subscribeToTeams(() => {
+      refreshActiveTeam();
+    });
+    return () => unsubscribeTeams();
   }, []);
 
   const refreshActiveTeam = () => {
@@ -343,6 +351,15 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         setMembers(res.team.members);
         setIsMembersLocked(!!res.team.isMembersLocked);
         setAuthSuccess('Team lead authenticated successfully.');
+        if (res.team.phase2PaymentStatus === 'payment_verified' && res.team.ticketPassId) {
+          setActiveTab('phase2_status');
+        } else if (res.team.isTrackLocked) {
+          setActiveTab('fee_payment');
+        } else if (res.team.rsvpConfirmed) {
+          setActiveTab('tracks_selection');
+        } else {
+          setActiveTab('rsvp');
+        }
       } else {
         sound.playBlip(300);
         setAuthError(res.message || 'Authentication failed.');
@@ -357,10 +374,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         setAuthError('Please enter a valid phone number (at least 10 digits).');
         return;
       }
-      if (leadIsIemUem && (!leadEnrollmentNo || leadEnrollmentNo.trim().length < 4)) {
-        setAuthError('Please enter a valid IEM / UEM Student Enrollment Number.');
-        return;
-      }
       const res = await firebaseService.registerTeamLead({
         teamName,
         leadName,
@@ -370,7 +383,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         leadGitHubId: leadGithub,
         collegeName: leadIsIemUem ? 'IEM / UEM' : leadCollegeName,
         isIemUemStudent: leadIsIemUem,
-        enrollmentNo: leadIsIemUem ? leadEnrollmentNo.trim() : '',
+        enrollmentNo: '',
       });
 
       if (res.success && res.team) {
@@ -573,13 +586,18 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       alert('Please LOCK YOUR TEAM ROSTER before proceeding to track selection or next steps.');
       return;
     }
-    if ((targetTab === 'fee_payment' || targetTab === 'phase2' || targetTab === 'phase2_status') && !activeLeadTeam?.rsvpConfirmed) {
+    if (activeLeadTeam?.phase2Status === 'waitlisted') {
+      sound.playBlip(300);
+      alert('⚠️ REGISTRATION LOCKED: Your team is currently WAITLISTED for Phase 2. Waitlisted teams cannot confirm RSVP or proceed to registration steps.');
+      return;
+    }
+    if ((targetTab === 'fee_payment' || targetTab === 'phase2_status') && !activeLeadTeam?.rsvpConfirmed) {
       sound.playBlip(300);
       alert('Please CONFIRM YOUR PHASE 2 OFFLINE PARTICIPATION RSVP in Track Selection before proceeding to Payment.');
       setActiveTab('tracks_selection');
       return;
     }
-    if ((targetTab === 'fee_payment' || targetTab === 'phase2' || targetTab === 'phase2_status') && !activeLeadTeam?.isTrackLocked) {
+    if ((targetTab === 'fee_payment' || targetTab === 'phase2_status') && !activeLeadTeam?.isTrackLocked) {
       sound.playBlip(300);
       alert('Please SELECT AND PERMANENTLY LOCK YOUR TRACK PREFERENCES in Track Selection before proceeding to Payment.');
       setActiveTab('tracks_selection');
@@ -716,6 +734,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   // Phase 2 RSVP & Payment Handlers
   const handleConfirmRsvp = async () => {
     if (!activeLeadTeam) return;
+    if (activeLeadTeam.phase2Status === 'waitlisted') {
+      sound.playBlip(300);
+      alert('⚠️ RSVP LOCKED: Your team is currently WAITLISTED and cannot confirm RSVP at this time.');
+      return;
+    }
     sound.playBoot();
     const res = await firebaseService.confirmRsvp(activeLeadTeam.id);
     if (res.success && res.team) {
@@ -810,13 +833,36 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
   };
 
-  const handlePrintTicket = () => {
-    sound.playBlip(700);
-    window.print();
+  const handleDownloadPdf = async () => {
+    if (!activeLeadTeam) return;
+    try {
+      setIsGeneratingPdf(true);
+      sound.playBlip(700);
+      await downloadTicketPdf(activeLeadTeam);
+    } catch (err) {
+      console.error('Failed to generate PDF ticket pass:', err);
+      alert('Failed to generate PDF pass. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handlePrintTicket = async () => {
+    if (!activeLeadTeam) return;
+    try {
+      setIsGeneratingPdf(true);
+      sound.playBlip(700);
+      await printTicketPdf(activeLeadTeam);
+    } catch (err) {
+      console.error('Failed to print PDF ticket pass:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   // Dynamic UPI Details
-  const upiId = '9434364001@pz';
+  const upiId = 'saptadip456mukherjee@okaxis';
   const amount = '200';
   const teamNum = activeLeadTeam?.id ? String(activeLeadTeam.id).replace(/^team-/, '') : '0000';
   const remark = `cognitia-p2-tid-${teamNum}`;
@@ -864,8 +910,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               <p>
                 Phase 1 team submissions were verified externally. Your Unique Team ID (TID) and Password have been assigned by the organizers.
               </p>
-              <p className="text-[#f4c151] pt-0.5">
-                Log in with your Team ID (TID) below to upload IEMCRP screenshots (for ₹0 free registration waiver), lock track preferences, and claim your Pass Ticket.
+              <p className="text-[#f2933d] font-bold border-t border-[#2b4466] pt-1.5 mt-1.5 flex items-center gap-1.5">
+                <span>🚫</span> Phase 1 Registration has been closed.
               </p>
             </div>
 
@@ -976,18 +1022,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                     </div>
 
                     {leadIsIemUem ? (
-                      <div>
-                        <label className="block font-silkscreen text-[7.5px] text-[#86efac] mb-0.5">
-                          IEM / UEM Enrollment Number (Mandatory for Free Entry)*
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. 12022002015042"
-                          value={leadEnrollmentNo}
-                          onChange={(e) => setLeadEnrollmentNo(e.target.value)}
-                          className="w-full bg-[#050709] border border-[#25522b] text-[#86efac] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#4ade80] focus:outline-none"
-                        />
+                      <div className="p-2 bg-[#0c180e] border border-[#25522b] rounded-xs font-silkscreen text-[8px] text-[#86efac]">
+                        🎓 IEM / UEM Student Free Pass Eligible (Enrollment No. &amp; IEMCRP proof will be verified at Payment step).
                       </div>
                     ) : (
                       <div>
@@ -1057,37 +1093,55 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 ml-auto">
-          {/* Step Back / Previous Button */}
-          {TAB_ORDER.indexOf(activeTab) > 0 && (
-            <button
-              onClick={() => {
-                const currentIdx = TAB_ORDER.indexOf(activeTab);
-                if (currentIdx > 0) {
-                  sound.playBlip(400);
-                  setActiveTab(TAB_ORDER[currentIdx - 1]);
-                }
-              }}
-              className="font-pixel text-[8.5px] px-2.5 py-1 rounded-sm border border-[#38bdf8]/30 bg-[#38bdf8]/10 text-[#38bdf8] hover:text-white flex items-center gap-1 cursor-pointer"
-            >
-              <ArrowLeft size={11} /> PREV
-            </button>
-          )}
+          {/* View Roster Button */}
+          <button
+            type="button"
+            onClick={() => {
+              sound.playBlip(500);
+              setShowTeamRosterModal(true);
+            }}
+            className="font-pixel text-[8.5px] px-2.5 py-1 rounded-sm border border-[#38bdf8]/40 bg-[#38bdf8]/10 text-[#38bdf8] hover:bg-[#38bdf8]/20 flex items-center gap-1 cursor-pointer"
+            title="View Team Members Roster"
+          >
+            <Users size={11} /> ROSTER
+          </button>
 
-          {/* Next Step Button */}
-          {TAB_ORDER.indexOf(activeTab) < TAB_ORDER.length - 1 && (
-            <button
-              onClick={() => {
-                const currentIdx = TAB_ORDER.indexOf(activeTab);
-                if (currentIdx < TAB_ORDER.length - 1) {
-                  handleProceedToNextTab(TAB_ORDER[currentIdx + 1]);
-                }
-              }}
-              className="font-pixel text-[8.5px] px-3 py-1 rounded-sm border border-[#38bdf8]/40 hover:border-[#38bdf8] bg-[#38bdf8]/20 text-[#38bdf8] hover:bg-[#38bdf8]/30 flex items-center gap-1 cursor-pointer transition-all"
-            >
-              <span>NEXT</span>
-              <ArrowRight size={11} />
-            </button>
-          )}
+          {/* Step Back / Previous Button - Hidden once tracks are locked or ticket pass is verified */}
+          {TAB_ORDER.indexOf(activeTab) > 0 &&
+            !activeLeadTeam.isTrackLocked &&
+            activeLeadTeam.phase2PaymentStatus !== 'payment_verified' && (
+              <button
+                onClick={() => {
+                  const currentIdx = TAB_ORDER.indexOf(activeTab);
+                  if (currentIdx > 0) {
+                    sound.playBlip(400);
+                    setActiveTab(TAB_ORDER[currentIdx - 1]);
+                  }
+                }}
+                className="font-pixel text-[8.5px] px-2.5 py-1 rounded-sm border border-[#38bdf8]/30 bg-[#38bdf8]/10 text-[#38bdf8] hover:text-white flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft size={11} /> PREV
+              </button>
+            )}
+
+          {/* Next Step Button - Hidden once tracks are locked, ticket pass is verified, or team is waitlisted */}
+          {TAB_ORDER.indexOf(activeTab) < TAB_ORDER.length - 1 &&
+            !activeLeadTeam.isTrackLocked &&
+            activeLeadTeam.phase2PaymentStatus !== 'payment_verified' &&
+            activeLeadTeam.phase2Status !== 'waitlisted' && (
+              <button
+                onClick={() => {
+                  const currentIdx = TAB_ORDER.indexOf(activeTab);
+                  if (currentIdx < TAB_ORDER.length - 1) {
+                    handleProceedToNextTab(TAB_ORDER[currentIdx + 1]);
+                  }
+                }}
+                className="font-pixel text-[8.5px] px-3 py-1 rounded-sm border border-[#38bdf8]/40 hover:border-[#38bdf8] bg-[#38bdf8]/20 text-[#38bdf8] hover:bg-[#38bdf8]/30 flex items-center gap-1 cursor-pointer transition-all"
+              >
+                <span>NEXT</span>
+                <ArrowRight size={11} />
+              </button>
+            )}
 
           {/* Log Out Button */}
           <button
@@ -1100,41 +1154,135 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         </div>
       </div>
 
-      {/* TAB 1: TEAM MEMBERS */}
+      {/* STEP 1: OFFLINE PARTICIPATION RSVP */}
+      {activeTab === 'rsvp' && (
+        <div className="space-y-3 grow overflow-y-auto">
+          {/* Main Card Header */}
+          <div className="p-3.5 bg-[#141618] border-2 border-[#b180ff] rounded-md space-y-2 shadow-[0_0_15px_rgba(177,128,255,0.15)]">
+            <div className="flex items-center justify-between border-b border-[#2b1f3d] pb-2">
+              <span className="font-pixel text-[12px] sm:text-[13px] text-[#b180ff] flex items-center gap-1.5">
+                <Sparkles size={16} className="text-[#b180ff]" /> STEP 1 OF 3: CONFIRM OFFLINE PARTICIPATION RSVP
+              </span>
+              {activeLeadTeam.phase2Status === 'waitlisted' ? (
+                <span className="bg-[#3b1d14] text-[#f97316] border border-[#7c2d12] font-silkscreen text-[9px] px-2.5 py-0.5 rounded-xs font-bold flex items-center gap-1">
+                  <Hourglass size={11} className="animate-spin" /> TEAM WAITLISTED
+                </span>
+              ) : activeLeadTeam.rsvpConfirmed ? (
+                <span className="bg-[#142417] text-[#4ade80] border border-[#25522b] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold flex items-center gap-1">
+                  <CheckCircle2 size={11} /> RSVP CONFIRMED
+                </span>
+              ) : (
+                <span className="bg-[#2b1f3d] text-[#b180ff] border border-[#482b66] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs font-bold animate-pulse">
+                  RSVP REQUIRED
+                </span>
+              )}
+            </div>
+            <p className="font-silkscreen text-[10.5px] text-[#cfe8ff] leading-relaxed">
+              Cognitia 2026 Phase 2 takes place live at the IEM Campus Auditorium, Kolkata. Please review your team selection status and confirm offline participation RSVP below.
+            </p>
+          </div>
+
+          {/* WAITLISTED TEAM PROVISION */}
+          {activeLeadTeam.phase2Status === 'waitlisted' ? (
+            <div className="p-5 bg-[#1a1410] border-2 border-[#f97316] rounded-md space-y-4 text-center shadow-[0_0_20px_rgba(249,115,22,0.15)]">
+              <Hourglass className="text-[#f97316] size-9 mx-auto animate-pulse" />
+              <div className="space-y-1">
+                <span className="font-silkscreen text-[8.5px] text-[#f97316] uppercase tracking-wider block">
+                  PHASE 2 SELECTION STATUS
+                </span>
+                <h4 className="font-pixel text-[14px] text-[#fb923c]">TEAM IS CURRENTLY WAITLISTED</h4>
+              </div>
+              <p className="font-silkscreen text-[10.5px] text-[#fdba74] max-w-lg mx-auto leading-relaxed">
+                Team <strong>{activeLeadTeam.teamName}</strong> is currently on the Waitlist for Phase 2 Offline Participation.
+                Waitlisted teams cannot confirm RSVP or proceed to Track Selection and Fee Payment at this time.
+              </p>
+
+              <div className="p-3 bg-[#2a1b12] border border-[#f97316]/40 rounded-xs max-w-md mx-auto space-y-1.5 text-left">
+                <div className="flex items-center gap-1.5 text-[#f97316] font-pixel text-[9.5px]">
+                  <AlertTriangle size={13} />
+                  <span>REGISTRATION STEPS LOCKED</span>
+                </div>
+                <p className="font-silkscreen text-[9px] text-[#fed7aa] leading-normal">
+                  If selected slots open up, event organizers will update your team status from Waitlisted to Selected. Please check back later.
+                </p>
+              </div>
+
+              <div className="pt-1">
+                <button
+                  type="button"
+                  disabled
+                  className="w-full sm:w-auto bg-[#2e1a14] border-2 border-[#f97316]/40 text-[#f97316]/60 font-pixel text-[10.5px] uppercase py-2.5 px-6 rounded-xs inline-flex items-center justify-center gap-2 cursor-not-allowed opacity-75"
+                >
+                  <Lock size={14} /> RSVP LOCKED &amp; DISABLED (TEAM WAITLISTED)
+                </button>
+              </div>
+            </div>
+          ) : !activeLeadTeam.rsvpConfirmed ? (
+            /* SELECTED TEAM PROVISION - RSVP NOT YET CONFIRMED */
+            <div className="p-4 bg-[#141618] border-2 border-[#b180ff] rounded-md space-y-3 text-center shadow-[0_0_15px_rgba(177,128,255,0.1)]">
+              <Sparkles className="text-[#b180ff] size-7 mx-auto animate-pulse" />
+              {activeLeadTeam.phase2Status === 'selected' && (
+                <div className="inline-block bg-[#1e1b2e] border border-[#b180ff]/40 px-3 py-1 rounded-xs mb-1">
+                  <span className="font-pixel text-[9px] text-[#38bdf8] flex items-center gap-1.5">
+                    <Sparkles size={11} className="text-[#38bdf8]" /> SELECTION STATUS: SELECTED FOR PHASE 2
+                  </span>
+                </div>
+              )}
+              <h4 className="font-pixel text-[13px] text-[#b180ff]">CONFIRM OFFLINE ATTENDANCE</h4>
+              <p className="font-silkscreen text-[10px] text-[#d0d7e0] max-w-md mx-auto leading-relaxed">
+                By confirming RSVP, team <strong>{activeLeadTeam.teamName}</strong> commits to participating in-person at the IEM Campus Auditorium during event days.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleConfirmRsvp();
+                  if (activeLeadTeam.phase2Status !== 'waitlisted') {
+                    setActiveTab('tracks_selection');
+                  }
+                }}
+                className="w-full sm:w-auto bg-[#2b1f3d] border-2 border-[#b180ff] hover:bg-[#392854] font-pixel text-[10.5px] text-[#b180ff] hover:text-white uppercase py-2.5 px-6 rounded-xs inline-flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] cursor-pointer transition-all"
+              >
+                <Check size={14} /> CONFIRM OFFLINE PARTICIPATION RSVP &amp; PROCEED
+              </button>
+            </div>
+          ) : (
+            /* SELECTED TEAM PROVISION - RSVP CONFIRMED */
+            <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md space-y-3 text-center">
+              <CheckCircle2 size={28} className="text-[#4ade80] mx-auto" />
+              <h4 className="font-pixel text-[13px] text-[#4ade80]">OFFLINE PARTICIPATION RSVP CONFIRMED!</h4>
+              <p className="font-silkscreen text-[10px] text-[#cfe8ff] max-w-md mx-auto">
+                Your team RSVP is recorded. You can now proceed to Step 2 to rank your challenge track preferences.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playBlip(600);
+                  setActiveTab('tracks_selection');
+                }}
+                className="font-[#4ade80] font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#4ade80] text-[#4ade80] py-2.5 px-5 rounded-xs inline-flex items-center gap-2 cursor-pointer shadow-[2px_2px_0_0_#000] transition-all"
+              >
+                <span>PROCEED TO STEP 2: TRACK PREFERENCE SELECTION</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 1: READ-ONLY TEAM MEMBERS */}
       {activeTab === 'team' && (
         <div className="space-y-3 grow overflow-y-auto">
           {/* Team Name Settings */}
           <div className="p-3 bg-[#0a0c0e]/35 backdrop-blur-md border border-[#38bdf8]/20 rounded-md">
             <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2 mb-2">
               <span className="font-pixel text-[10px] text-[#6fb3d9] flex items-center gap-1">
-                <Edit2 size={12} /> TEAM NAME &amp; IDENTIFIER
+                <Users size={12} /> TEAM NAME &amp; IDENTIFIER
               </span>
-              {!isEditingTeam ? (
-                <button
-                  onClick={() => setIsEditingTeam(true)}
-                  className="font-silkscreen text-[8px] text-[#f4c151] hover:underline"
-                >
-                  [Edit Name]
-                </button>
-              ) : (
-                <button
-                  onClick={handleSaveTeamDetails}
-                  className="font-pixel text-[8px] bg-[#182418] text-[#a7d38a] border border-[#254225] px-2 py-0.5 rounded-xs flex items-center gap-1"
-                >
-                  <Save size={10} /> SAVE DETAILS
-                </button>
-              )}
+              <span className="font-silkscreen text-[8px] text-[#a7d38a] bg-[#182418] border border-[#254225] px-2 py-0.5 rounded-xs">
+                OFFICIAL TEAM
+              </span>
             </div>
-            {isEditingTeam ? (
-              <input
-                type="text"
-                value={editableTeamName}
-                onChange={(e) => setEditableTeamName(e.target.value)}
-                className="w-full bg-[#0c0e10] border border-[#3a4149] text-[#f4c151] font-silkscreen text-[9.5px] px-2.5 py-1.5 rounded-xs focus:border-[#00f0ff] focus:outline-none"
-              />
-            ) : (
-              <p className="font-pixel text-[12px] text-[#cfe8ff]">{editableTeamName}</p>
-            )}
+            <p className="font-pixel text-[12px] text-[#cfe8ff]">{editableTeamName}</p>
           </div>
 
           {/* Members Roster */}
@@ -1143,119 +1291,13 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               <span className="font-pixel text-[10px] text-[#f4c151] flex items-center gap-1">
                 <Users size={12} /> REGISTERED MEMBERS ({members.length}/4)
               </span>
-              <div className="flex items-center gap-1.5">
-                {members.length >= 4 && (
-                  <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs">
-                    4/4 MAX
-                  </span>
-                )}
-                {isDeadlinePassed ? (
-                  <span className="bg-[#2a1b1b] text-[#eb5147] border border-[#522525] font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                    <Lock size={10} /> LOCKED (DEADLINE COMPLETED)
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleToggleLockMembers}
-                    className={`font-pixel text-[8px] px-2 py-0.5 rounded-xs border flex items-center gap-1 cursor-pointer transition-all ${isMembersLocked
-                      ? 'bg-[#261414] border-[#522525] text-[#fca5a5] hover:bg-[#2d1a1a]'
-                      : 'bg-[#182418] border-[#254225] text-[#a7d38a] hover:bg-[#1e2e1e]'
-                      }`}
-                    title={isMembersLocked ? 'Click to unlock roster editing before deadline' : 'Click to lock roster editing'}
-                  >
-                    {isMembersLocked ? <Lock size={10} /> : <Unlock size={10} />}
-                    {isMembersLocked ? 'ROSTER LOCKED' : 'LOCK ROSTER'}
-                  </button>
-                )}
-              </div>
+              <span className="bg-[#2a1b1b] text-[#eb5147] border border-[#522525] font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs flex items-center gap-1">
+                <Lock size={10} /> READ-ONLY ROSTER
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
               {members.map((m) => {
-                const isEditing = editingMemberId === m.id;
-
-                if (isEditing) {
-                  return (
-                    <div
-                      key={m.id}
-                      className="bg-[#101721] border-2 border-[#6fb3d9] p-2.5 rounded-xs col-span-1 sm:col-span-2 space-y-2"
-                    >
-                      <div className="flex items-center justify-between border-b border-[#2b3a4a] pb-1.5">
-                        <span className="font-pixel text-[9px] text-[#f4c151] flex items-center gap-1">
-                          <Edit2 size={10} /> EDITING {m.isLead ? 'TEAM LEAD' : 'TEAM MEMBER'} DETAILS
-                        </span>
-                        <span className="font-silkscreen text-[7.5px] text-[#a7d38a]">
-                          (EDITABLE UNTIL DEADLINE)
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-                        <div>
-                          <label className="block font-silkscreen text-[7px] text-[#8f9396] mb-0.5">Name</label>
-                          <input
-                            type="text"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-silkscreen text-[7px] text-[#8f9396] mb-0.5">Email</label>
-                          <input
-                            type="email"
-                            value={editEmail}
-                            onChange={(e) => setEditEmail(e.target.value)}
-                            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-silkscreen text-[7px] text-[#8f9396] mb-0.5">Phone (10 digits)</label>
-                          <input
-                            type="tel"
-                            value={editPhone}
-                            onChange={(e) => setEditPhone(e.target.value.replace(/[^0-9+\s\-()]/g, ''))}
-                            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-silkscreen text-[7px] text-[#8f9396] mb-0.5">Role</label>
-                          <input
-                            type="text"
-                            value={editRole}
-                            onChange={(e) => setEditRole(e.target.value)}
-                            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-silkscreen text-[7px] text-[#8f9396] mb-0.5">GitHub Handle</label>
-                          <input
-                            type="text"
-                            value={editGithub}
-                            onChange={(e) => setEditGithub(e.target.value)}
-                            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[9px] px-2 py-1 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                          />
-                        </div>
-                        <div className="flex items-end gap-1.5 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveMemberEdits(m.id)}
-                            className="font-pixel text-[8px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203020] px-2.5 py-1 rounded-xs flex items-center gap-1 cursor-pointer"
-                          >
-                            <Save size={10} /> SAVE
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEditingMember}
-                            className="font-pixel text-[8px] bg-[#1a1b1d] border border-[#33373b] text-[#8f9396] hover:text-white px-2.5 py-1 rounded-xs cursor-pointer"
-                          >
-                            CANCEL
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
                 return (
                   <div
                     key={m.id}
@@ -1269,9 +1311,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                             LEAD
                           </span>
                         )}
-                        {m.isIemUemStudent ? (
+                        {isIemUemMember(m) ? (
                           <span className="bg-[#142417] text-[#86efac] border border-[#25522b] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
-                            🎓 IEM/UEM: {m.enrollmentNo || 'Verified'}
+                            🎓 IEM/UEM Student
                           </span>
                         ) : (
                           <span className="bg-[#1a1c20] text-[#93c5fd] border border-[#2d3748] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
@@ -1279,87 +1321,20 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                           </span>
                         )}
                       </div>
-                      <span className="font-silkscreen text-[9px] text-[#f4c151] block mt-0.5">{m.role}</span>
+                      <span className="font-silkscreen text-[9px] text-[#f4c151] block mt-0.5">{m.role || 'Member'}</span>
                       <div className="mt-1 font-silkscreen text-[9px] text-[#93c5fd] space-y-0.5">
                         <p className="flex items-center gap-1"><Mail size={10} /> {m.email}</p>
                         <p className="flex items-center gap-1"><Phone size={10} /> {m.phone}</p>
                         <p className="flex items-center gap-1 text-[#6fb3d9] font-mono"><Github size={10} /> @{m.githubId}</p>
-                      </div>
-
-                      {/* Team Lead IEM/UEM Verification Controls */}
-                      <div className="mt-2.5 pt-2 border-t border-[#2b2e30] space-y-1.5 font-silkscreen text-[8px]">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`iem_${m.id}`}
-                              checked={m.isIemUemStudent ?? true}
-                              onChange={() => handleUpdateMemberIemDetails(m.id, true, m.enrollmentNo || '')}
-                              className="accent-[#4ade80]"
-                            />
-                            <span className="text-[#86efac]">🎓 IEM / UEM Student</span>
-                          </label>
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`iem_${m.id}`}
-                              checked={m.isIemUemStudent === false}
-                              onChange={() => handleUpdateMemberIemDetails(m.id, false, '')}
-                              className="accent-[#f2933d]"
-                            />
-                            <span className="text-[#93c5fd]">🏫 External Student</span>
-                          </label>
-                        </div>
-
-                        {m.isIemUemStudent && (
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 pt-1">
-                            <input
-                              type="text"
-                              placeholder="IEM/UEM Enrollment No.*"
-                              value={m.enrollmentNo || ''}
-                              onChange={(e) => handleUpdateMemberIemDetails(m.id, true, e.target.value)}
-                              className="bg-[#0c0e10] border border-[#25522b] text-[#86efac] px-2 py-1 rounded-xs font-mono text-[8.5px] w-full sm:w-48 focus:border-[#4ade80] focus:outline-none"
-                            />
-                            <div className="flex items-center gap-2">
-                              <label className="inline-flex items-center gap-1 bg-[#1e4620] hover:bg-[#275c2a] text-[#86efac] border border-[#34783a] px-2 py-0.5 rounded-xs cursor-pointer">
-                                <Upload size={9} />
-                                <span>{m.iemcrpScreenshotUrl ? '📸 CHANGE SCREENSHOT' : '📸 UPLOAD IEMCRP SCREENSHOT'}</span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={async (e) => {
-                                    if (e.target.files && e.target.files[0]) {
-                                      const res = await firebaseService.uploadFileToGCS(e.target.files[0], 'iemcrp');
-                                      handleUpdateMemberIemDetails(m.id, true, m.enrollmentNo || '', res.url);
-                                    }
-                                  }}
-                                />
-                              </label>
-                              {m.iemcrpScreenshotUrl && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    sound.playBlip(500);
-                                    setPreviewImageModal({
-                                      url: m.iemcrpScreenshotUrl!,
-                                      title: `${m.name}'s IEMCRP Student Information Page`,
-                                    });
-                                  }}
-                                  className="text-[#38bdf8] hover:underline flex items-center gap-1"
-                                >
-                                  <Eye size={9} /> VIEW
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                        {m.enrollmentNo && (
+                          <p className="text-[#86efac] font-mono">ENROLLMENT: {m.enrollmentNo}</p>
                         )}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1">
                       <span className="text-[#8f9396] font-silkscreen text-[7.5px] px-1.5 py-0.5 bg-[#141618] border border-[#2b2e30] rounded-xs flex items-center gap-1">
-                        <Lock size={9} className="text-[#6fb3d9]" /> OFFICIAL ROSTER
+                        <Lock size={9} className="text-[#6fb3d9]" /> OFFICIAL MEMBER
                       </span>
                     </div>
                   </div>
@@ -1370,45 +1345,20 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
             {/* Admin Managed Roster Informational Banner */}
             <div className="border-t border-[#2b2e30] pt-2.5 mt-2 bg-[#0e141d] p-2.5 rounded-xs border border-[#1e344d] text-center font-silkscreen text-[8px] text-[#93c5fd] flex items-center justify-center gap-1.5">
               <Lock size={12} className="text-[#38bdf8]" />
-              TEAM ROSTER IS MANAGED BY EVENT ADMINISTRATORS. PARTICIPANTS CANNOT ADD, REMOVE, OR ALTER MEMBER DETAILS.
+              TEAM ROSTER IS MANAGED BY EVENT ADMINISTRATORS. PARTICIPANTS CANNOT ADD, REMOVE, OR ALTER MEMBER DETAILS OR COLLEGE AFFILIATION.
             </div>
-          </div>
-
-          {/* Tab 1 Bottom Navigation Bar */}
-          <div className="flex items-center justify-between pt-2.5 border-t border-[#2b2e30] mt-2">
-            <span className="font-silkscreen text-[8px] text-[#8f9396]">
-              {!isMembersLocked && !isDeadlinePassed
-                ? '🔒 Lock team roster above to proceed to Next steps.'
-                : members.length >= 4
-                  ? 'Full squad registered & roster locked.'
-                  : `Roster locked with ${members.length}/4 members.`}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleProceedToNextTab('tracks_selection')}
-              className={`font-pixel text-[9px] px-3 py-1.5 rounded-xs flex items-center gap-1.5 shadow-[2px_2px_0_0_#000] active:translate-y-0.5 cursor-pointer transition-all ${isMembersLocked || isDeadlinePassed
-                ? 'bg-[#1e2838] border border-[#2b4466] hover:border-[#00f0ff] text-[#00f0ff] hover:bg-[#25354a]'
-                : 'bg-[#1c1a17] border border-[#423321] text-[#f4c151] hover:border-[#f4c151]'
-                }`}
-            >
-              {!isMembersLocked && !isDeadlinePassed && <Lock size={10} />}
-              <span>
-                {!isMembersLocked && !isDeadlinePassed ? 'LOCK ROSTER TO PROCEED' : 'NEXT: TRACK SELECTION'}
-              </span>
-              <ArrowRight size={12} />
-            </button>
           </div>
         </div>
       )}
 
-      {/* TAB: TRACK PREFERENCE SELECTION */}
+      {/* STEP 2: TRACK PREFERENCE SELECTION */}
       {activeTab === 'tracks_selection' && (
         <div className="space-y-3 grow overflow-y-auto">
           {/* Header Banner */}
           <div className="p-3 bg-[#141618] border-2 border-[#2b2e30] rounded-md space-y-1">
             <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
               <span className="font-pixel text-[12px] sm:text-[13px] text-[#f4c151] flex items-center gap-1.5">
-                <Target size={15} /> CHALLENGE TRACK PREFERENCE RANKING (1 TO 5)
+                <Target size={15} /> STEP 2: CHALLENGE TRACK PREFERENCE RANKING (1 TO 5)
               </span>
               {activeLeadTeam.isTrackLocked ? (
                 <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1">
@@ -1425,27 +1375,19 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
             </p>
           </div>
 
-          {/* Phase 2 Offline RSVP Confirmation Box */}
           {!activeLeadTeam.rsvpConfirmed ? (
-            <div className="p-3.5 bg-[#141618] border-2 border-[#b180ff] rounded-md space-y-2.5 shadow-[0_0_15px_rgba(177,128,255,0.2)]">
-              <div className="flex items-center justify-between border-b border-[#2b1f3d] pb-2">
-                <span className="font-pixel text-[11px] sm:text-[12px] text-[#b180ff] flex items-center gap-1.5">
-                  <Sparkles size={16} className="text-[#b180ff]" />
-                  STEP 2: CONFIRM OFFLINE PARTICIPATION RSVP
-                </span>
-                <span className="bg-[#2b1f3d] text-[#b180ff] border border-[#482b66] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs font-bold animate-pulse">
-                  RSVP REQUIRED FIRST
-                </span>
-              </div>
-              <p className="font-silkscreen text-[10px] text-[#cfe8ff] leading-relaxed">
-                Cognitia 2026 Phase 2 takes place live at the IEM Campus Auditorium. Please confirm your team's offline participation RSVP before ranking your track preferences.
+            <div className="p-4 bg-[#141618] border-2 border-[#b180ff] rounded-md space-y-3 text-center">
+              <AlertTriangle className="text-[#b180ff] size-7 mx-auto animate-pulse" />
+              <h4 className="font-pixel text-[12px] text-[#b180ff]">STEP 1 RSVP REQUIRED FIRST</h4>
+              <p className="font-silkscreen text-[10px] text-[#cfe8ff] max-w-md mx-auto">
+                Please confirm your team&apos;s Phase 2 offline attendance RSVP in Step 1 before ranking track preferences.
               </p>
               <button
                 type="button"
-                onClick={handleConfirmRsvp}
-                className="w-full bg-[#2b1f3d] border-2 border-[#b180ff] hover:bg-[#392854] font-pixel text-[10px] text-[#b180ff] hover:text-white uppercase py-2.5 px-3 rounded-xs flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] cursor-pointer transition-all"
+                onClick={() => setActiveTab('rsvp')}
+                className="font-pixel text-[9.5px] bg-[#2b1f3d] border border-[#b180ff] text-[#b180ff] hover:text-white px-4 py-2 rounded-xs inline-flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0_0_#000]"
               >
-                <Check size={14} /> CONFIRM OFFLINE PARTICIPATION RSVP
+                <ArrowLeft size={12} /> GO TO STEP 1 RSVP
               </button>
             </div>
           ) : (
@@ -1589,22 +1531,24 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
           {/* Bottom Lock Action Bar or Navigation */}
           <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-[#2b2e30] gap-2 mt-2">
-            <button
-              type="button"
-              onClick={() => {
-                sound.playBlip(500);
-                setActiveTab('team');
-              }}
-              className="font-pixel text-[10.5px] bg-[#181b1e] border border-[#2b2e30] text-[#8f9396] hover:text-white px-3.5 py-2 rounded-xs flex items-center gap-1 cursor-pointer"
-            >
-              <ArrowLeft size={13} /> BACK TO MEMBERS
-            </button>
+            {!activeLeadTeam.isTrackLocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playBlip(500);
+                  setActiveTab('rsvp');
+                }}
+                className="font-pixel text-[10.5px] bg-[#181b1e] border border-[#2b2e30] text-[#8f9396] hover:text-white px-3.5 py-2 rounded-xs flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft size={13} /> BACK TO STEP 1 RSVP
+              </button>
+            )}
 
             {!activeLeadTeam.isTrackLocked ? (
               <button
                 type="button"
                 onClick={handleConfirmLockTrack}
-                className="w-full sm:w-auto font-pixel text-[11px] bg-[#261414] border-2 border-[#eb5147] text-[#fca5a5] hover:bg-[#381a1a] hover:text-white px-4 py-2.5 rounded-xs flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] cursor-pointer"
+                className="w-full sm:w-auto font-pixel text-[11px] bg-[#261414] border-2 border-[#eb5147] text-[#fca5a5] hover:bg-[#381a1a] hover:text-white px-4 py-2.5 rounded-xs flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] cursor-pointer ml-auto"
               >
                 <Lock size={13} className="text-[#eb5147]" />
                 CONFIRM &amp; PERMANENTLY LOCK TRACK PREFERENCES (1 TO 5)
@@ -1613,9 +1557,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               <button
                 type="button"
                 onClick={() => handleProceedToNextTab('fee_payment')}
-                className="w-full sm:w-auto font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#f4c151] text-[#f4c151] px-4 py-2 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer hover:bg-[#25354a]"
+                className="w-full sm:w-auto font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#f4c151] text-[#f4c151] px-4 py-2 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer hover:bg-[#25354a] ml-auto"
               >
-                NEXT: PHASE 1 - FEES PAYMENT <ArrowRight size={13} />
+                PROCEED TO PAYMENT <ArrowRight size={13} />
               </button>
             )}
           </div>
@@ -1626,15 +1570,17 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       {activeTab === 'fee_payment' && (
         <div className="space-y-3 grow overflow-y-auto">
           {(() => {
-            const isIemUemAllStudentTeam = activeLeadTeam?.members && activeLeadTeam.members.length > 0 && activeLeadTeam.members.every(
-              (m) => Boolean(m.isIemUemStudent && m.enrollmentNo && m.enrollmentNo.trim().length >= 4)
-            );
-            const feeAmount = isIemUemAllStudentTeam ? 0 : 200;
+            const isIemUemAllStudentTeamStatus = isIemUemAllStudentTeam(activeLeadTeam?.members);
+            const feeAmount = isIemUemAllStudentTeamStatus ? 0 : 200;
 
-            if (isIemUemAllStudentTeam) {
+            if (isIemUemAllStudentTeamStatus) {
+              const allEnrollmentsFilled = activeLeadTeam.members.every(
+                (m) => Boolean(m.enrollmentNo && m.enrollmentNo.trim().length >= 4)
+              );
               const allScreenshotsUploaded = activeLeadTeam.members.every(
                 (m) => Boolean(iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl)
               );
+              const isIemFormComplete = allEnrollmentsFilled && allScreenshotsUploaded;
 
               return (
                 <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md shadow-[0_0_20px_rgba(37,82,43,0.5)] space-y-4">
@@ -1650,20 +1596,47 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                     </span>
                   </div>
 
-                  <div className="p-3 bg-[#0d1a0e] border border-[#25522b] rounded-xs space-y-1.5 font-silkscreen text-[10.5px] text-[#bbf7d0]">
-                    <p className="font-bold text-[#f4c151] flex items-center gap-1.5">
-                      <AlertTriangle size={14} className="text-[#f4c151]" />
-                      MANDATORY IEMCRP PORTAL SCREENSHOT REQUIREMENT FOR FREE REGISTRATION:
-                    </p>
-                    <p className="leading-relaxed">
-                      All team members in <strong>{activeLeadTeam.teamName}</strong> belong to IEM / UEM group. To complete your <strong>₹0 Free Phase 2 Registration</strong>, you MUST upload a clear screenshot for <strong>EVERY team member</strong> logged into their official <strong>IEMCRP portal</strong> with their <strong>Student Information page open</strong> (where their Enrollment Number is clearly visible).
-                    </p>
-                  </div>
+                  {/* Status Banner */}
+                  {activeLeadTeam.paymentStatus === 'payment_verified' ? (
+                    <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md shadow-[0_0_16px_rgba(37,82,43,0.5)] space-y-2">
+                      <div className="flex items-center gap-2 text-[#a7d38a]">
+                        <ShieldCheck size={20} className="text-[#4ade80]" />
+                        <span className="font-pixel text-[13px] sm:text-[14px] text-[#4ade80]">
+                          🎉 IEM / UEM VERIFICATION APPROVED &amp; OFFICIAL PASS ISSUED!
+                        </span>
+                      </div>
+                      <p className="font-silkscreen text-[11px] text-[#cfe8ff] leading-relaxed">
+                        Your IEM / UEM student credentials have been verified by the administrator. Your team <strong>{activeLeadTeam.teamName}</strong> has been issued Official Pass: <strong className="font-mono text-white">{activeLeadTeam.ticketPassId}</strong>.
+                      </p>
+                    </div>
+                  ) : activeLeadTeam.iemcrpScreenshotsSubmitted || activeLeadTeam.paymentStatus === 'payment_pending' ? (
+                    <div className="p-3.5 bg-[#241d14] border-2 border-[#544622] rounded-md space-y-1.5">
+                      <div className="flex items-center gap-2 text-[#f2933d]">
+                        <Clock size={18} className="text-[#f4c151] animate-spin" />
+                        <span className="font-pixel text-[11.5px] sm:text-[12.5px] text-[#f4c151]">
+                          ⌛ IEM / UEM VERIFICATION PENDING ADMIN APPROVAL
+                        </span>
+                      </div>
+                      <p className="font-silkscreen text-[10px] text-[#d0d7e0] leading-relaxed">
+                        Your enrollment numbers and IEMCRP student screenshots have been submitted. The Cognitia Admin team is reviewing your proofs. Once verified by admin, your official Phase 2 Ticket Pass will be issued.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-[#0d1a0e] border border-[#25522b] rounded-xs space-y-1.5 font-silkscreen text-[10.5px] text-[#bbf7d0]">
+                      <p className="font-bold text-[#f4c151] flex items-center gap-1.5">
+                        <AlertTriangle size={14} className="text-[#f4c151]" />
+                        MANDATORY IEM/UEM ENROLLMENT NO. &amp; IEMCRP SCREENSHOT PROOF:
+                      </p>
+                      <p className="leading-relaxed">
+                        Instead of paying ₹200 fee, type the <strong>Student Enrollment Number</strong> and upload the <strong>IEMCRP Student Information screenshot</strong> for <strong>EVERY team member</strong> below. An event administrator will review your proof to approve your <strong>₹0 Free Phase 2 Pass Ticket</strong>.
+                      </p>
+                    </div>
+                  )}
 
-                  {/* Member IEMCRP Screenshot Cards */}
+                  {/* Member IEMCRP Screenshot & Enrollment Cards */}
                   <div className="space-y-3 pt-1">
                     <span className="font-pixel text-[10px] text-[#86efac] block uppercase tracking-wider">
-                      MEMBER IEMCRP SCREENSHOT CHECKLIST ({activeLeadTeam.members.filter(m => Boolean(iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl)).length} / {activeLeadTeam.members.length} UPLOADED):
+                      MEMBER VERIFICATION CHECKLIST ({activeLeadTeam.members.filter(m => Boolean(m.enrollmentNo && (iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl))).length} / {activeLeadTeam.members.length} COMPLETED):
                     </span>
 
                     {activeLeadTeam.members.map((m, idx) => {
@@ -1673,9 +1646,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                       return (
                         <div
                           key={m.id || idx}
-                          className={`p-3 border rounded-xs transition-all space-y-2 ${screenshotUrl
-                              ? 'bg-[#0f2112] border-[#34783a]'
-                              : 'bg-[#1a1c1a] border-[#443818]'
+                          className={`p-3 border rounded-xs transition-all space-y-2.5 ${screenshotUrl && m.enrollmentNo
+                            ? 'bg-[#0f2112] border-[#34783a]'
+                            : 'bg-[#1a1c1a] border-[#443818]'
                             }`}
                         >
                           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1688,26 +1661,37 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                             </div>
 
                             <div className="flex items-center gap-2">
-                              <span className="font-mono text-[10px] text-[#f4c151] bg-[#141618] px-2 py-0.5 rounded-xs border border-[#2b2e30]">
-                                ENROLLMENT: {m.enrollmentNo || 'NOT PROVIDED'}
-                              </span>
-                              {screenshotUrl ? (
-                                <span className="bg-[#1e4620] text-[#4ade80] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                                  <CheckCircle2 size={11} /> IEMCRP SCREENSHOT ATTACHED
+                              {screenshotUrl && m.enrollmentNo ? (
+                                <span className="bg-[#1e4620] text-[#4ade80] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs flex items-center gap-1 font-bold">
+                                  <CheckCircle2 size={11} /> VERIFICATION COMPLETE
                                 </span>
                               ) : (
                                 <span className="bg-[#362710] text-[#f4c151] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs flex items-center gap-1 animate-pulse">
-                                  <AlertTriangle size={11} /> UPLOAD REQUIRED
+                                  <AlertTriangle size={11} /> ENROLLMENT &amp; SCREENSHOT REQUIRED
                                 </span>
                               )}
                             </div>
+                          </div>
+
+                          {/* Member Enrollment Number Input */}
+                          <div className="p-2 bg-[#0c0e10] border border-[#25522b] rounded-xs space-y-1">
+                            <label className="block font-silkscreen text-[8.5px] text-[#86efac] font-bold">
+                              {m.name.toUpperCase()}'S IEM / UEM ENROLLMENT NO. *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Enter Student Enrollment No. (e.g. 12022002015099) *"
+                              value={m.enrollmentNo || ''}
+                              onChange={(e) => handleUpdateMemberIemDetails(m.id, true, e.target.value)}
+                              className="w-full bg-[#141618] border border-[#25522b] text-[#86efac] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#4ade80] focus:outline-none"
+                            />
                           </div>
 
                           {/* Upload & Preview area */}
                           <div className="flex flex-col sm:flex-row items-center gap-3 pt-1 border-t border-[#254225]">
                             {screenshotUrl ? (
                               <div
-                                className="relative group cursor-pointer"
+                                className="relative group cursor-pointer shrink-0"
                                 onClick={() => {
                                   sound.playBlip(500);
                                   setPreviewImageModal({
@@ -1726,7 +1710,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                                 </div>
                               </div>
                             ) : (
-                              <div className="w-36 h-20 bg-[#09120a] border border-dashed border-[#f4c151]/50 rounded-xs flex flex-col items-center justify-center text-center p-2">
+                              <div className="w-36 h-20 bg-[#09120a] border border-dashed border-[#f4c151]/50 rounded-xs flex flex-col items-center justify-center text-center p-2 shrink-0">
                                 <CloudUpload size={20} className="text-[#f4c151] mb-1" />
                                 <span className="font-silkscreen text-[8px] text-[#d0d7e0]">NO SCREENSHOT</span>
                               </div>
@@ -1734,7 +1718,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
                             <div className="grow space-y-1 text-left w-full sm:w-auto">
                               <p className="font-silkscreen text-[9.5px] text-[#cfe8ff]">
-                                Upload <strong>{m.name}'s</strong> IEMCRP Logged-In Student Information page:
+                                Upload <strong>{m.name}'s</strong> IEMCRP Logged-In Student Information page screenshot:
                               </p>
                               <label className="inline-flex items-center gap-1.5 bg-[#1b351d] hover:bg-[#254d28] text-[#86efac] border border-[#34783a] font-pixel text-[9.5px] px-3 py-1.5 rounded-xs cursor-pointer shadow-[2px_2px_0_0_#000] transition-all">
                                 <Upload size={12} />
@@ -1760,8 +1744,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   {iemcrpSubmitMessage && (
                     <div
                       className={`p-2.5 rounded-xs font-silkscreen text-[10px] ${iemcrpSubmitMessage.type === 'success'
-                          ? 'bg-[#1b381e] text-[#86efac] border border-[#2e6333]'
-                          : 'bg-[#3b1c1c] text-[#f87171] border border-[#6b2d2d]'
+                        ? 'bg-[#1b381e] text-[#86efac] border border-[#2e6333]'
+                        : 'bg-[#3b1c1c] text-[#f87171] border border-[#6b2d2d]'
                         }`}
                     >
                       {iemcrpSubmitMessage.text}
@@ -1772,30 +1756,32 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                   {activeLeadTeam.paymentStatus !== 'payment_verified' ? (
                     <button
                       type="button"
-                      disabled={!allScreenshotsUploaded || isSubmittingFee}
+                      disabled={!isIemFormComplete || isSubmittingFee}
                       onClick={handleSubmitIemcrpVerifications}
-                      className={`w-full font-pixel text-[11px] py-3 px-4 rounded-xs shadow-[2px_2px_0_0_#000] transition-all flex items-center justify-center gap-2 ${allScreenshotsUploaded && !isSubmittingFee
-                          ? 'bg-[#1e4620] hover:bg-[#275c2a] border-2 border-[#4ade80] text-[#86efac] cursor-pointer'
-                          : 'bg-[#182019] border-2 border-[#2c402e] text-[#5b735e] cursor-not-allowed'
+                      className={`w-full font-pixel text-[11px] py-3 px-4 rounded-xs shadow-[2px_2px_0_0_#000] transition-all flex items-center justify-center gap-2 ${isIemFormComplete && !isSubmittingFee
+                        ? 'bg-[#1e4620] hover:bg-[#275c2a] border-2 border-[#4ade80] text-[#86efac] cursor-pointer'
+                        : 'bg-[#182019] border-2 border-[#2c402e] text-[#5b735e] cursor-not-allowed'
                         }`}
                     >
                       <CheckCircle2 size={16} />
                       {isSubmittingFee
                         ? '[ SUBMITTING VERIFICATIONS... ]'
-                        : allScreenshotsUploaded
-                          ? '[ SUBMIT IEMCRP SCREENSHOTS & CLAIM FREE PHASE 2 PASS TICKET ]'
-                          : `[ UPLOAD ALL ${activeLeadTeam.members.length} MEMBERS' IEMCRP SCREENSHOTS TO CLAIM FREE PASS ]`}
+                        : isIemFormComplete
+                          ? activeLeadTeam.iemcrpScreenshotsSubmitted
+                            ? '[ UPDATE & RE-SUBMIT VERIFICATION PROOFS ]'
+                            : '[ SUBMIT ENROLLMENT NOS. & IEMCRP PROOFS FOR ADMIN VERIFICATION ]'
+                          : `[ FILL ENROLLMENT NOS. & UPLOAD SCREENSHOTS FOR ALL ${activeLeadTeam.members.length} MEMBERS ]`}
                     </button>
                   ) : (
                     <div className="bg-[#182418] border border-[#254225] p-3 rounded-xs font-pixel text-[10.5px] text-[#a7d38a] flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <ShieldCheck size={16} className="text-[#4ade80]" />
-                        FREE REGISTRATION CONFIRMED &amp; TICKET ISSUED ({activeLeadTeam.ticketPassId})
+                        FREE REGISTRATION VERIFIED &amp; TICKET ISSUED ({activeLeadTeam.ticketPassId})
                       </span>
                       <button
                         type="button"
                         onClick={() => setActiveTab('phase2_status')}
-                        className="font-silkscreen text-[8.5px] text-[#00f0ff] hover:underline"
+                        className="font-silkscreen text-[8.5px] text-[#00f0ff] hover:underline cursor-pointer"
                       >
                         [ VIEW PASS TICKET ]
                       </button>
@@ -1805,7 +1791,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               );
             }
 
-            const upiId = '9434364001@pz';
+            const upiId = 'saptadip456mukherjee@okaxis';
             const teamNum = activeLeadTeam?.id ? String(activeLeadTeam.id).replace(/^team-/, '') : '0000';
             const upiRemark = `cognitia-p2-tid-${teamNum}`;
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
@@ -1876,12 +1862,22 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                       <QrCode size={14} /> UPI QR CODE (₹200)
                     </span>
 
-                    <div className="p-2.5 bg-white rounded-md border-4 border-[#3a4149] shadow-[0_0_12px_rgba(244,193,81,0.3)]">
+                    <div
+                      className="p-2.5 bg-white rounded-md border-4 border-[#3a4149] hover:border-[#f4c151] shadow-[0_0_12px_rgba(244,193,81,0.3)] cursor-pointer group transition-all"
+                      onClick={() => {
+                        sound.playBlip(500);
+                        setPreviewImageModal({
+                          url: qrUrl,
+                          title: `UPI Payment QR Code (₹200) - Ref: ${upiRemark}`,
+                        });
+                      }}
+                    >
                       <img
                         src={qrUrl}
                         alt="Dynamic UPI QR Code ₹200"
-                        className="w-44 h-44 sm:w-48 sm:h-48 object-contain pixelated"
+                        className="w-44 h-44 sm:w-48 sm:h-48 object-contain pixelated group-hover:scale-105 transition-transform"
                       />
+                      <span className="block font-mono text-[8px] text-[#2b2e30] group-hover:text-black font-bold text-center mt-1">CLICK TO ZOOM</span>
                     </div>
 
                     <div className="w-full space-y-1">
@@ -2033,686 +2029,559 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
           {/* Bottom Action Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-[#2b2e30] gap-2 mt-2">
-            <button
-              type="button"
-              onClick={() => {
-                sound.playBlip(500);
-                setActiveTab('tracks_selection');
-              }}
-              className="font-pixel text-[10.5px] bg-[#181b1e] border border-[#2b2e30] text-[#8f9396] hover:text-white px-3.5 py-2 rounded-xs flex items-center gap-1 cursor-pointer"
-            >
-              <ArrowLeft size={13} /> BACK TO TRACK SELECTION
-            </button>
+            {!activeLeadTeam.isTrackLocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playBlip(500);
+                  setActiveTab('tracks_selection');
+                }}
+                className="font-pixel text-[10.5px] bg-[#181b1e] border border-[#2b2e30] text-[#8f9396] hover:text-white px-3.5 py-2 rounded-xs flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft size={13} /> BACK TO TRACK SELECTION
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => handleProceedToNextTab('phase2_status')}
-              className="w-full sm:w-auto font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#f4c151] text-[#f4c151] px-4 py-2 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer hover:bg-[#25354a]"
-            >
-              NEXT: PHASE 2 SELECTION &amp; PASS TICKET <ArrowRight size={13} />
-            </button>
+            {(activeLeadTeam.paymentStatus === 'payment_verified' || activeLeadTeam.phase2PaymentStatus === 'payment_verified' || activeLeadTeam.ticketPassId) && (
+              <button
+                type="button"
+                onClick={() => handleProceedToNextTab('phase2_status')}
+                className="w-full sm:w-auto font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#f4c151] text-[#f4c151] px-4 py-2 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer hover:bg-[#25354a] ml-auto"
+              >
+                VIEW PASS TICKET <ArrowRight size={13} />
+              </button>
+            )}
           </div>
         </div>
       )}
 
 
 
-      {/* TAB 3: PHASE 2 OFFLINE ROUND & DYNAMIC UPI QR PAYMENT & TICKET */}
-      {activeTab === 'phase2' && (
-        <div className="space-y-3 grow overflow-y-auto">
-          {/* Phase 2 Selection Status Card */}
-          {(!activeLeadTeam.phase2Status || activeLeadTeam.phase2Status === 'pending') && (
-            <div className="p-4 bg-[#141618] border-2 border-[#2b2e30] rounded-md text-center space-y-2">
-              <div className="inline-flex items-center gap-1.5 bg-[#241d14] text-[#f2933d] border border-[#423325] font-pixel text-[9px] px-3 py-1 rounded-xs">
-                <Clock size={14} /> PHASE 1 EVALUATION IN PROGRESS
-              </div>
-              <p className="font-silkscreen text-[8px] text-[#8f9396]">
-                Your Phase 1 project deliverables are under evaluation by the Cognitia Jury. Selection status for the offline round will be updated soon.
-              </p>
-            </div>
-          )}
 
-          {activeLeadTeam.phase2Status === 'waitlisted' && (
-            <div className="p-4 bg-[#141618] border-2 border-[#423325] rounded-md text-center space-y-2">
-              <div className="inline-flex items-center gap-1.5 bg-[#241d14] text-[#f2933d] border border-[#423325] font-pixel text-[9px] px-3 py-1 rounded-xs">
-                <Hourglass size={14} /> WAITLISTED FOR PHASE 2 OFFLINE ROUND
-              </div>
-              <p className="font-silkscreen text-[8px] text-[#cfe8ff]">
-                Your team is currently on the official Cognitia Phase 2 Waitlist. If a confirmed spot opens up, the jury will promote your team, and you will be notified to confirm RSVP &amp; proceed to payment!
-              </p>
-            </div>
-          )}
 
-          {activeLeadTeam.phase2Status === 'not_selected' && (
-            <div className="p-4 bg-[#141618] border-2 border-[#422525] rounded-md text-center space-y-2">
-              <div className="inline-flex items-center gap-1.5 bg-[#261414] text-[#eb5147] border border-[#522525] font-pixel text-[9px] px-3 py-1 rounded-xs">
-                <AlertTriangle size={14} /> PHASE 1 COMPLETED
-              </div>
-              <p className="font-silkscreen text-[8px] text-[#8f9396]">
-                Thank you for participating in Cognitia 2026! Unfortunately, your team was not selected for the Phase 2 Offline Round.
-              </p>
-            </div>
-          )}
+      {/* TAB 6: PHASE 2 VERIFY STATUS, OFFICIAL PASS & PROBLEM STATEMENT */}
+      {activeTab === 'phase2_status' && (
+        <div className="space-y-4 grow overflow-y-auto">
+          {/* Sub-Tab Navigation Bar */}
+          <div className="flex items-center gap-2 border-b border-[#2b2e30] pb-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playBlip(500);
+                setTicketSubTab('pass');
+              }}
+              className={`font-pixel text-[9px] sm:text-[10px] px-3.5 py-2 rounded-xs border transition-all flex items-center gap-1.5 cursor-pointer ${ticketSubTab === 'pass'
+                ? 'bg-[#182418] text-[#86efac] border-[#4ade80] shadow-[2px_2px_0_0_#000]'
+                : 'bg-[#141618] text-[#8f9396] border-[#2b2e30] hover:text-white'
+                }`}
+            >
+              <Ticket size={13} /> 🎟️ OFFICIAL TICKET PASS
+            </button>
 
-          {activeLeadTeam.phase2Status === 'selected' && (
-            <div className="space-y-3">
-              {/* Step 1: RSVP Confirmation */}
-              {!activeLeadTeam.rsvpConfirmed ? (
-                <div className="p-4 bg-[#141618] border-2 border-[#b180ff] rounded-md space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="text-[#b180ff]" size={18} />
-                    <span className="font-pixel text-[11px] text-[#b180ff]">
-                      CONGRATULATIONS! SELECTED FOR PHASE 2 OFFLINE ROUND
+            <button
+              type="button"
+              onClick={() => {
+                sound.playBlip(500);
+                setTicketSubTab('food_coupons');
+              }}
+              className={`font-pixel text-[9px] sm:text-[10px] px-3.5 py-2 rounded-xs border transition-all flex items-center gap-1.5 cursor-pointer ${ticketSubTab === 'food_coupons'
+                ? 'bg-[#142417] text-[#4ade80] border-[#4ade80] shadow-[2px_2px_0_0_#000]'
+                : 'bg-[#141618] text-[#8f9396] border-[#2b2e30] hover:text-white'
+                }`}
+            >
+              <Utensils size={13} /> 🍱 FOOD COUPONS
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.playBlip(500);
+                setTicketSubTab('problem_statement');
+              }}
+              className={`font-pixel text-[9px] sm:text-[10px] px-3.5 py-2 rounded-xs border transition-all flex items-center gap-1.5 cursor-pointer ${ticketSubTab === 'problem_statement'
+                ? 'bg-[#1e1b2e] text-[#38bdf8] border-[#38bdf8] shadow-[2px_2px_0_0_#000]'
+                : 'bg-[#141618] text-[#8f9396] border-[#2b2e30] hover:text-white'
+                }`}
+            >
+              <FileText size={13} /> 📜 PROBLEM STATEMENT &amp; TRACK
+            </button>
+          </div>
+
+          {/* SUB-TAB 1: OFFICIAL TICKET PASS */}
+          {ticketSubTab === 'pass' && (
+            <div className="space-y-4">
+              {/* Status Banner Card */}
+              {activeLeadTeam.phase2PaymentStatus === 'payment_verified' && activeLeadTeam.ticketPassId ? (
+                <div className="p-4 bg-[#142414] border-2 border-[#a7d38a] rounded-md space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#254225] pb-2">
+                    <span className="font-pixel text-[11px] text-[#a7d38a] flex items-center gap-2">
+                      <ShieldCheck size={16} /> PHASE 2 PAYMENT VERIFIED &amp; CONFIRMED!
+                    </span>
+                    <span className="bg-[#244224] text-[#a7d38a] border border-[#3b6b3b] font-silkscreen text-[8.5px] px-2.5 py-0.5 rounded-xs font-bold">
+                      VERIFIED BY ADMIN
                     </span>
                   </div>
-                  <p className="font-silkscreen text-[8px] text-[#cfe8ff]">
-                    Phase 2 takes place live at the Campus Auditorium. Please confirm your team's offline participation RSVP to proceed to payment and ticket pass generation.
+
+                  <p className="font-silkscreen text-[9px] text-[#d1d5db]">
+                    Congratulations! Your Phase 2 offline entry fee payment (₹200) has been verified by the Cognitia Admin team. Your official Offline Pass Ticket is generated below.
                   </p>
-                  <button
-                    onClick={handleConfirmRsvp}
-                    className="w-full bg-[#2b1f3d] border-2 border-[#b180ff] hover:bg-[#392854] font-pixel text-[9px] text-[#b180ff] uppercase py-2 px-3 rounded-xs flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] cursor-pointer"
+
+                  {/* TICKET PASS DISPLAY */}
+                  <div
+                    ref={ticketRef}
+                    className="bg-[#090b0d] border-4 border-[#f4c151] p-4 rounded-md shadow-[6px_6px_0_0_#000] space-y-3 text-[#cfe8ff] relative overflow-hidden mt-3"
                   >
-                    <Check size={14} /> CONFIRM OFFLINE PARTICIPATION RSVP
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {/* Step 2: Payment Submitted & Verification Pending */}
-                  {activeLeadTeam.phase2PaymentStatus === 'payment_pending' &&
-                    (activeLeadTeam.phase2PaymentTransactionId || activeLeadTeam.phase2PaymentScreenshotUrl) ? (
-                    <div className="p-4 bg-[#141618] border-2 border-[#544622] rounded-md space-y-3">
-                      <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
-                        <span className="font-pixel text-[10px] text-[#f4c151] flex items-center gap-1.5">
-                          <Clock size={14} className="text-[#f4c151] animate-spin" /> PHASE 2 PAYMENT SUBMITTED
+                    {/* Background Watermark */}
+                    <div className="absolute right-[-20px] bottom-[-20px] opacity-10 pointer-events-none font-pixel text-[80px] text-[#f4c151]">
+                      2026
+                    </div>
+
+                    {/* Ticket Header */}
+                    <div className="flex items-center justify-between border-b-2 border-[#f4c151] pb-2">
+                      <div>
+                        <span className="font-pixel text-[13px] text-[#f4c151] block">
+                          COGNITIA 2026 &bull; OFFLINE ENTRY PASS
                         </span>
-                        <span className="font-silkscreen text-[8px] px-2 py-0.5 rounded-xs border bg-[#241d14] text-[#f2933d] border-[#423325]">
-                          VERIFICATION PENDING
+                        <span className="font-silkscreen text-[8px] text-[#8f9396]">
+                          OFFICIAL PARTICIPANT VENUE TICKET
                         </span>
                       </div>
-
-                      <div className="p-3 bg-[#090b0d] border border-[#2b2e30] rounded-xs font-silkscreen text-[9px] text-[#cfe8ff] space-y-1.5">
-                        <p>Your Phase 2 offline entry fee payment details (₹200) have been submitted to Cognitia Admin for verification.</p>
-                        {activeLeadTeam.phase2PaymentTransactionId && (
-                          <p className="font-mono text-[10px] text-[#f4c151]">
-                            SUBMITTED UTR / TRANS ID: <span className="font-bold text-white">{activeLeadTeam.phase2PaymentTransactionId}</span>
-                          </p>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-mono text-[10px] font-bold px-2.5 py-0.5 rounded-xs">
+                          {activeLeadTeam.ticketPassId}
+                        </span>
+                        {activeLeadTeam.attendanceStatus === 'checked_in' && (
+                          <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1">
+                            <CheckCircle2 size={9} /> VENUE CHECKED IN ({activeLeadTeam.checkInTimestamp || 'CONFIRMED'})
+                          </span>
                         )}
                       </div>
-
-                      <div className="p-2.5 bg-[#1c1813] border border-[#3d2c1c] rounded-xs text-[8.5px] font-silkscreen text-[#f2933d] flex items-center gap-1.5">
-                        <Clock size={13} className="text-[#f4c151] shrink-0" />
-                        <span>Admin verification is in progress. Your official offline pass will generate automatically upon verification.</span>
-                      </div>
                     </div>
-                  ) : activeLeadTeam.phase2PaymentStatus !== 'payment_verified' ? (
-                    <div className="p-4 bg-[#141618] border-2 border-[#2b2e30] rounded-md space-y-3">
-                      <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
-                        <span className="font-pixel text-[10px] text-[#f4c151] flex items-center gap-1.5">
-                          <CreditCard size={14} /> PHASE 2 OFFLINE ENTRY FEE &amp; DYNAMIC UPI QR
-                        </span>
-                        <span className="font-silkscreen text-[8px] bg-[#241d14] text-[#f2933d] border border-[#423325] px-2 py-0.5 rounded-xs">
-                          PAYMENT REQUIRED
-                        </span>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
-                        {/* Dynamic UPI QR Code Box */}
-                        <div className="bg-[#090b0d] border border-[#2b2e30] p-3 rounded-xs flex flex-col items-center justify-center text-center space-y-2">
-                          <span className="font-pixel text-[8px] text-[#6fb3d9]">SCAN TO PAY VIA ANY UPI APP</span>
-                          <div className="p-1 bg-white rounded-md border-2 border-[#f4c151]">
-                            <img src={qrCodeImageUrl} alt="Dynamic UPI Payment QR" className="w-40 h-40" />
-                          </div>
-                          <div className="font-mono text-[9px] text-[#a7d38a] space-y-0.5">
-                            <p>UPI ID: <span className="font-bold text-white">{upiId}</span></p>
-                            <p>AMOUNT: <span className="font-bold text-[#f4c151]">₹{amount} INR</span></p>
-                            <p className="text-[8px] text-[#8f9396]">REMARK: {remark}</p>
-                          </div>
-                        </div>
+                    {/* Team Info & Event Metadata */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                      <div className="sm:col-span-2 space-y-1.5 font-silkscreen text-[8.5px]">
+                        <p className="font-pixel text-[12px] text-[#6fb3d9]">
+                          TEAM: {activeLeadTeam.teamName}
+                        </p>
+                        <p className="text-[#8f9396]">
+                          LEAD: {activeLeadTeam.leadEmail} ({activeLeadTeam.leadPhone})
+                        </p>
+                        {activeLeadTeam.phase2PaymentTransactionId && (
+                          <p className="text-[#f4c151] font-mono">
+                            PHASE 2 UTR: {activeLeadTeam.phase2PaymentTransactionId}
+                          </p>
+                        )}
+                        <p className="text-[#a7d38a]">
+                          TRACK: {activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'General Track'}
+                        </p>
+                        <p className="text-[#8f9396]">
+                          VENUE: IEM Aegis Building, College More, Salt Lake Sector V, Kolkata
+                        </p>
 
-                        {/* Payment Instructions & Receipt Upload */}
-                        <div className="space-y-3">
-                          <div className="bg-[#090b0d] border border-[#2b2e30] p-2.5 rounded-xs text-[8px] font-silkscreen text-[#8f9396] space-y-1">
-                            <p className="text-[#cfe8ff] font-pixel text-[8px]">PAYMENT INSTRUCTIONS:</p>
-                            <p>1. Open Google Pay, PhonePe, Paytm, or BHIM.</p>
-                            <p>2. Scan the dynamic QR code above. Amount &amp; Remark will be auto-filled.</p>
-                            <p>3. Complete ₹200 payment and copy the Transaction / UTR ID.</p>
-                            <p>4. Enter Transaction ID &amp; upload receipt screenshot below.</p>
-                          </div>
+                        {/* Venue Gate Check-In & FCFS Track Allocation Rule Banner */}
+                        {(() => {
+                          const members = activeLeadTeam.members || [];
+                          const checkedCount = members.filter((m) => m.checkInStatus === 'checked_in').length;
+                          const totalCount = members.length;
+                          const minReq = Math.min(2, totalCount || 1);
+                          const isQualified = checkedCount >= minReq;
 
-                          <div>
-                            <label className="block font-silkscreen text-[8px] text-[#8f9396] mb-1 flex items-center gap-1">
-                              <Hash size={10} /> UPI Transaction ID / UTR Ref Number <span className="text-[#eb5147]">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="e.g. 429183749012 or UPI/123456"
-                              value={paymentTxId}
-                              onChange={(e) => setPaymentTxId(e.target.value)}
-                              className="w-full bg-[#090b0d] border border-[#2b2e30] text-[#f4c151] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                            />
-                          </div>
-
-                          <label className="cursor-pointer font-pixel text-[8px] bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] text-[#f4c151] py-2 px-3 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] w-full">
-                            <CloudUpload size={14} />
-                            {isUploadingPayment
-                              ? 'UPLOADING RECEIPT...'
-                              : 'UPLOAD PAYMENT SCREENSHOT'}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handlePaymentScreenshotUpload}
-                              className="hidden"
-                            />
-                          </label>
-
-                          {paymentScreenshot && (
-                            <div className="space-y-2">
-                              <div className="border border-[#2b2e30] rounded-xs overflow-hidden h-24 bg-black">
-                                <img src={paymentScreenshot} alt="Phase 2 Payment Receipt" className="w-full h-full object-contain" />
+                          return (
+                            <div className={`mt-2 p-2 rounded-xs border font-silkscreen text-[7.5px] space-y-1 ${isQualified
+                              ? 'bg-[#122314] text-[#86efac] border-[#27662c]'
+                              : 'bg-[#241d14] text-[#f4c151] border-[#423325]'
+                              }`}>
+                              <div className="flex items-center gap-1 font-bold">
+                                <AlertTriangle size={11} className={isQualified ? 'text-[#4ade80]' : 'text-[#f4c151]'} />
+                                <span>FCFS TRACK ALLOCATION GATE RULE (4 SLOTS/TRACK)</span>
                               </div>
-
-                              <button
-                                type="button"
-                                onClick={handlePhase2PaymentSubmit}
-                                disabled={isUploadingPayment}
-                                className="w-full font-pixel text-[9px] bg-[#1a2e1d] hover:bg-[#25452a] border border-[#a7d38a] text-[#a7d38a] py-2 px-3 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer transition-colors"
-                              >
-                                <Send size={12} />
-                                <span>SUBMIT PHASE 2 PAYMENT FOR VERIFICATION</span>
-                              </button>
+                              <p className="leading-normal text-[#cfe8ff]">
+                                At least <strong>2 members of your team</strong> must check in at the venue gate on event day to qualify for First-Come-First-Serve (FCFS) track distribution (4 slots/track).
+                              </p>
+                              <div className="pt-0.5 flex items-center justify-between text-[7px] font-mono">
+                                <span>GATE CHECKED IN: <strong>{checkedCount} / {totalCount} MEMBERS</strong></span>
+                                <span className={isQualified ? 'text-[#4ade80] font-bold' : 'text-[#f4c151] font-bold'}>
+                                  {isQualified ? '✓ TRACK ALLOCATION READY' : `⚠️ PENDING (${checkedCount}/${totalCount} - MIN 2 REQUIRED)`}
+                                </span>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Step 3: Verified Downloadable Offline Pass Ticket */}
-                  {activeLeadTeam.phase2PaymentStatus === 'payment_verified' && (
-                    <div className="space-y-3">
-                      <div className="p-2.5 bg-[#182418] border border-[#254225] text-[#a7d38a] font-silkscreen text-[8px] flex flex-wrap items-center justify-between gap-2 rounded-xs">
-                        <span className="flex items-center gap-1.5">
-                          <CheckCircle2 size={12} /> PAYMENT VERIFIED! OFFICIAL OFFLINE PASS GENERATED.
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <a
-                            href="https://www.whatsapp.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => sound.playBlip(800)}
-                            className="font-pixel text-[7.5px] bg-[#25D366] text-black font-bold px-2.5 py-1 rounded-xs flex items-center gap-1 cursor-pointer hover:bg-[#20ba5a] transition-all"
-                          >
-                            <MessageCircle size={11} /> JOIN PHASE 2 WHATSAPP <ExternalLink size={9} />
-                          </a>
-                          <button
-                            onClick={handlePrintTicket}
-                            className="font-pixel text-[7.5px] bg-[#1a2d42] border border-[#f4c151] text-[#f4c151] px-2.5 py-1 rounded-xs flex items-center gap-1 cursor-pointer hover:bg-[#25354a]"
-                          >
-                            <Printer size={10} /> PRINT / DOWNLOAD
-                          </button>
-                        </div>
+                          );
+                        })()}
                       </div>
 
-                      {/* TICKET CARD PASS */}
-                      <div
-                        ref={ticketRef}
-                        className="bg-[#141618] border-4 border-[#f4c151] p-4 rounded-md shadow-[6px_6px_0_0_#000] space-y-3 text-[#cfe8ff] relative overflow-hidden"
-                      >
-                        {/* Background Watermark */}
-                        <div className="absolute right-[-20px] bottom-[-20px] opacity-10 pointer-events-none font-pixel text-[80px] text-[#f4c151]">
-                          2026
-                        </div>
-
-                        {/* Ticket Header */}
-                        <div className="flex items-center justify-between border-b-2 border-[#f4c151] pb-2">
-                          <div>
-                            <span className="font-pixel text-[12px] text-[#f4c151] block">
-                              COGNITIA 2026 &bull; OFFLINE PASS
-                            </span>
-                            <span className="font-silkscreen text-[7px] text-[#8f9396]">
-                              OFFICIAL PARTICIPANT ENTRY TICKET
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-mono text-[9px] font-bold px-2 py-0.5 rounded-xs">
-                              {activeLeadTeam.ticketPassId || `PASS-COG26-${activeLeadTeam.id.slice(-4).toUpperCase()}`}
-                            </span>
-                            {activeLeadTeam.attendanceStatus === 'checked_in' && (
-                              <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[7px] px-1.5 py-0.5 rounded-xs flex items-center gap-1">
-                                <CheckCircle2 size={8} /> VENUE CHECKED IN ({activeLeadTeam.checkInTimestamp || 'CONFIRMED'})
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Team Info & Event Metadata */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                          <div className="sm:col-span-2 space-y-1 font-silkscreen text-[8px]">
-                            <p className="font-pixel text-[11px] text-[#6fb3d9]">
-                              TEAM: {activeLeadTeam.teamName}
-                            </p>
-                            <p className="text-[#8f9396]">
-                              LEAD: {activeLeadTeam.leadEmail} ({activeLeadTeam.leadPhone})
-                            </p>
-                            {activeLeadTeam.paymentTransactionId && (
-                              <p className="text-[#f4c151] font-mono">
-                                TX ID: {activeLeadTeam.paymentTransactionId}
-                              </p>
-                            )}
-
-                            <div className="pt-1.5 space-y-1 text-[#cfe8ff]">
-                              <p className="flex items-center gap-1 text-[#a7d38a]">
-                                <Building size={10} /> VENUE: Campus Main Auditorium, Hall B
-                              </p>
-                              <p className="flex items-center gap-1 text-[#f4c151]">
-                                <Calendar size={10} /> DATE: September 11–12, 2026
-                              </p>
-                              <p className="flex items-center gap-1 text-[#6fb3d9]">
-                                <Clock size={10} /> TIME: 09:00 AM IST
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Venue Check-In QR */}
-                          <div className="bg-[#090b0d] border border-[#2b2e30] p-2 rounded-xs flex flex-col items-center justify-center text-center">
+                      {/* Venue Check-In QR */}
+                      {(() => {
+                        const venueQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+                          activeLeadTeam.ticketPassId || activeLeadTeam.id
+                        )}`;
+                        return (
+                          <div
+                            className="bg-[#090b0d] border border-[#2b2e30] hover:border-[#f4c151] p-2 rounded-xs flex flex-col items-center justify-center text-center cursor-pointer group transition-all"
+                            onClick={() => {
+                              sound.playBlip(500);
+                              setPreviewImageModal({
+                                url: venueQrUrl,
+                                title: `Official Venue Check-In QR - Team ${activeLeadTeam.teamName} (${activeLeadTeam.ticketPassId || activeLeadTeam.id})`,
+                              });
+                            }}
+                          >
                             <span className="font-pixel text-[7px] text-[#f4c151] mb-1">VENUE CHECK-IN</span>
                             <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                                activeLeadTeam.ticketPassId || activeLeadTeam.id
-                              )}`}
+                              src={venueQrUrl}
                               onError={(e) => {
                                 e.currentTarget.onerror = null;
                                 e.currentTarget.src = `https://quickchart.io/qr?text=${encodeURIComponent(
                                   activeLeadTeam.ticketPassId || activeLeadTeam.id
-                                )}&size=200`;
+                                )}&size=300`;
                               }}
                               alt="Ticket Pass QR"
-                              className="w-20 h-20 bg-white p-1 rounded-xs border-2 border-[#f4c151] object-contain shadow-md"
+                              className="w-20 h-20 bg-white p-1 rounded-xs border-2 border-[#f4c151] object-contain shadow-md group-hover:scale-105 transition-transform"
                             />
-                            <span className="font-mono text-[6px] text-[#8f9396] mt-1">SCAN AT ENTRANCE</span>
+                            <span className="font-mono text-[6px] text-[#4ade80] group-hover:text-white transition-colors mt-1 font-bold">CLICK ZOOM</span>
                           </div>
-                        </div>
+                        );
+                      })()}
+                    </div>
 
-                        {/* Full Track Preferences List */}
-                        <div className="border-t border-[#2b2e30] pt-2 space-y-1">
-                          <span className="font-silkscreen text-[7.5px] text-[#f4c151] uppercase block">
-                            FULL TRACK PREFERENCES ORDER:
+                    {/* Full Track Preferences List */}
+                    <div className="border-t border-[#2b2e30] pt-2 space-y-1">
+                      <span className="font-silkscreen text-[7.5px] text-[#f4c151] uppercase block">
+                        FULL TRACK PREFERENCES ORDER:
+                      </span>
+                      <div className="flex flex-wrap gap-1 font-silkscreen text-[7.5px]">
+                        {activeLeadTeam.trackPreferences && activeLeadTeam.trackPreferences.filter(Boolean).length > 0 ? (
+                          activeLeadTeam.trackPreferences.filter(Boolean).map((track, idx) => (
+                            <span key={idx} className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-2 py-0.5 rounded-xs flex items-center gap-1">
+                              <span className="text-[#f4c151] font-bold">#{idx + 1}:</span> {track}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[#cfe8ff] bg-[#090b0d] px-2 py-0.5 border border-[#2b2e30] rounded-xs">
+                            {activeLeadTeam.selectedTrack || 'General Track'}
                           </span>
-                          <div className="flex flex-wrap gap-1 font-silkscreen text-[7.5px]">
-                            {activeLeadTeam.trackPreferences && activeLeadTeam.trackPreferences.filter(Boolean).length > 0 ? (
-                              activeLeadTeam.trackPreferences.filter(Boolean).map((track, idx) => (
-                                <span key={idx} className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                                  <span className="text-[#f4c151] font-bold">#{idx + 1}:</span> {track}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-[#cfe8ff] bg-[#090b0d] px-2 py-0.5 border border-[#2b2e30] rounded-xs">
-                                {activeLeadTeam.selectedTrack || 'General Track'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Full Team Roster & Member Details */}
-                        <div className="border-t border-[#2b2e30] pt-2 space-y-1">
-                          <span className="font-silkscreen text-[7.5px] text-[#a7d38a] uppercase block">
-                            ADMITTED PARTICIPANTS ROSTER ({activeLeadTeam.members.length}):
-                          </span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-silkscreen text-[7.5px]">
-                            {activeLeadTeam.members.map((m, idx) => (
-                              <div key={m.id || idx} className="bg-[#090b0d] border border-[#2b2e30] p-1.5 rounded-xs text-[#cfe8ff]">
-                                <div className="flex items-center justify-between font-bold">
-                                  <span>{m.name} {m.isLead ? '(LEAD)' : ''}</span>
-                                  <span className="text-[#8f9396] font-normal">{m.role || 'Member'}</span>
-                                </div>
-                                <div className="text-[7px] text-[#8f9396] font-mono mt-0.5 flex flex-wrap gap-x-2">
-                                  {m.email && <span>{m.email}</span>}
-                                  {m.phone && <span>{m.phone}</span>}
-                                  {m.githubId && <span className="text-[#6fb3d9]">@{m.githubId}</span>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        )}
                       </div>
                     </div>
-                  )}
-                </>
+
+
+
+                    {/* Individual Member Pass Badges & Unique Gate QRs */}
+                    <div className="border-t border-[#2b2e30] pt-3 space-y-2">
+                      <span className="font-silkscreen text-[8.5px] text-[#a7d38a] uppercase block tracking-wider">
+                        INDIVIDUAL MEMBER PASS BADGES &amp; UNIQUE GATE SCAN QR CODES ({activeLeadTeam.members.length}):
+                      </span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {activeLeadTeam.members.map((m, idx) => {
+                          const memberPassId = m.memberPassId || `COG26-M${String(activeLeadTeam.id).slice(-3)}-${idx + 1}`;
+                          const qrContent = `COGNITIA-2026-PASS-MEMBER:${memberPassId}:${activeLeadTeam.id}:${m.name}:${m.enrollmentNo || 'N/A'}`;
+                          const memberQrUrl = m.memberQrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrContent)}`;
+
+                          return (
+                            <div key={m.id || idx} className="bg-[#0e1215] border-2 border-[#2b4466] p-3 rounded-xs text-[#cfe8ff] space-y-2 relative overflow-hidden">
+                              <div className="flex items-center justify-between border-b border-[#2b2e30] pb-1.5">
+                                <span className="font-pixel text-[9.5px] text-[#f4c151] flex items-center gap-1">
+                                  {m.isLead ? '👑 TEAM LEAD PASS' : `👤 MEMBER PASS #${idx + 1}`}
+                                </span>
+                                <span className="font-mono text-[8.5px] text-[#4ade80] bg-[#142417] px-2 py-0.5 border border-[#25522b] rounded-xs font-bold">
+                                  {memberPassId}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="space-y-1 font-silkscreen text-[8px] grow">
+                                  <p className="font-bold text-white text-[10.5px]">{m.name}</p>
+                                  <p className="text-[#8f9396]">{m.role || 'Participant'}</p>
+                                  {m.enrollmentNo && (
+                                    <p className="text-[#86efac] font-mono font-bold">
+                                      ENROLLMENT: {m.enrollmentNo}
+                                    </p>
+                                  )}
+                                  <p className="text-[#6fb3d9]">{m.email}</p>
+                                  {m.checkInStatus === 'checked_in' ? (
+                                    <span className="inline-flex items-center gap-1 bg-[#182418] text-[#a7d38a] border border-[#25522b] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
+                                      <CheckCircle2 size={9} /> GATE CHECKED IN ({m.checkInTimestamp || 'OK'})
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 bg-[#1c1f24] text-[#8f9396] border border-[#2b2e30] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
+                                      ⚪ NOT CHECKED IN
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Member Unique Gate QR */}
+                                <div
+                                  className="bg-black p-1 rounded-xs border border-[#4ade80] flex flex-col items-center shrink-0 cursor-pointer group"
+                                  onClick={() => {
+                                    sound.playBlip(500);
+                                    setPreviewImageModal({
+                                      url: memberQrUrl,
+                                      title: `Official Pass QR - ${m.name} (${memberPassId})`,
+                                    });
+                                  }}
+                                >
+                                  <img
+                                    src={memberQrUrl}
+                                    alt={`${m.name} Pass QR`}
+                                    className="w-16 h-16 bg-white p-0.5 rounded-xs object-contain group-hover:scale-105 transition-transform"
+                                  />
+                                  <span className="font-mono text-[6px] text-[#4ade80] mt-0.5">CLICK ZOOM</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : activeLeadTeam.phase2PaymentStatus === 'payment_pending' && (activeLeadTeam.phase2PaymentTransactionId || activeLeadTeam.phase2PaymentScreenshotUrl || paymentTxId) ? (
+                <div className="p-4 bg-[#241d14] border-2 border-[#f4c151] rounded-md space-y-3">
+                  <div className="flex items-center justify-between border-b border-[#423325] pb-2">
+                    <span className="font-pixel text-[11px] text-[#f4c151] flex items-center gap-2">
+                      <Clock size={16} className="text-[#f4c151] animate-spin" /> PHASE 2 PAYMENT VERIFICATION PENDING
+                    </span>
+                    <span className="bg-[#382b18] text-[#f4c151] border border-[#594424] font-silkscreen text-[8.5px] px-2.5 py-0.5 rounded-xs font-bold">
+                      UNDER REVIEW
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-[#141618] border border-[#2b2e30] rounded-xs space-y-2 font-silkscreen text-[9px]">
+                    <p className="text-[#d1d5db]">
+                      Your Phase 2 entry fee payment details (₹200) have been received and logged for admin verification.
+                    </p>
+                    {(activeLeadTeam.phase2PaymentTransactionId || paymentTxId) && (
+                      <p className="text-[#f4c151] font-mono text-[10px]">
+                        SUBMITTED UTR / REF ID: <span className="font-bold text-white">{activeLeadTeam.phase2PaymentTransactionId || paymentTxId}</span>
+                      </p>
+                    )}
+                    {activeLeadTeam.phase2PaymentSubmittedAt && (
+                      <p className="text-[#8f9396]">
+                        SUBMITTED AT: {new Date(activeLeadTeam.phase2PaymentSubmittedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-[#141618] border-2 border-[#2b2e30] rounded-md space-y-3 text-center py-8">
+                  <Ticket size={32} className="text-[#b180ff] mx-auto animate-pulse" />
+                  <h4 className="font-pixel text-[12px] text-[#f4c151]">NO PHASE 2 PAYMENT SUBMITTED YET</h4>
+                  <p className="font-silkscreen text-[9.5px] text-[#8f9396] max-w-md mx-auto">
+                    You have not submitted your Phase 2 offline entry fee payment details (₹200) yet. Please navigate to the Phase 2 tab to complete your payment and submit your UTR ID &amp; receipt screenshot.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('fee_payment')}
+                    className="font-pixel text-[9px] bg-[#2b1f3d] hover:bg-[#3d2c57] border border-[#b180ff] text-[#b180ff] px-4 py-2 rounded-xs cursor-pointer inline-flex items-center gap-1.5 shadow-[2px_2px_0_0_#000]"
+                  >
+                    <ArrowRight size={12} />
+                    <span>GO TO PHASE 2 FEES PAYMENT &amp; RSVP</span>
+                  </button>
+                </div>
               )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* TAB 6: PHASE 2 VERIFY STATUS & OFFICIAL PASS */}
-      {activeTab === 'phase2_status' && (
-        <div className="space-y-4 grow overflow-y-auto">
-          {/* Status Banner Card */}
-          {activeLeadTeam.phase2PaymentStatus === 'payment_verified' && activeLeadTeam.ticketPassId ? (
-            <div className="p-4 bg-[#142414] border-2 border-[#a7d38a] rounded-md space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#254225] pb-2">
-                <span className="font-pixel text-[11px] text-[#a7d38a] flex items-center gap-2">
-                  <ShieldCheck size={16} /> PHASE 2 PAYMENT VERIFIED &amp; CONFIRMED!
-                </span>
-                <span className="bg-[#244224] text-[#a7d38a] border border-[#3b6b3b] font-silkscreen text-[8.5px] px-2.5 py-0.5 rounded-xs font-bold">
-                  VERIFIED BY ADMIN
-                </span>
-              </div>
-
-              <p className="font-silkscreen text-[9px] text-[#d1d5db]">
-                Congratulations! Your Phase 2 offline entry fee payment (₹200) has been verified by the Cognitia Admin team. Your official Offline Pass Ticket is generated below.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <a
-                  href="https://www.whatsapp.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => sound.playBlip(800)}
-                  className="font-pixel text-[8.5px] bg-[#25D366] text-black font-bold px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer hover:bg-[#20ba5a] transition-all shadow-[2px_2px_0_0_#000]"
-                >
-                  <MessageCircle size={13} /> JOIN PHASE 2 WHATSAPP COMMUNITY <ExternalLink size={10} />
-                </a>
-                <button
-                  onClick={handlePrintTicket}
-                  className="font-pixel text-[8.5px] bg-[#1a2d42] border border-[#f4c151] text-[#f4c151] px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer hover:bg-[#25354a] shadow-[2px_2px_0_0_#000]"
-                >
-                  <Printer size={12} /> PRINT / DOWNLOAD OFFICIAL TICKET PASS
-                </button>
-              </div>
-
-              {/* TICKET PASS DISPLAY */}
-              <div
-                ref={ticketRef}
-                className="bg-[#090b0d] border-4 border-[#f4c151] p-4 rounded-md shadow-[6px_6px_0_0_#000] space-y-3 text-[#cfe8ff] relative overflow-hidden mt-3"
-              >
-                {/* Background Watermark */}
-                <div className="absolute right-[-20px] bottom-[-20px] opacity-10 pointer-events-none font-pixel text-[80px] text-[#f4c151]">
-                  2026
-                </div>
-
-                {/* Ticket Header */}
-                <div className="flex items-center justify-between border-b-2 border-[#f4c151] pb-2">
+          {/* SUB-TAB 2: FOOD COUPONS & MEAL PASS */}
+          {ticketSubTab === 'food_coupons' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#0e1216] p-3.5 border-2 border-[#2b4466] rounded-md gap-3 font-silkscreen text-[9px] shadow-[0_0_20px_rgba(74,222,128,0.12)]">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-[#142417] border border-[#25522b] text-[#4ade80] rounded-xs">
+                    <Utensils size={18} />
+                  </div>
                   <div>
-                    <span className="font-pixel text-[13px] text-[#f4c151] block">
-                      COGNITIA 2026 &bull; OFFLINE ENTRY PASS
+                    <span className="font-pixel text-[11px] text-[#f4c151] block uppercase">
+                      OFFICIAL TEAM FOOD COUPONS &amp; MEAL PASS
                     </span>
-                    <span className="font-silkscreen text-[8px] text-[#8f9396]">
-                      OFFICIAL PARTICIPANT VENUE TICKET
+                    <span className="text-[#8f9396] text-[8px]">
+                      View your team &amp; member food coupons below or pop out into a new browser tab
                     </span>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-mono text-[10px] font-bold px-2.5 py-0.5 rounded-xs">
-                      {activeLeadTeam.ticketPassId}
-                    </span>
-                    {activeLeadTeam.attendanceStatus === 'checked_in' && (
-                      <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1">
-                        <CheckCircle2 size={9} /> VENUE CHECKED IN ({activeLeadTeam.checkInTimestamp || 'CONFIRMED'})
-                      </span>
-                    )}
                   </div>
                 </div>
 
-                {/* Team Info & Event Metadata */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                  <div className="sm:col-span-2 space-y-1.5 font-silkscreen text-[8.5px]">
-                    <p className="font-pixel text-[12px] text-[#6fb3d9]">
-                      TEAM: {activeLeadTeam.teamName}
-                    </p>
-                    <p className="text-[#8f9396]">
-                      LEAD: {activeLeadTeam.leadEmail} ({activeLeadTeam.leadPhone})
-                    </p>
-                    {activeLeadTeam.phase2PaymentTransactionId && (
-                      <p className="text-[#f4c151] font-mono">
-                        PHASE 2 UTR: {activeLeadTeam.phase2PaymentTransactionId}
-                      </p>
-                    )}
-                    <p className="text-[#a7d38a]">
-                      TRACK: {activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'General Track'}
-                    </p>
-                    <p className="text-[#8f9396]">
-                      VENUE: IEM Gurukul Building, Salt Lake Sector V, Kolkata
-                    </p>
-                  </div>
-
-                  {/* Venue Check-In QR */}
-                  <div className="bg-[#090b0d] border border-[#2b2e30] p-2 rounded-xs flex flex-col items-center justify-center text-center">
-                    <span className="font-pixel text-[7px] text-[#f4c151] mb-1">VENUE CHECK-IN</span>
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                        activeLeadTeam.ticketPassId || activeLeadTeam.id
-                      )}`}
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = `https://quickchart.io/qr?text=${encodeURIComponent(
-                          activeLeadTeam.ticketPassId || activeLeadTeam.id
-                        )}&size=200`;
-                      }}
-                      alt="Ticket Pass QR"
-                      className="w-20 h-20 bg-white p-1 rounded-xs border-2 border-[#f4c151] object-contain shadow-md"
-                    />
-                    <span className="font-mono text-[6px] text-[#8f9396] mt-1">SCAN AT ENTRANCE</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      sound.playBlip(500);
+                      await downloadFoodCouponsPdf(activeLeadTeam, activeMealSession);
+                    }}
+                    className="bg-[#1e4620] hover:bg-[#28592b] text-[#4ade80] border border-[#4ade80] font-pixel text-[8.5px] uppercase px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-[2px_2px_0_0_#000] shrink-0"
+                  >
+                    <Download size={12} /> DOWNLOAD FOOD PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playBoot();
+                      window.open(`/food-coupons?teamId=${activeLeadTeam.id}`, '_blank');
+                    }}
+                    className="bg-[#1c2836] hover:bg-[#25374d] text-[#00f0ff] border border-[#00f0ff]/40 font-pixel text-[8.5px] uppercase px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+                  >
+                    <ExternalLink size={12} /> OPEN IN NEW TAB ↗
+                  </button>
                 </div>
+              </div>
 
-                {/* Full Track Preferences List */}
-                <div className="border-t border-[#2b2e30] pt-2 space-y-1">
-                  <span className="font-silkscreen text-[7.5px] text-[#f4c151] uppercase block">
-                    FULL TRACK PREFERENCES ORDER:
-                  </span>
-                  <div className="flex flex-wrap gap-1 font-silkscreen text-[7.5px]">
-                    {activeLeadTeam.trackPreferences && activeLeadTeam.trackPreferences.filter(Boolean).length > 0 ? (
-                      activeLeadTeam.trackPreferences.filter(Boolean).map((track, idx) => (
-                        <span key={idx} className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                          <span className="text-[#f4c151] font-bold">#{idx + 1}:</span> {track}
+              <FoodCouponsTabScreen teamIdFromProp={activeLeadTeam.id} />
+            </div>
+          )}
+
+          {/* SUB-TAB 3: PROBLEM STATEMENT & TRACK ASSIGNMENT */}
+          {ticketSubTab === 'problem_statement' && (
+            <div className="space-y-4">
+              {(() => {
+                const members = activeLeadTeam.members || [];
+                const checkedCount = members.filter((m) => m.checkInStatus === 'checked_in').length;
+                const totalCount = members.length;
+                const minReq = Math.min(2, totalCount || 1);
+                const isQualified = checkedCount >= minReq;
+
+                // Determine team allocated track & problem statement using FCFS allocation logic
+                const rawTrack = activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'nlp-cv';
+                const psData =
+                  Object.values(TRACK_PROBLEM_STATEMENTS).find(
+                    (p) =>
+                      p.trackId.toLowerCase() === rawTrack.toLowerCase() ||
+                      p.trackName.toLowerCase().includes(rawTrack.toLowerCase()) ||
+                      rawTrack.toLowerCase().includes(p.trackId.toLowerCase())
+                  ) || Object.values(TRACK_PROBLEM_STATEMENTS)[0];
+
+                if (!isQualified) {
+                  return (
+                    <div className="p-5 bg-[#17130c] border-2 border-[#f4c151] rounded-md space-y-4">
+                      <div className="flex items-center gap-2 text-[#f4c151] font-pixel text-[12px] border-b border-[#423325] pb-2">
+                        <Lock size={18} className="text-[#f4c151]" />
+                        <span>🔒 PROBLEM STATEMENT &amp; TRACK ASSIGNMENT LOCKED</span>
+                      </div>
+
+                      <div className="p-3.5 bg-[#241c10] border border-[#544122] rounded-xs space-y-2 font-silkscreen text-[9px] text-[#fed7aa]">
+                        <p className="font-bold text-[#f4c151]">
+                          ⚠️ VENUE GATE CHECK-IN REQUIRED (MINIMUM 2 MEMBERS)
+                        </p>
+                        <p className="leading-relaxed">
+                          Problem statements and track allocations will be revealed on hackathon day upon physical venue arrival. At least <strong>2 members of your team</strong> must check in at the venue registration desk to unlock your team's assigned track and problem statement.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div className="p-3 bg-[#0d1013] border border-[#2b2e30] rounded-xs space-y-1.5 font-silkscreen text-[8.5px]">
+                          <span className="text-[#6fb3d9] block font-bold">GATE CHECK-IN STATUS:</span>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#8f9396]">CHECKED-IN MEMBERS:</span>
+                            <span className="font-mono text-[#f4c151] font-bold text-[10px]">
+                              {checkedCount} / {totalCount}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#8f9396]">MINIMUM REQUIRED:</span>
+                            <span className="font-mono text-[#4ade80] font-bold text-[10px]">
+                              {minReq} MEMBERS
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-[#0d1013] border border-[#2b2e30] rounded-xs space-y-1.5 font-silkscreen text-[8.5px]">
+                          <span className="text-[#f4c151] block font-bold">FCFS ALLOCATION RULE:</span>
+                          <p className="text-[#8f9396] leading-normal text-[7.5px]">
+                            Each track has a hard limit of <strong>4 team slots</strong>. Slot allocation is determined strictly on First-Come-First-Serve (FCFS) order based on the timestamp when your 2nd team member completes venue gate check-in.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-[#2b2e30] pt-3 space-y-2">
+                        <span className="font-silkscreen text-[8.5px] text-[#a7d38a] uppercase block">
+                          YOUR SUBMITTED TRACK PREFERENCE ORDER:
                         </span>
-                      ))
-                    ) : (
-                      <span className="text-[#cfe8ff] bg-[#090b0d] px-2 py-0.5 border border-[#2b2e30] rounded-xs">
-                        {activeLeadTeam.selectedTrack || 'General Track'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Individual Member Pass Badges & Unique Gate QRs */}
-                <div className="border-t border-[#2b2e30] pt-3 space-y-2">
-                  <span className="font-silkscreen text-[8.5px] text-[#a7d38a] uppercase block tracking-wider">
-                    INDIVIDUAL MEMBER PASS BADGES &amp; UNIQUE GATE SCAN QR CODES ({activeLeadTeam.members.length}):
-                  </span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {activeLeadTeam.members.map((m, idx) => {
-                      const memberPassId = m.memberPassId || `COG26-M${String(activeLeadTeam.id).slice(-3)}-${idx + 1}`;
-                      const qrContent = `COGNITIA-2026-PASS-MEMBER:${memberPassId}:${activeLeadTeam.id}:${m.name}:${m.enrollmentNo || 'N/A'}`;
-                      const memberQrUrl = m.memberQrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrContent)}`;
-
-                      return (
-                        <div key={m.id || idx} className="bg-[#0e1215] border-2 border-[#2b4466] p-3 rounded-xs text-[#cfe8ff] space-y-2 relative overflow-hidden">
-                          <div className="flex items-center justify-between border-b border-[#2b2e30] pb-1.5">
-                            <span className="font-pixel text-[9.5px] text-[#f4c151] flex items-center gap-1">
-                              {m.isLead ? '👑 TEAM LEAD PASS' : `👤 MEMBER PASS #${idx + 1}`}
+                        <div className="flex flex-wrap gap-1.5 font-silkscreen text-[8px]">
+                          {activeLeadTeam.trackPreferences && activeLeadTeam.trackPreferences.filter(Boolean).length > 0 ? (
+                            activeLeadTeam.trackPreferences.filter(Boolean).map((t, idx) => (
+                              <span key={idx} className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-2.5 py-1 rounded-xs flex items-center gap-1">
+                                <span className="text-[#f4c151] font-bold">#{idx + 1}:</span> {t}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-2.5 py-1 rounded-xs">
+                              {activeLeadTeam.selectedTrack || 'General Track'}
                             </span>
-                            <span className="font-mono text-[8.5px] text-[#4ade80] bg-[#142417] px-2 py-0.5 border border-[#25522b] rounded-xs font-bold">
-                              {memberPassId}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="space-y-1 font-silkscreen text-[8px] grow">
-                              <p className="font-bold text-white text-[10.5px]">{m.name}</p>
-                              <p className="text-[#8f9396]">{m.role || 'Participant'}</p>
-                              {m.enrollmentNo && (
-                                <p className="text-[#86efac] font-mono font-bold">
-                                  ENROLLMENT: {m.enrollmentNo}
-                                </p>
-                              )}
-                              <p className="text-[#6fb3d9]">{m.email}</p>
-                              {m.checkInStatus === 'checked_in' ? (
-                                <span className="inline-flex items-center gap-1 bg-[#182418] text-[#a7d38a] border border-[#254225] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
-                                  <CheckCircle2 size={9} /> GATE CHECKED IN ({m.checkInTimestamp || 'OK'})
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 bg-[#1c1f24] text-[#8f9396] border border-[#2b2e30] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
-                                  ⚪ NOT CHECKED IN
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Member Unique Gate QR */}
-                            <div
-                              className="bg-black p-1 rounded-xs border border-[#4ade80] flex flex-col items-center shrink-0 cursor-pointer group"
-                              onClick={() => {
-                                sound.playBlip(500);
-                                setPreviewImageModal({
-                                  url: memberQrUrl,
-                                  title: `Official Pass QR - ${m.name} (${memberPassId})`,
-                                });
-                              }}
-                            >
-                              <img
-                                src={memberQrUrl}
-                                alt={`${m.name} Pass QR`}
-                                className="w-16 h-16 bg-white p-0.5 rounded-xs object-contain group-hover:scale-105 transition-transform"
-                              />
-                              <span className="font-mono text-[6px] text-[#4ade80] mt-0.5">CLICK ZOOM</span>
-                            </div>
-                          </div>
-
-                          {/* LIVE FOOD COUPON BOX FOR THIS MEMBER */}
-                          {activeMealSession !== 'none' && (
-                            <div className="mt-2 p-2 bg-[#141d18] border border-[#4ade80]/60 rounded-xs space-y-1.5">
-                              <div className="flex items-center justify-between border-b border-[#25522b] pb-1 font-silkscreen text-[8px]">
-                                <span className="text-[#4ade80] font-bold flex items-center gap-1">
-                                  <Utensils size={11} />
-                                  {activeMealSession === 'day1_dinner'
-                                    ? 'DAY 1 - DINNER COUPON'
-                                    : activeMealSession === 'day1_snacks'
-                                    ? 'DAY 1 - LATE NIGHT SNACKS'
-                                    : activeMealSession === 'day2_breakfast'
-                                    ? 'DAY 2 - BREAKFAST COUPON'
-                                    : 'DAY 2 - LUNCH COUPON'}
-                                </span>
-                                <span className="bg-[#1e4620] text-[#4ade80] px-1.5 py-0.5 rounded-xs border border-[#34783a] text-[7px] font-pixel">
-                                  MEAL ACTIVE
-                                </span>
-                              </div>
-
-                              {m.checkInStatus === 'checked_in' || activeLeadTeam.attendanceStatus === 'checked_in' ? (
-                                m.meals?.[activeMealSession]?.redeemed ? (
-                                  <div className="p-1.5 bg-[#182418] border border-[#25522b] rounded-xs text-center font-silkscreen text-[8px] text-[#4ade80] space-y-0.5">
-                                    <div className="flex items-center justify-center gap-1 font-bold">
-                                      <CheckCircle2 size={12} className="text-[#4ade80]" /> MEAL SERVED &amp; REDEEMED
-                                    </div>
-                                    <p className="text-[7px] text-[#86efac]">
-                                      Claimed on {m.meals[activeMealSession]?.redeemedAt || 'Today'}
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center justify-between gap-2 p-1.5 bg-[#0a0f0c] border border-[#25522b] rounded-xs">
-                                    <div className="space-y-0.5 font-silkscreen text-[7.5px] text-[#86efac]">
-                                      <p className="font-pixel text-[8px] text-[#4ade80]">SHOW QR AT CATERING DESK</p>
-                                      <p className="text-[7px] text-[#8f9396]">Scan for instant meal validation</p>
-                                    </div>
-                                    <div
-                                      className="bg-white p-1 rounded-xs border border-[#4ade80] shrink-0 cursor-pointer"
-                                      onClick={() => {
-                                        sound.playBlip(500);
-                                        const foodQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-                                          `COG26-FOOD:${activeMealSession}:${memberPassId}:${m.id}`
-                                        )}`;
-                                        setPreviewImageModal({
-                                          url: foodQrUrl,
-                                          title: `FOOD COUPON QR - ${m.name} (${activeMealSession.replace('_', ' ').toUpperCase()})`,
-                                        });
-                                      }}
-                                    >
-                                      <img
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                                          `COG26-FOOD:${activeMealSession}:${memberPassId}:${m.id}`
-                                        )}`}
-                                        alt="Meal Coupon QR"
-                                        className="w-14 h-14 object-contain"
-                                      />
-                                    </div>
-                                  </div>
-                                )
-                              ) : (
-                                <div className="p-1.5 bg-[#1f1a14] border border-[#453420] rounded-xs text-center font-silkscreen text-[7.5px] text-[#f4c151]">
-                                  🔒 COUPON LOCKED: Present ticket at venue gate to unlock.
-                                </div>
-                              )}
-                            </div>
                           )}
                         </div>
-                      );
-                    })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="p-5 bg-[#0a1118] border-2 border-[#38bdf8] rounded-md space-y-4 shadow-[0_0_30px_rgba(56,189,248,0.15)]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1e3a5f] pb-3">
+                      <div className="flex items-center gap-2">
+                        <Unlock size={18} className="text-[#38bdf8]" />
+                        <span className="font-pixel text-[13px] sm:text-[14px] text-[#38bdf8]">
+                          🔓 OFFICIAL PROBLEM STATEMENT &amp; TRACK ASSIGNED
+                        </span>
+                      </div>
+                      <span className="bg-[#102a45] text-[#38bdf8] border border-[#2563eb] font-silkscreen text-[9px] sm:text-[9.5px] px-2.5 py-1 rounded-xs font-bold self-start sm:self-auto">
+                        FCFS SLOT CONFIRMED (SLOT #{activeLeadTeam.fcfsQueuePosition || 1})
+                      </span>
+                    </div>
+
+                    {/* Track Header Card */}
+                    <div className="p-4 bg-[#0f1d2e] border border-[#2563eb] rounded-xs space-y-2.5 font-silkscreen">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#86efac] text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider">
+                          ALLOCATED HACKATHON TRACK:
+                        </span>
+                        <span className="bg-[#143419] text-[#4ade80] border border-[#22542a] text-[9px] px-2 py-0.5 rounded-xs font-mono">
+                          MAX 4 TEAMS ALLOCATED
+                        </span>
+                      </div>
+                      <h3 className="font-pixel text-[16px] sm:text-[18px] text-[#f4c151] leading-tight">
+                        {psData.trackName} ({psData.trackId.toUpperCase()})
+                      </h3>
+                      <p className="text-[#cfe8ff] text-[10.5px] sm:text-[11.5px] leading-relaxed">
+                        {psData.trackDescription || psData.tagline}
+                      </p>
+                    </div>
+
+                    {/* Problem Statement Detail */}
+                    <div className="p-4 sm:p-5 bg-[#090b0d] border border-[#2b2e30] rounded-xs space-y-4 font-silkscreen">
+                      <div className="border-b border-[#2b2e30] pb-2.5">
+                        <span className="text-[#8f9396] text-[9px] sm:text-[9.5px] block mb-1">CHALLENGE TITLE</span>
+                        <h4 className="font-pixel text-[15px] sm:text-[17px] text-[#38bdf8] leading-snug">
+                          PS-{psData.trackId.toUpperCase()}: {psData.title}
+                        </h4>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <span className="text-[#f4c151] font-bold block text-[10.5px] sm:text-[11.5px]">CHALLENGE OVERVIEW &amp; CONTEXT:</span>
+                        <p className="text-[#d1d5db] text-[10.5px] sm:text-[11.5px] leading-relaxed">{psData.description || psData.detailedDescription}</p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <span className="text-[#4ade80] font-bold block text-[10.5px] sm:text-[11.5px]">KEY OBJECTIVES &amp; REQUIREMENTS:</span>
+                        <ul className="list-disc list-inside space-y-1.5 text-[#cfe8ff] text-[10.5px] sm:text-[11.5px] leading-relaxed">
+                          {psData.requirements.map((req, i) => (
+                            <li key={i}>{req}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <span className="text-[#b180ff] font-bold block font-mono text-[10.5px] sm:text-[11.5px]">EXPECTED TECHNICAL DELIVERABLES:</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                          {psData.deliverables.map((deliv, i) => (
+                            <div key={i} className="bg-[#141618] p-2.5 border border-[#26282a] rounded-xs text-[#86efac] font-mono text-[9.5px] sm:text-[10.5px] flex items-start gap-2 leading-snug">
+                              <span className="text-[#f4c151] font-bold shrink-0">✓</span>
+                              <span>{deliv}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          ) : activeLeadTeam.phase2PaymentStatus === 'payment_pending' && (activeLeadTeam.phase2PaymentTransactionId || activeLeadTeam.phase2PaymentScreenshotUrl || paymentTxId) ? (
-            <div className="p-4 bg-[#241d14] border-2 border-[#f4c151] rounded-md space-y-3">
-              <div className="flex items-center justify-between border-b border-[#423325] pb-2">
-                <span className="font-pixel text-[11px] text-[#f4c151] flex items-center gap-2">
-                  <Clock size={16} className="text-[#f4c151] animate-spin" /> PHASE 2 PAYMENT VERIFICATION PENDING
-                </span>
-                <span className="bg-[#382b18] text-[#f4c151] border border-[#594424] font-silkscreen text-[8.5px] px-2.5 py-0.5 rounded-xs font-bold">
-                  UNDER REVIEW
-                </span>
-              </div>
-
-              <div className="p-3 bg-[#141618] border border-[#2b2e30] rounded-xs space-y-2 font-silkscreen text-[9px]">
-                <p className="text-[#d1d5db]">
-                  Your Phase 2 entry fee payment details (₹200) have been received and logged for admin verification.
-                </p>
-                {(activeLeadTeam.phase2PaymentTransactionId || paymentTxId) && (
-                  <p className="text-[#f4c151] font-mono text-[10px]">
-                    SUBMITTED UTR / REF ID: <span className="font-bold text-white">{activeLeadTeam.phase2PaymentTransactionId || paymentTxId}</span>
-                  </p>
-                )}
-                {activeLeadTeam.phase2PaymentSubmittedAt && (
-                  <p className="text-[#8f9396]">
-                    SUBMITTED AT: {new Date(activeLeadTeam.phase2PaymentSubmittedAt).toLocaleString()}
-                  </p>
-                )}
-              </div>
-
-              {(activeLeadTeam.phase2PaymentScreenshotUrl || paymentScreenshot) && (
-                <div className="space-y-1">
-                  <span className="font-pixel text-[8.5px] text-[#f4c151]">SUBMITTED RECEIPT SCREENSHOT:</span>
-                  <div className="border border-[#2b2e30] rounded-xs overflow-hidden h-40 bg-black max-w-md">
-                    <img src={activeLeadTeam.phase2PaymentScreenshotUrl || paymentScreenshot} alt="Phase 2 Payment Receipt" className="w-full h-full object-contain" />
-                  </div>
-                </div>
-              )}
-
-              <div className="pt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('phase2')}
-                  className="font-pixel text-[8.5px] bg-[#1c1f24] hover:bg-[#282d34] border border-[#3a4149] text-[#f4c151] px-3 py-1.5 rounded-xs cursor-pointer flex items-center gap-1.5"
-                >
-                  <Edit2 size={12} />
-                  <span>UPDATE / CHANGE PHASE 2 PAYMENT DETAILS</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 bg-[#141618] border-2 border-[#2b2e30] rounded-md space-y-3 text-center py-8">
-              <Ticket size={32} className="text-[#b180ff] mx-auto animate-pulse" />
-              <h4 className="font-pixel text-[12px] text-[#f4c151]">NO PHASE 2 PAYMENT SUBMITTED YET</h4>
-              <p className="font-silkscreen text-[9.5px] text-[#8f9396] max-w-md mx-auto">
-                You have not submitted your Phase 2 offline entry fee payment details (₹200) yet. Please navigate to the Phase 2 tab to complete your payment and submit your UTR ID &amp; receipt screenshot.
-              </p>
-              <button
-                type="button"
-                onClick={() => setActiveTab('phase2')}
-                className="font-pixel text-[9px] bg-[#2b1f3d] hover:bg-[#3d2c57] border border-[#b180ff] text-[#b180ff] px-4 py-2 rounded-xs cursor-pointer inline-flex items-center gap-1.5 shadow-[2px_2px_0_0_#000]"
-              >
-                <ArrowRight size={12} />
-                <span>GO TO PHASE 2 FEES PAYMENT &amp; RSVP</span>
-              </button>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -2728,11 +2597,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       {previewImageModal &&
         createPortal(
           <div
-            className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-zoom-out"
+            className="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999999] flex items-center justify-center p-4 cursor-zoom-out"
             onClick={() => setPreviewImageModal(null)}
           >
             <div
-              className="relative max-w-4xl max-h-[90vh] w-full bg-[#0a0c0e] border-2 border-[#f4c151] rounded-md p-3 sm:p-4 flex flex-col space-y-2 shadow-[0_0_40px_rgba(0,0,0,0.9)] cursor-default"
+              className="relative max-w-4xl max-h-[90vh] w-full bg-[#0a0c0e] border-2 border-[#f4c151] rounded-md p-3 sm:p-4 flex flex-col space-y-2 shadow-[0_0_50px_rgba(0,0,0,0.95)] cursor-default z-[9999999]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
@@ -2769,6 +2638,98 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               <div className="font-silkscreen text-[8px] text-[#8f9396] text-center pt-1">
                 Click anywhere outside or press CLOSE to exit image inspector.
               </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* READ-ONLY TEAM ROSTER MODAL */}
+      {showTeamRosterModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-3 sm:p-4 cursor-default overflow-y-auto"
+            onClick={() => setShowTeamRosterModal(false)}
+          >
+            <div
+              className="relative max-w-2xl w-full bg-[#0d1013] border-2 border-[#38bdf8] rounded-md p-4 space-y-3 shadow-[0_0_30px_rgba(56,189,248,0.3)] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[#2b3a4a] pb-2">
+                <span className="font-pixel text-[12px] text-[#38bdf8] flex items-center gap-1.5">
+                  <Users size={14} /> TEAM ROSTER ({activeLeadTeam?.teamName || 'Team Members'})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowTeamRosterModal(false)}
+                  className="text-[#8f9396] hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-2.5 bg-[#09121a] border border-[#1e344d] rounded-xs font-silkscreen text-[8.5px] text-[#93c5fd] flex items-center gap-1.5">
+                <ShieldCheck size={13} className="text-[#38bdf8] shrink-0" />
+                <span>ROSTER READ-ONLY VIEW: Team members &amp; college status are managed by event administrators.</span>
+              </div>
+
+              <div className="space-y-2">
+                {activeLeadTeam?.members.map((m, idx) => (
+                  <div
+                    key={m.id || idx}
+                    className="bg-[#14181d] border border-[#2b3a4a] p-3 rounded-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                  >
+                    <div className="space-y-1 font-silkscreen text-[9px]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-pixel text-[11px] text-white font-bold">{m.name}</span>
+                        {m.isLead && (
+                          <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] text-[7.5px] px-1.5 py-0.5 rounded-xs font-bold">
+                            LEAD
+                          </span>
+                        )}
+                        {isIemUemMember(m) ? (
+                          <span className="bg-[#142417] text-[#86efac] border border-[#25522b] text-[7.5px] px-1.5 py-0.5 rounded-xs">
+                            🎓 IEM/UEM Student
+                          </span>
+                        ) : (
+                          <span className="bg-[#1a1c20] text-[#93c5fd] border border-[#2d3748] text-[7.5px] px-1.5 py-0.5 rounded-xs">
+                            🏫 External ({m.collegeName || 'Other'})
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[#8f9396]"><Mail size={10} className="inline mr-1" />{m.email} &bull; <Phone size={10} className="inline mr-1" />{m.phone}</p>
+                      <p className="text-[#6fb3d9] font-mono"><Github size={10} className="inline mr-1" />@{m.githubId}</p>
+                      {m.enrollmentNo && (
+                        <p className="text-[#86efac] font-mono">ENROLLMENT NO: {m.enrollmentNo}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-[#2b3a4a] flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowTeamRosterModal(false)}
+                  className="font-pixel text-[9px] bg-[#1a202c] border border-[#38bdf8]/40 text-[#38bdf8] hover:bg-[#2a3447] px-3 py-1.5 rounded-xs cursor-pointer"
+                >
+                  CLOSE ROSTER
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* MODAL: FOOD COUPONS PASS PREVIEW */}
+      {showFoodPassModal && activeLeadTeam &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 animate-fade-in overflow-y-auto">
+            <div className="max-w-4xl w-full my-auto">
+              <FoodCouponsTabScreen
+                teamIdFromProp={activeLeadTeam.id}
+                isModal={true}
+                onCloseModal={() => setShowFoodPassModal(false)}
+              />
             </div>
           </div>,
           document.body

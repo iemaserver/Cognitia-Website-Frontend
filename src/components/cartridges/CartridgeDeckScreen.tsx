@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CartridgeId } from '../../types';
 import { sound } from '../../utils/audio';
 import { firebaseService } from '../../services/firebaseService';
@@ -20,7 +20,15 @@ export function CartridgeDeckScreen({
   onCloseDeck,
 }: CartridgeDeckScreenProps) {
   const [hoveredId, setHoveredId] = useState<CartridgeId | null>(null);
-  const activeLeadTeam = firebaseService.getActiveLeadTeam();
+  const [activeLeadTeam, setActiveLeadTeam] = useState(() => firebaseService.getActiveLeadTeam());
+
+  useEffect(() => {
+    const unsubscribe = firebaseService.subscribeToTeams(() => {
+      setActiveLeadTeam(firebaseService.getActiveLeadTeam());
+    });
+    return () => unsubscribe();
+  }, []);
+
   const isLoggedIn = !!activeLeadTeam;
 
   const menuPages: MenuPageItem[] = [

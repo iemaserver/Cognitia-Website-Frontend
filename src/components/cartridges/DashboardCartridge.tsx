@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Award,
   Users,
@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Trophy,
   UserPlus,
+  Ticket,
 } from 'lucide-react';
 import { CartridgeId } from '../../types';
 import { sound } from '../../utils/audio';
@@ -18,8 +19,17 @@ interface DashboardCartridgeProps {
 }
 
 export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
-  const activeLeadTeam = firebaseService.getActiveLeadTeam();
+  const [activeLeadTeam, setActiveLeadTeam] = useState(() => firebaseService.getActiveLeadTeam());
+
+  useEffect(() => {
+    const unsubscribe = firebaseService.subscribeToTeams(() => {
+      setActiveLeadTeam(firebaseService.getActiveLeadTeam());
+    });
+    return () => unsubscribe();
+  }, []);
+
   const isLoggedIn = !!activeLeadTeam;
+  const isPhase2Paid = activeLeadTeam?.phase2PaymentStatus === 'payment_verified' && Boolean(activeLeadTeam?.ticketPassId);
 
   const handleNav = (id: CartridgeId) => {
     sound.playClick();
@@ -49,18 +59,34 @@ export function DashboardCartridge({ onNavigate }: DashboardCartridgeProps) {
         </div>
       </div>
 
-      {/* Prominent REGISTER YOUR TEAM NOW CTA Button */}
-      <a
-        href="https://forms.gle/ZZKRsiC9ejDJSw9A9"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => sound.playClick()}
+      {/* Dynamic CTA Button: Team Login / Complete Phase 2 Registration / Show Ticket Pass */}
+      <button
+        type="button"
+        onClick={() => handleNav('login')}
         className="w-full max-w-md mx-auto bg-[#ef4444]/15 hover:bg-[#ef4444]/30 backdrop-blur-md border border-[#ef4444]/60 hover:border-[#ef4444] text-[#ef4444] hover:text-white font-pixel text-[10px] xs:text-[11px] sm:text-xs uppercase py-2 sm:py-2.5 px-3 rounded-md shadow-[0_0_20px_rgba(239,68,68,0.25)] flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] cursor-pointer whitespace-normal text-center leading-tight break-words"
       >
-        <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f87171] animate-pulse shrink-0" />
-        <span>REGISTER YOUR TEAM NOW</span>
-        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f87171] shrink-0" />
-      </a>
+        {isLoggedIn ? (
+          isPhase2Paid ? (
+            <>
+              <Ticket className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f87171] animate-pulse shrink-0" />
+              <span>SHOW TICKET PASS</span>
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f87171] shrink-0" />
+            </>
+          ) : (
+            <>
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f87171] animate-pulse shrink-0" />
+              <span>COMPLETE PHASE 2 REGISTRATION</span>
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f87171] shrink-0" />
+            </>
+          )
+        ) : (
+          <>
+            <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f87171] animate-pulse shrink-0" />
+            <span>TEAM LOGIN</span>
+            <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f87171] shrink-0" />
+          </>
+        )}
+      </button>
 
       {/* 2. Key Stat Metrics Grid (3 Main Cards - Fully Fitted & Compact Fonts) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3 w-full">

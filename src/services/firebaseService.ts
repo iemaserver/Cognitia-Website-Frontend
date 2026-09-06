@@ -22,6 +22,7 @@ import {
   MealType,
   MemberMealCoupons,
   MealSessionConfig,
+  isIemUemAllStudentTeam,
 } from '../types';
 
 const STORAGE_KEY_TEAMS = 'cognitia_firebase_teams_v1';
@@ -170,6 +171,10 @@ class FirebaseService {
     return () => {
       this.listeners = this.listeners.filter((l) => l !== listener);
     };
+  }
+
+  public subscribeToTeams(listener: TeamsChangeListener): () => void {
+    return this.subscribeToTeamsChange(listener);
   }
 
   private initFirestoreSync() {
@@ -392,12 +397,7 @@ class FirebaseService {
 
   // Helper method to check if a team is an IEM/UEM all-student team (qualifying for ₹0 free registration)
   public checkIsIemUemTeam(members: TeamMember[]): { isIemUemTeam: boolean; feeAmount: number } {
-    if (!members || members.length === 0) {
-      return { isIemUemTeam: false, feeAmount: 200 };
-    }
-    const allIemUem = members.every((m) =>
-      Boolean(m.isIemUemStudent && m.enrollmentNo && m.enrollmentNo.trim().length >= 4)
-    );
+    const allIemUem = isIemUemAllStudentTeam(members);
     return {
       isIemUemTeam: allIemUem,
       feeAmount: allIemUem ? 0 : 200,
@@ -457,19 +457,13 @@ class FirebaseService {
       isMembersLocked: false,
       registeredAt: new Date().toISOString(),
       phase2Status: 'pending',
-      paymentStatus: feeInfo.isIemUemTeam ? 'payment_verified' : 'unpaid',
-      phase2PaymentStatus: feeInfo.isIemUemTeam ? 'payment_verified' : 'unpaid',
+      paymentStatus: 'unpaid',
+      phase2PaymentStatus: 'unpaid',
       isIemUemTeam: feeInfo.isIemUemTeam,
       phase2FeeAmount: feeInfo.feeAmount,
       attendanceStatus: 'not_checked_in',
       members: [leadMember],
     };
-
-    if (feeInfo.isIemUemTeam) {
-      const randomDigits = Math.floor(1000 + Math.random() * 9000);
-      newTeam.ticketPassId = `COGNITIA-2026-PASS-${randomDigits}`;
-      newTeam.ticketIssuedAt = new Date().toISOString();
-    }
 
     this.teams.unshift(newTeam);
     this.saveToStorage();
@@ -645,14 +639,6 @@ class FirebaseService {
     this.teams[index].isIemUemTeam = feeInfo.isIemUemTeam;
     this.teams[index].phase2FeeAmount = feeInfo.feeAmount;
 
-    if (feeInfo.isIemUemTeam && !this.teams[index].ticketPassId) {
-      const randomDigits = Math.floor(1000 + Math.random() * 9000);
-      this.teams[index].ticketPassId = `COGNITIA-2026-PASS-${randomDigits}`;
-      this.teams[index].ticketIssuedAt = new Date().toISOString();
-      this.teams[index].paymentStatus = 'payment_verified';
-      this.teams[index].phase2PaymentStatus = 'payment_verified';
-    }
-
     if (isMembersLocked !== undefined) {
       this.teams[index].isMembersLocked = isMembersLocked;
     }
@@ -692,6 +678,30 @@ class FirebaseService {
     return { success: true, team };
   }
 
+  // Admin manual override for team track assignment
+  public async overrideTeamTrack(
+    teamId: string,
+    selectedTrack: string
+  ): Promise<{ success: boolean; team?: TeamRegistration }> {
+    const team = this.teams.find(
+      (t) => t.id === teamId || (t.ticketPassId && t.ticketPassId.toLowerCase() === teamId.toLowerCase())
+    );
+    if (!team) return { success: false };
+
+    team.selectedTrack = selectedTrack;
+    if (selectedTrack) {
+      team.isTrackLocked = true;
+      team.trackLockedAt = team.trackLockedAt || new Date().toISOString();
+    } else {
+      team.isTrackLocked = false;
+    }
+    this.saveToStorage();
+    this.notifyListeners();
+
+    await this.syncTeamToFirestore(team);
+    return { success: true, team };
+  }
+
   // PHASE 2 OFFLINE ROUND & SELECTION METHODS
   public async updatePhase2Selection(
     teamId: string,
@@ -711,6 +721,10 @@ class FirebaseService {
   public async confirmRsvp(teamId: string): Promise<{ success: boolean; team?: TeamRegistration }> {
     const team = this.teams.find((t) => t.id === teamId);
     if (!team) return { success: false };
+
+    if (team.phase2Status === 'waitlisted') {
+      return { success: false, team };
+    }
 
     team.rsvpConfirmed = true;
     this.saveToStorage();
@@ -748,13 +762,18 @@ class FirebaseService {
     if (!team) return { success: false };
 
     team.phase2PaymentStatus = status;
+    team.paymentStatus = status;
 
     let ticketId = team.ticketPassId;
-    if (status === 'payment_verified' && !team.ticketPassId) {
-      const randomDigits = Math.floor(1000 + Math.random() * 9000);
-      ticketId = `COGNITIA-2026-PASS-${randomDigits}`;
-      team.ticketPassId = ticketId;
-      team.ticketIssuedAt = new Date().toISOString();
+    if (status === 'payment_verified') {
+      team.rsvpConfirmed = true;
+      this.ensureMemberPassIds(team);
+      if (!team.ticketPassId) {
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        ticketId = `COGNITIA-2026-PASS-${randomDigits}`;
+        team.ticketPassId = ticketId;
+        team.ticketIssuedAt = new Date().toISOString();
+      }
     }
 
     this.saveToStorage();
@@ -774,6 +793,8 @@ class FirebaseService {
     const randomDigits = Math.floor(1000 + Math.random() * 9000);
     const ticketId = team.ticketPassId || `COGNITIA-2026-PASS-${randomDigits}`;
 
+    team.rsvpConfirmed = true;
+    this.ensureMemberPassIds(team);
     team.paymentStatus = 'payment_verified';
     team.phase2PaymentStatus = 'payment_verified';
     team.ticketPassId = ticketId;
@@ -789,7 +810,7 @@ class FirebaseService {
   public async submitIemcrpVerifications(
     teamId: string,
     updatedMembers: TeamMember[]
-  ): Promise<{ success: boolean; team?: TeamRegistration; ticketId?: string }> {
+  ): Promise<{ success: boolean; team?: TeamRegistration }> {
     const team = this.teams.find((t) => t.id === teamId);
     if (!team) return { success: false };
 
@@ -799,20 +820,16 @@ class FirebaseService {
     team.iemcrpScreenshotsSubmitted = true;
     team.iemcrpScreenshotsSubmittedAt = new Date().toISOString();
 
-    const randomDigits = Math.floor(1000 + Math.random() * 9000);
-    const ticketId = team.ticketPassId || `COGNITIA-2026-PASS-${randomDigits}`;
-
-    team.paymentStatus = 'payment_verified';
-    team.phase2PaymentStatus = 'payment_verified';
-    team.ticketPassId = ticketId;
-    team.ticketIssuedAt = new Date().toISOString();
+    // Submission goes to pending state for admin to verify proof:
+    team.paymentStatus = 'payment_pending';
+    team.phase2PaymentStatus = 'payment_pending';
 
     this.saveToStorage();
     this.notifyListeners();
 
     await this.syncTeamToFirestore(team);
 
-    return { success: true, team, ticketId };
+    return { success: true, team };
   }
 
   public ensureMemberPassIds(team: TeamRegistration): TeamRegistration {
@@ -850,83 +867,165 @@ class FirebaseService {
     query: string,
     status: AttendanceStatus
   ): Promise<{ success: boolean; team?: TeamRegistration; matchedMember?: TeamMember; message?: string }> {
-    const clean = query.trim().toLowerCase();
-    if (!clean) return { success: false, message: 'Please enter a valid Pass Ticket ID, Member Pass ID, or Team ID.' };
+    const rawClean = query.trim();
+    if (!rawClean) return { success: false, message: 'Please enter a valid Pass Ticket ID, Member Pass ID, or Team ID.' };
 
+    const lowerQuery = rawClean.toLowerCase();
     let matchedMember: TeamMember | undefined = undefined;
+    let matchedTeam: TeamRegistration | undefined = undefined;
 
-    const team = this.teams.find((t) => {
-      this.ensureMemberPassIds(t);
-      if (t.id.toLowerCase() === clean || (t.ticketPassId && t.ticketPassId.toLowerCase() === clean)) {
-        return true;
-      }
-      const foundMem = t.members.find(
-        (m) =>
-          m.id.toLowerCase() === clean ||
-          (m.memberPassId && m.memberPassId.toLowerCase() === clean) ||
-          (m.enrollmentNo && m.enrollmentNo.toLowerCase() === clean)
-      );
-      if (foundMem) {
-        matchedMember = foundMem;
-        return true;
-      }
-      return false;
-    });
+    // Case 1: Member QR Payload (Format: COGNITIA-2026-PASS-MEMBER:memberPassId:teamId:name:enrollment)
+    if (lowerQuery.startsWith('cognitia-2026-pass-member:')) {
+      const parts = rawClean.split(':');
+      const targetMemberPassId = (parts[1] || '').trim().toLowerCase();
+      const targetTeamId = (parts[2] || '').trim().toLowerCase();
 
-    if (!team) {
+      matchedTeam = this.teams.find((t) => {
+        this.ensureMemberPassIds(t);
+        return t.id.toLowerCase() === targetTeamId || (t.ticketPassId && t.ticketPassId.toLowerCase() === targetTeamId);
+      });
+
+      // If team not found by ID, search across all teams for the member pass ID
+      if (!matchedTeam) {
+        matchedTeam = this.teams.find((t) => {
+          this.ensureMemberPassIds(t);
+          return (t.members || []).some((m) => (m.memberPassId || '').toLowerCase() === targetMemberPassId);
+        });
+      }
+
+      if (matchedTeam) {
+        matchedMember = (matchedTeam.members || []).find((m) => (m.memberPassId || '').toLowerCase() === targetMemberPassId);
+      }
+    }
+    // Case 2: Main Team QR Payload (Format: COGNITIA-2026-PASS:passId:teamId:teamName)
+    else if (lowerQuery.startsWith('cognitia-2026-pass:')) {
+      const parts = rawClean.split(':');
+      const targetPassId = (parts[1] || '').trim().toLowerCase();
+      const targetTeamId = (parts[2] || '').trim().toLowerCase();
+
+      matchedTeam = this.teams.find((t) => {
+        this.ensureMemberPassIds(t);
+        const tId = (t.id || '').toLowerCase();
+        const tPass = (t.ticketPassId || '').toLowerCase();
+        return tId === targetTeamId || tPass === targetPassId || tId === targetPassId;
+      });
+      // matchedMember remains undefined for Main Team QR
+    }
+    // Case 3: Direct Pass ID / Team ID / Enrollment / Member Pass ID Search
+    else {
+      const tokens: string[] = [lowerQuery];
+      if (lowerQuery.includes(':')) {
+        tokens.push(...lowerQuery.split(':').map((p) => p.trim()).filter(Boolean));
+      }
+
+      // First check if any token matches an individual member pass ID, member ID, or enrollment number
+      for (const t of this.teams) {
+        this.ensureMemberPassIds(t);
+        const foundMem = (t.members || []).find((m) => {
+          const mId = (m.id || '').toLowerCase();
+          const mPass = (m.memberPassId || '').toLowerCase();
+          const mEnrollment = (m.enrollmentNo || '').toLowerCase();
+
+          return tokens.some(
+            (tok) => tok === mId || tok === mPass || (tok !== 'n/a' && tok.length > 3 && tok === mEnrollment)
+          );
+        });
+
+        if (foundMem) {
+          matchedMember = foundMem;
+          matchedTeam = t;
+          break;
+        }
+      }
+
+      // If no member matched, check for main team ID or team ticket pass ID
+      if (!matchedTeam) {
+        matchedTeam = this.teams.find((t) => {
+          this.ensureMemberPassIds(t);
+          const tId = (t.id || '').toLowerCase();
+          const tPass = (t.ticketPassId || '').toLowerCase();
+          return tokens.some((tok) => tok === tId || tok === tPass);
+        });
+      }
+    }
+
+    if (!matchedTeam) {
       return { success: false, message: `No registered team or member matching '${query}' was found.` };
     }
 
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (matchedMember) {
+      // Individual Member Attendance Update
       matchedMember.checkInStatus = status;
       matchedMember.checkInTimestamp = status === 'checked_in' ? timestamp : undefined;
+
+      const checkedInMembersCount = (matchedTeam.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+      const minRequiredMembers = Math.min(2, (matchedTeam.members || []).length || 1);
+      const isTeamQualified = checkedInMembersCount >= minRequiredMembers;
+
+      matchedTeam.attendanceStatus = isTeamQualified ? 'checked_in' : 'not_checked_in';
+      matchedTeam.checkInTimestamp = checkedInMembersCount > 0 ? (matchedTeam.checkInTimestamp || timestamp) : undefined;
     } else {
-      team.members.forEach((m) => {
+      // Full Team Attendance Update
+      (matchedTeam.members || []).forEach((m) => {
         m.checkInStatus = status;
         m.checkInTimestamp = status === 'checked_in' ? timestamp : undefined;
       });
+      matchedTeam.attendanceStatus = status;
+      matchedTeam.checkInTimestamp = status === 'checked_in' ? timestamp : undefined;
     }
-
-    team.attendanceStatus = status;
-    team.checkInTimestamp = status === 'checked_in' ? timestamp : undefined;
 
     this.saveToStorage();
     this.notifyListeners();
-    await this.syncTeamToFirestore(team);
+    await this.syncTeamToFirestore(matchedTeam);
 
     const msg = matchedMember
       ? `Member '${matchedMember.name}' (${matchedMember.memberPassId || matchedMember.role}) marked ${status.toUpperCase()}!`
-      : `Team '${team.teamName}' (All ${team.members.length} members) marked ${status.toUpperCase()}!`;
+      : `Team '${matchedTeam.teamName}' (All ${matchedTeam.members.length} members) marked ${status.toUpperCase()}!`;
 
-    return { success: true, team, matchedMember, message: msg };
+    return { success: true, team: matchedTeam, matchedMember, message: msg };
   }
 
   public async markMealRedeemed(
     query: string,
-    mealType: MealType
+    mealType: MealType,
+    memberQueryOrId?: string
   ): Promise<{ success: boolean; team?: TeamRegistration; matchedMember?: TeamMember; message?: string }> {
     const clean = query.trim().toLowerCase();
-    if (!clean) return { success: false, message: 'Invalid food coupon QR code or pass ID.' };
+    const cleanMember = (memberQueryOrId || '').trim().toLowerCase();
+    if (!clean && !cleanMember) return { success: false, message: 'Invalid food coupon QR code or pass ID.' };
 
     let matchedMember: TeamMember | undefined = undefined;
 
     const team = this.teams.find((t) => {
       this.ensureMemberPassIds(t);
-      if (t.id.toLowerCase() === clean || (t.ticketPassId && t.ticketPassId.toLowerCase() === clean)) {
-        return true;
-      }
-      const foundMem = t.members.find(
+
+      // FIRST: Check if any member matches cleanMember or clean
+      const foundMem = (t.members || []).find(
         (m) =>
-          m.id.toLowerCase() === clean ||
-          (m.memberPassId && m.memberPassId.toLowerCase() === clean) ||
-          (m.enrollmentNo && m.enrollmentNo.toLowerCase() === clean)
+          (cleanMember && (
+            (m.id && m.id.toLowerCase() === cleanMember) ||
+            (m.memberPassId && m.memberPassId.toLowerCase() === cleanMember) ||
+            (m.enrollmentNo && m.enrollmentNo.toLowerCase() === cleanMember)
+          )) ||
+          (clean && (
+            (m.id && m.id.toLowerCase() === clean) ||
+            (m.memberPassId && m.memberPassId.toLowerCase() === clean) ||
+            (m.enrollmentNo && m.enrollmentNo.toLowerCase() === clean)
+          ))
       );
+
       if (foundMem) {
         matchedMember = foundMem;
         return true;
       }
+
+      // SECOND: If no member matched, check if team ID or ticket pass ID matches clean
+      if (!cleanMember && clean && (t.id.toLowerCase() === clean || (t.ticketPassId && t.ticketPassId.toLowerCase() === clean))) {
+        return true;
+      }
+
       return false;
     });
 
@@ -961,6 +1060,13 @@ class FirebaseService {
     } else {
       if (!team.meals) team.meals = {};
       team.meals[mealType] = redemptionRecord;
+      // Also mark meal served for all present members of the team (just like full team attendance check-in!)
+      (team.members || []).forEach((m) => {
+        if (m.checkInStatus === 'checked_in') {
+          if (!m.meals) m.meals = {};
+          m.meals[mealType] = redemptionRecord;
+        }
+      });
     }
 
     this.saveToStorage();
@@ -976,11 +1082,92 @@ class FirebaseService {
         ? 'Day 2 Breakfast'
         : 'Day 2 Lunch';
 
+    const checkedInCount = (team.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+
     const successMsg = matchedMember
       ? `✅ MEAL SERVED! ${mealName} marked REDEEMED for '${matchedMember.name}' (${team.teamName}) at ${timestamp}.`
-      : `✅ MEAL SERVED! ${mealName} marked REDEEMED for Team '${team.teamName}' at ${timestamp}.`;
+      : `✅ MEAL SERVED! ${mealName} marked REDEEMED for Team '${team.teamName}' (${checkedInCount} present members) at ${timestamp}.`;
 
     return { success: true, team, matchedMember, message: successMsg };
+  }
+
+  public async toggleMealRedemption(
+    query: string,
+    mealType: MealType
+  ): Promise<{ success: boolean; team?: TeamRegistration; matchedMember?: TeamMember; message?: string }> {
+    const clean = query.trim().toLowerCase();
+    if (!clean) return { success: false, message: 'Invalid pass ID.' };
+
+    let matchedMember: TeamMember | undefined = undefined;
+
+    const team = this.teams.find((t) => {
+      this.ensureMemberPassIds(t);
+
+      // FIRST: Check if any member matches clean
+      const foundMem = (t.members || []).find(
+        (m) =>
+          (m.id && m.id.toLowerCase() === clean) ||
+          (m.memberPassId && m.memberPassId.toLowerCase() === clean) ||
+          (m.enrollmentNo && m.enrollmentNo.toLowerCase() === clean)
+      );
+
+      if (foundMem) {
+        matchedMember = foundMem;
+        return true;
+      }
+
+      // SECOND: If no member matched, check if team ID or ticket pass ID matches clean
+      if (t.id.toLowerCase() === clean || (t.ticketPassId && t.ticketPassId.toLowerCase() === clean)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (!team) return { success: false, message: 'Team or member not found.' };
+
+    const currentMeals = matchedMember ? matchedMember.meals || {} : team.meals || {};
+    const isCurrentlyRedeemed = !!currentMeals[mealType]?.redeemed;
+
+    if (isCurrentlyRedeemed) {
+      if (matchedMember) {
+        if (matchedMember.meals) delete matchedMember.meals[mealType];
+      } else {
+        if (team.meals) delete team.meals[mealType];
+        (team.members || []).forEach((m) => {
+          if (m.meals) delete m.meals[mealType];
+        });
+      }
+    } else {
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
+      const record = { redeemed: true, redeemedAt: timestamp, redeemedByAdmin: 'Cognitia Admin' };
+      if (matchedMember) {
+        if (!matchedMember.meals) matchedMember.meals = {};
+        matchedMember.meals[mealType] = record;
+      } else {
+        if (!team.meals) team.meals = {};
+        team.meals[mealType] = record;
+        (team.members || []).forEach((m) => {
+          if (m.checkInStatus === 'checked_in') {
+            if (!m.meals) m.meals = {};
+            m.meals[mealType] = record;
+          }
+        });
+      }
+    }
+
+    this.saveToStorage();
+    this.notifyListeners();
+    await this.syncTeamToFirestore(team);
+
+    return {
+      success: true,
+      team,
+      matchedMember,
+      message: isCurrentlyRedeemed
+        ? `Meal '${mealType.replace('_', ' ')}' unmarked for ${matchedMember ? matchedMember.name : team.teamName + ' (All members)'}.`
+        : `Meal '${mealType.replace('_', ' ')}' marked SERVED for ${matchedMember ? matchedMember.name : team.teamName + ' (All present members)'}.`,
+    };
   }
 
   public getAllRegistrations(): TeamRegistration[] {
@@ -997,6 +1184,261 @@ class FirebaseService {
     }
     this.notifyListeners();
   }
+}
+
+export interface TrackProblemStatement {
+  trackId: string;
+  trackName: string;
+  psCode: string;
+  title: string;
+  tagline: string;
+  bounty: string;
+  objective: string;
+  detailedDescription: string;
+  trackDescription?: string;
+  description?: string;
+  requirements: string[];
+  deliverables: string[];
+}
+
+export const TRACK_PROBLEM_STATEMENTS: Record<string, TrackProblemStatement> = {
+  'nlp-cv': {
+    trackId: 'nlp-cv',
+    trackName: 'Natural Language Processing & Computer Vision',
+    psCode: 'PS-TEST-NLP-01',
+    title: '[GENERIC TEST PS] NLP & Multi-Modal Computer Vision Challenge',
+    tagline: 'Generic Sample Problem Statement for Testing Purpose',
+    bounty: '₹2,000 Special Bounty',
+    objective: 'This is a generic test problem statement for the NLP & Computer Vision track. Official problem statements will be revealed on the day of the hackathon.',
+    detailedDescription: 'Generic Test Challenge: Build a prototype multi-modal application integrating natural language understanding (e.g. document extraction or chat interface) with computer vision (e.g. image/video classification or OCR). This placeholder is provided for development and UI testing.',
+    trackDescription: 'LLM Architectures, Multi-Modal Vision & Speech Processing',
+    description: 'Generic Test Challenge: Build a prototype multi-modal application integrating natural language understanding with computer vision.',
+    requirements: [
+      'Implement multi-modal data processing (Text, PDF, or Image/Video)',
+      'Build a functional model inference pipeline or UI integration',
+      'Provide real-time visualization of predictions and extraction outputs',
+    ],
+    deliverables: [
+      'GitHub source code repository',
+      'Interactive prototype demonstration UI',
+    ],
+  },
+  'blockchain-cybersecurity': {
+    trackId: 'blockchain-cybersecurity',
+    trackName: 'Blockchain and Cybersecurity',
+    psCode: 'PS-TEST-BLK-02',
+    title: '[GENERIC TEST PS] Decentralized Trust & Cyber Defense Challenge',
+    tagline: 'Generic Sample Problem Statement for Testing Purpose',
+    bounty: '₹2,000 Special Bounty',
+    objective: 'This is a generic test problem statement for the Blockchain & Cybersecurity track. Official problem statements will be revealed on the day of the hackathon.',
+    detailedDescription: 'Generic Test Challenge: Design a decentralized ledger component or security audit application (e.g. smart contract vulnerability scanner or threat log verification). This placeholder is provided for development and UI testing.',
+    trackDescription: 'Decentralized Ledgers, Zero-Trust Defense & Cryptography',
+    description: 'Generic Test Challenge: Design a decentralized ledger component or security audit application.',
+    requirements: [
+      'Implement a smart contract or secure cryptographic protocol module',
+      'Build a threat monitoring or contract audit analysis interface',
+      'Demonstrate secure data verification or zero-trust logging',
+    ],
+    deliverables: [
+      'GitHub source code repository with smart contracts / security scripts',
+      'Interactive Web UI demonstration',
+    ],
+  },
+  'geospatial-intelligence': {
+    trackId: 'geospatial-intelligence',
+    trackName: 'Geospatial Predictive Intelligence',
+    psCode: 'PS-TEST-GEO-03',
+    title: '[GENERIC TEST PS] GIS Telemetry & Spatial Analytics Challenge',
+    tagline: 'Generic Sample Problem Statement for Testing Purpose',
+    bounty: '₹2,000 Special Bounty',
+    objective: 'This is a generic test problem statement for the Geospatial Predictive Intelligence track. Official problem statements will be revealed on the day of the hackathon.',
+    detailedDescription: 'Generic Test Challenge: Build an interactive GIS web application that processes spatial datasets (GeoJSON/Shapefiles) and displays predictive heatmaps or spatial routing calculations. This placeholder is provided for development and UI testing.',
+    trackDescription: 'GIS Data Analytics, Spatial Modeling & Remote Sensing AI',
+    description: 'Generic Test Challenge: Build an interactive GIS web application that processes spatial datasets and displays predictive heatmaps.',
+    requirements: [
+      'Ingest and visualize spatial or map coordinate datasets',
+      'Implement spatial analytics or hazard scoring logic',
+      'Interactive Map UI canvas with layer controls',
+    ],
+    deliverables: [
+      'GitHub source code repository',
+      'Interactive GIS Web application demo',
+    ],
+  },
+  'ai-autonomous-systems': {
+    trackId: 'ai-autonomous-systems',
+    trackName: 'AI Autonomous Systems',
+    psCode: 'PS-TEST-AUT-04',
+    title: '[GENERIC TEST PS] Multi-Agent Autonomous Swarm Challenge',
+    tagline: 'Generic Sample Problem Statement for Testing Purpose',
+    bounty: '₹2,000 Special Bounty',
+    objective: 'This is a generic test problem statement for the AI Autonomous Systems track. Official problem statements will be revealed on the day of the hackathon.',
+    detailedDescription: 'Generic Test Challenge: Develop a multi-agent coordination simulator where autonomous agents communicate, allocate tasks, and dynamically navigate simulated obstacles. This placeholder is provided for development and UI testing.',
+    trackDescription: 'Robotics, Multi-Agent Swarms & Automated Decision Engines',
+    description: 'Generic Test Challenge: Develop a multi-agent coordination simulator where autonomous agents communicate and allocate tasks.',
+    requirements: [
+      'Define autonomous agent behaviors and task negotiation rules',
+      'Build a simulation engine or pathfinding logic',
+      'Visual Dashboard HUD showing live agent state and message logs',
+    ],
+    deliverables: [
+      'GitHub source code repository with simulation engine',
+      'Visual Agent Telemetry Dashboard',
+    ],
+  },
+  'fintech': {
+    trackId: 'fintech',
+    trackName: 'FinTech',
+    psCode: 'PS-TEST-FIN-05',
+    title: '[GENERIC TEST PS] Financial Fraud Scoring & Settlement Ledger Challenge',
+    tagline: 'Generic Sample Problem Statement for Testing Purpose',
+    bounty: '₹2,000 Special Bounty',
+    objective: 'This is a generic test problem statement for the FinTech track. Official problem statements will be revealed on the day of the hackathon.',
+    detailedDescription: 'Generic Test Challenge: Architect a real-time transaction processing service that detects anomalous transactions and updates a micro-settlement ledger. This placeholder is provided for development and UI testing.',
+    trackDescription: 'Algorithmic Payments, Fraud Intelligence & Automated Trading',
+    description: 'Generic Test Challenge: Architect a real-time transaction processing service that detects anomalous transactions.',
+    requirements: [
+      'Simulate high-frequency transaction stream ingestion',
+      'Implement anomaly detection or fraud rule scoring logic',
+      'Real-time FinTech Analyst Dashboard displaying transaction feed and alerts',
+    ],
+    deliverables: [
+      'GitHub source code repository',
+      'Interactive Financial Analytics Dashboard UI',
+    ],
+  },
+};
+
+export interface TeamTrackSlotAllocation {
+  isQualified: boolean;
+  checkedCount: number;
+  totalMembers: number;
+  qualifiedAt?: string;
+  assignedTrackName: string;
+  assignedTrackId: string;
+  slotNumber: number;
+  maxSlots: number;
+  problemStatement?: TrackProblemStatement;
+  isOverridden?: boolean;
+}
+
+export function calculateFcfsTrackAllocations(teams: TeamRegistration[]): Map<string, TeamTrackSlotAllocation> {
+  const result = new Map<string, TeamTrackSlotAllocation>();
+  const MAX_SLOTS_PER_TRACK = 4;
+
+  const qualifiedTeamsList: {
+    team: TeamRegistration;
+    checkedCount: number;
+    totalMembers: number;
+    qualifiedAt: string;
+  }[] = [];
+
+  const unqualifiedTeamsList: TeamRegistration[] = [];
+
+  teams.forEach((t) => {
+    const mems = t.members || [];
+    const checkedMems = mems.filter((m) => m.checkInStatus === 'checked_in');
+    const checkedCount = checkedMems.length;
+    const totalMembers = mems.length;
+    const isQualified = checkedCount >= 2;
+
+    if (isQualified) {
+      const sortedCheckInTimes = checkedMems
+        .map((m) => m.checkInTimestamp || t.registeredAt || new Date().toISOString())
+        .sort();
+      const qualifiedAt = sortedCheckInTimes[1] || sortedCheckInTimes[0] || t.registeredAt || new Date().toISOString();
+
+      qualifiedTeamsList.push({
+        team: t,
+        checkedCount,
+        totalMembers,
+        qualifiedAt,
+      });
+    } else {
+      unqualifiedTeamsList.push(t);
+    }
+  });
+
+  qualifiedTeamsList.sort((a, b) => a.qualifiedAt.localeCompare(b.qualifiedAt));
+
+  const trackSlotCounts: Record<string, number> = {};
+
+  qualifiedTeamsList.forEach((q) => {
+    const { team, checkedCount, totalMembers, qualifiedAt } = q;
+
+    let isOverridden = false;
+    let assignedTrackName = team.selectedTrack || '';
+    let matchedTrackObj = Object.values(TRACK_PROBLEM_STATEMENTS).find(
+      (p) => p.trackName.toLowerCase() === assignedTrackName.toLowerCase() || p.trackId.toLowerCase() === assignedTrackName.toLowerCase()
+    );
+
+    if (matchedTrackObj) {
+      isOverridden = true;
+    }
+
+    if (!matchedTrackObj && team.trackPreferences && team.trackPreferences.length > 0) {
+      for (const pref of team.trackPreferences) {
+        if (!pref) continue;
+        const trackObj = Object.values(TRACK_PROBLEM_STATEMENTS).find(
+          (p) => p.trackName.toLowerCase() === pref.toLowerCase() || p.trackId.toLowerCase() === pref.toLowerCase()
+        );
+        if (trackObj) {
+          const currentCount = trackSlotCounts[trackObj.trackId] || 0;
+          if (currentCount < MAX_SLOTS_PER_TRACK) {
+            matchedTrackObj = trackObj;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!matchedTrackObj) {
+      matchedTrackObj = Object.values(TRACK_PROBLEM_STATEMENTS).find(
+        (p) => (trackSlotCounts[p.trackId] || 0) < MAX_SLOTS_PER_TRACK
+      ) || Object.values(TRACK_PROBLEM_STATEMENTS)[0];
+    }
+
+    const trackId = matchedTrackObj.trackId;
+    const currentCount = (trackSlotCounts[trackId] || 0) + 1;
+    trackSlotCounts[trackId] = currentCount;
+
+    result.set(team.id, {
+      isQualified: true,
+      checkedCount,
+      totalMembers,
+      qualifiedAt,
+      assignedTrackName: matchedTrackObj.trackName,
+      assignedTrackId: matchedTrackObj.trackId,
+      slotNumber: currentCount,
+      maxSlots: MAX_SLOTS_PER_TRACK,
+      problemStatement: matchedTrackObj,
+      isOverridden,
+    });
+  });
+
+  unqualifiedTeamsList.forEach((t) => {
+    const mems = t.members || [];
+    const checkedCount = mems.filter((m) => m.checkInStatus === 'checked_in').length;
+    const totalMembers = mems.length;
+
+    const firstPref = t.selectedTrack || (t.trackPreferences && t.trackPreferences[0]) || 'Natural Language Processing & Computer Vision';
+    const matchedTrackObj = Object.values(TRACK_PROBLEM_STATEMENTS).find(
+      (p) => p.trackName.toLowerCase() === firstPref.toLowerCase() || p.trackId.toLowerCase() === firstPref.toLowerCase()
+    ) || Object.values(TRACK_PROBLEM_STATEMENTS)[0];
+
+    result.set(t.id, {
+      isQualified: false,
+      checkedCount,
+      totalMembers,
+      assignedTrackName: matchedTrackObj.trackName,
+      assignedTrackId: matchedTrackObj.trackId,
+      slotNumber: 0,
+      maxSlots: MAX_SLOTS_PER_TRACK,
+      problemStatement: matchedTrackObj,
+    });
+  });
+
+  return result;
 }
 
 export const firebaseService = new FirebaseService();

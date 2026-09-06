@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import jsQR from 'jsqr';
 import {
   ShieldCheck,
   Lock,
@@ -33,10 +34,12 @@ import {
   Upload,
   RefreshCw,
   Utensils,
+  Edit2,
 } from 'lucide-react';
-import { firebaseService } from '../../services/firebaseService';
-import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus, MealType } from '../../types';
+import { firebaseService, calculateFcfsTrackAllocations, TRACK_PROBLEM_STATEMENTS } from '../../services/firebaseService';
+import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus, MealType, isIemUemMember, isIemUemAllStudentTeam } from '../../types';
 import { sound } from '../../utils/audio';
+import { downloadTicketPdf } from '../../utils/ticketPdfGenerator';
 
 export const AdminCartridge: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -56,6 +59,20 @@ export const AdminCartridge: React.FC = () => {
   const [newLeadName, setNewLeadName] = useState<string>('');
   const [newLeadEmail, setNewLeadEmail] = useState<string>('');
   const [newLeadPhone, setNewLeadPhone] = useState<string>('');
+  const [newLeadGithub, setNewLeadGithub] = useState<string>('');
+  const [newLeadIsIemUem, setNewLeadIsIemUem] = useState<boolean>(true);
+  const [newLeadCollegeName, setNewLeadCollegeName] = useState<string>('IEM / UEM');
+  const [newLeadEnrollmentNo, setNewLeadEnrollmentNo] = useState<string>('');
+  const [newExtraMembers, setNewExtraMembers] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+    githubId: string;
+    isIemUemStudent: boolean;
+    collegeName: string;
+    enrollmentNo: string;
+  }[]>([]);
   const [newPassword, setNewPassword] = useState<string>('');
   const [createdCredentialsModal, setCreatedCredentialsModal] = useState<{ teamId?: string; teamName: string; leadName: string; leadEmail: string; password: string } | null>(null);
   const [copiedTemplate, setCopiedTemplate] = useState<boolean>(false);
@@ -77,9 +94,16 @@ export const AdminCartridge: React.FC = () => {
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const scanLockRef = useRef<boolean>(false);
+
+  // Admin Sub-Tabs Navigation State
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'food' | 'teams'>('food');
 
   // Food Coupons State
   const [activeMealSession, setActiveMealSession] = useState<MealType | 'none'>('none');
+  const [selectedManualTeamId, setSelectedManualTeamId] = useState<string>('');
+  const [selectedManualMemberId, setSelectedManualMemberId] = useState<string>('all');
+  const [selectedManualMealType, setSelectedManualMealType] = useState<MealType>('day1_dinner');
   const [foodCouponModalData, setFoodCouponModalData] = useState<{
     matchedTeam: TeamRegistration;
     matchedMember?: TeamMember;
@@ -100,8 +124,11 @@ export const AdminCartridge: React.FC = () => {
     if (!showLiveScannerModal) {
       setIsCameraActive(false);
       setCameraError(null);
+      scanLockRef.current = false;
       return;
     }
+
+    scanLockRef.current = false;
 
     let currentStream: MediaStream | null = null;
     let isMounted = true;
@@ -163,24 +190,60 @@ export const AdminCartridge: React.FC = () => {
     if (!showLiveScannerModal || !isCameraActive) return;
 
     let isScanning = true;
-    const intervalId = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.readyState < 2) return;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
+    const intervalId = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.readyState < 2 || !isScanning || scanLockRef.current) return;
+
+      const video = videoRef.current;
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      if (!width || !height) return;
+
+      let detectedCode: string | null = null;
+
+      // 1. Try native BarcodeDetector if available
       if ('BarcodeDetector' in window) {
         try {
           const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
-          const barcodes = await detector.detect(videoRef.current);
-          if (barcodes && barcodes.length > 0 && isScanning) {
-            const code = barcodes[0].rawValue;
-            if (code) {
-              handleAttendanceScanSubmit(undefined, code);
-            }
+          const barcodes = await detector.detect(video);
+          if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+            detectedCode = barcodes[0].rawValue;
           }
         } catch (e) {
-          // Frame capture error ignored silently
+          // Native detector frame error ignored silently
         }
       }
-    }, 300);
+
+      // 2. Universal jsQR canvas fallback if native BarcodeDetector didn't catch a code
+      if (!detectedCode && ctx && !scanLockRef.current) {
+        try {
+          // Downscale high-resolution camera stream (e.g. 1080p/4K) to max 640px for sub-50ms jsQR parsing speed
+          const maxDim = 640;
+          const scale = Math.min(1, maxDim / Math.max(width, height));
+          canvas.width = Math.floor(width * scale);
+          canvas.height = Math.floor(height * scale);
+
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'attemptBoth',
+          });
+          if (qrCode && qrCode.data) {
+            detectedCode = qrCode.data;
+          }
+        } catch (e) {
+          // Canvas capture error ignored
+        }
+      }
+
+      if (detectedCode && isScanning && !scanLockRef.current) {
+        scanLockRef.current = true;
+        isScanning = false;
+        handleAttendanceScanSubmit(undefined, detectedCode);
+      }
+    }, 200);
 
     return () => {
       isScanning = false;
@@ -193,16 +256,45 @@ export const AdminCartridge: React.FC = () => {
     if (!file) return;
 
     try {
+      let detectedCode: string | null = null;
       const imageBitmap = await createImageBitmap(file);
+
+      // Try native BarcodeDetector
       if ('BarcodeDetector' in window) {
-        const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
-        const barcodes = await detector.detect(imageBitmap);
-        if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-          handleAttendanceScanSubmit(undefined, barcodes[0].rawValue);
-          return;
+        try {
+          const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+          const barcodes = await detector.detect(imageBitmap);
+          if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+            detectedCode = barcodes[0].rawValue;
+          }
+        } catch (err) {
+          // Fall through to jsQR fallback
         }
       }
-      alert('Could not detect a QR code from this image. Try a clearer photo or enter the Pass ID manually.');
+
+      // jsQR fallback
+      if (!detectedCode) {
+        const canvas = document.createElement('canvas');
+        canvas.width = imageBitmap.width;
+        canvas.height = imageBitmap.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(imageBitmap, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'attemptBoth',
+          });
+          if (qrCode && qrCode.data) {
+            detectedCode = qrCode.data;
+          }
+        }
+      }
+
+      if (detectedCode) {
+        handleAttendanceScanSubmit(undefined, detectedCode);
+      } else {
+        alert('Could not detect a QR code from this image. Try a clearer photo or enter the Pass ID manually.');
+      }
     } catch (err) {
       console.error('File QR scan error:', err);
       alert('Error parsing uploaded image file.');
@@ -260,20 +352,39 @@ export const AdminCartridge: React.FC = () => {
     }
   };
 
+  const handleTrackOverride = async (teamId: string, trackValue: string) => {
+    sound.playBlip(600);
+    await firebaseService.overrideTeamTrack(teamId, trackValue);
+    loadAdminData();
+    if (selectedTeamModal && (selectedTeamModal.id === teamId || selectedTeamModal.ticketPassId === teamId)) {
+      setSelectedTeamModal({
+        ...selectedTeamModal,
+        selectedTrack: trackValue,
+        isTrackLocked: Boolean(trackValue),
+      });
+    }
+  };
+
 
   const handlePhase2PaymentStatusChange = async (teamId: string, newStatus: Phase2PaymentStatus) => {
     const team = teams.find((t) => t.id === teamId);
     if (newStatus === 'payment_verified' && team) {
-      if (!team.rsvpConfirmed) {
-        sound.playBlip(300);
-        alert(`❌ CANNOT VERIFY PHASE 2 PAYMENT:\n\nTeam '${team.teamName}' has not confirmed Phase 2 offline participation RSVP yet.`);
-        return;
-      }
-      const hasProof = team.phase2PaymentTransactionId || (team.phase2PaymentScreenshotUrl && !team.phase2PaymentScreenshotUrl.includes('placeholder'));
-      if (!hasProof) {
-        sound.playBlip(300);
-        alert(`❌ CANNOT VERIFY PHASE 2 PAYMENT:\n\nTeam '${team.teamName}' has not submitted Phase 2 payment details (UTR ID or receipt screenshot) yet.`);
-        return;
+      const isIemTeam = isIemUemAllStudentTeam(team.members);
+
+      if (!isIemTeam) {
+        const hasPaymentProof = Boolean(
+          team.phase2PaymentTransactionId ||
+            (team.phase2PaymentScreenshotUrl && !team.phase2PaymentScreenshotUrl.includes('placeholder')) ||
+            team.paymentTransactionId ||
+            (team.paymentScreenshotUrl && !team.paymentScreenshotUrl.includes('placeholder'))
+        );
+
+        if (!hasPaymentProof) {
+          const confirmForce = window.confirm(
+            `⚠️ NO PHASE 2 PAYMENT PROOF SUBMITTED:\n\nExternal team '${team.teamName}' has not submitted Phase 2 payment details (UTR ID or payment screenshot).\n\nDo you want to FORCE VERIFY and issue the official ticket pass anyway?`
+          );
+          if (!confirmForce) return;
+        }
       }
     }
     sound.playBoot();
@@ -284,7 +395,7 @@ export const AdminCartridge: React.FC = () => {
         setSelectedTeamModal(res.team);
       }
       if (newStatus === 'payment_verified' && res.ticketId) {
-        alert(`🎉 Phase 2 Payment Verified! Ticket pass generated: ${res.ticketId}`);
+        alert(`🎉 Phase 2 Verified! Ticket pass issued: ${res.ticketId}`);
       }
     }
   };
@@ -310,17 +421,36 @@ export const AdminCartridge: React.FC = () => {
     // Food Coupon QR Detection
     if (queryToSearch.includes('COG26-FOOD:')) {
       const parts = queryToSearch.split(':');
-      // Format: COG26-FOOD:day1_dinner:passId:memberId
-      const targetMealType = (parts[1] || 'day1_dinner') as MealType;
+      // Format: COG26-FOOD:mealType:passId:memberId
+      let targetMealType = (parts[1] || 'day1_dinner') as MealType;
+      if ((targetMealType as string) === 'active' || (targetMealType as string) === 'active_session') {
+        const active = firebaseService.getActiveMealSession();
+        targetMealType = active !== 'none' ? active : 'day1_dinner';
+      }
       const targetPassId = parts[2] || queryToSearch;
       const targetMemberId = parts[3];
 
       let foodMember: TeamMember | undefined = undefined;
       const foodTeam = teams.find((t) => {
-        if (t.id.toLowerCase() === targetPassId.toLowerCase() || (t.ticketPassId && t.ticketPassId.toLowerCase() === targetPassId.toLowerCase())) return true;
+        // Direct team ID or ticket pass ID match
+        if (t.id.toLowerCase() === targetPassId.toLowerCase() || (t.ticketPassId && t.ticketPassId.toLowerCase() === targetPassId.toLowerCase())) {
+          if (targetMemberId) {
+            const foundMem = t.members.find(
+              (m) =>
+                m.id === targetMemberId ||
+                (m.memberPassId && m.memberPassId.toLowerCase() === targetMemberId.toLowerCase()) ||
+                m.id.toLowerCase() === targetMemberId.toLowerCase()
+            );
+            if (foundMem) foodMember = foundMem;
+          }
+          return true;
+        }
+
+        // Member ID or Member Pass ID match across teams
         const found = t.members.find(
           (m) =>
             m.id === targetMemberId ||
+            (targetMemberId && m.memberPassId && m.memberPassId.toLowerCase() === targetMemberId.toLowerCase()) ||
             (m.memberPassId && m.memberPassId.toLowerCase() === targetPassId.toLowerCase()) ||
             m.id.toLowerCase() === targetPassId.toLowerCase()
         );
@@ -360,32 +490,84 @@ export const AdminCartridge: React.FC = () => {
         matchedTeam: foodTeam,
         matchedMember: foodMember,
         mealType: targetMealType,
-        passId: targetPassId,
+        passId: foodMember ? (foodMember.memberPassId || foodMember.id) : targetPassId,
         alreadyRedeemed: !!redemption?.redeemed,
         redeemedAt: redemption?.redeemedAt,
       });
       return;
     }
 
-    const clean = queryToSearch.toLowerCase();
+    const rawClean = queryToSearch.trim();
+    const cleanLower = rawClean.toLowerCase();
     let matchedMember: TeamMember | undefined = undefined;
+    let matchedTeam: TeamRegistration | undefined = undefined;
 
-    const matchedTeam = teams.find((t) => {
-      if (t.id.toLowerCase() === clean || (t.ticketPassId && t.ticketPassId.toLowerCase() === clean)) {
-        return true;
+    // Case 1: Member QR Payload (Format: COGNITIA-2026-PASS-MEMBER:memberPassId:teamId:name:enrollment)
+    if (cleanLower.startsWith('cognitia-2026-pass-member:')) {
+      const parts = rawClean.split(':');
+      const targetMemberPassId = (parts[1] || '').trim().toLowerCase();
+      const targetTeamId = (parts[2] || '').trim().toLowerCase();
+
+      matchedTeam = teams.find((t) => {
+        return (t.id || '').toLowerCase() === targetTeamId || ((t.ticketPassId || '').toLowerCase() === targetTeamId);
+      });
+
+      if (!matchedTeam) {
+        matchedTeam = teams.find((t) => (t.members || []).some((m) => (m.memberPassId || '').toLowerCase() === targetMemberPassId));
       }
-      const foundMem = t.members.find(
-        (m) =>
-          m.id.toLowerCase() === clean ||
-          (m.memberPassId && m.memberPassId.toLowerCase() === clean) ||
-          (m.enrollmentNo && m.enrollmentNo.toLowerCase() === clean)
-      );
-      if (foundMem) {
-        matchedMember = foundMem;
-        return true;
+
+      if (matchedTeam) {
+        matchedMember = (matchedTeam.members || []).find((m) => (m.memberPassId || '').toLowerCase() === targetMemberPassId);
       }
-      return false;
-    });
+    }
+    // Case 2: Main Team QR Payload (Format: COGNITIA-2026-PASS:passId:teamId:teamName)
+    else if (cleanLower.startsWith('cognitia-2026-pass:')) {
+      const parts = rawClean.split(':');
+      const targetPassId = (parts[1] || '').trim().toLowerCase();
+      const targetTeamId = (parts[2] || '').trim().toLowerCase();
+
+      matchedTeam = teams.find((t) => {
+        const tId = (t.id || '').toLowerCase();
+        const tPass = (t.ticketPassId || '').toLowerCase();
+        return tId === targetTeamId || tPass === targetPassId || tId === targetPassId;
+      });
+      // matchedMember is intentionally undefined for Main Team QR
+    }
+    // Case 3: Direct Query / Search Bar Input
+    else {
+      const tokens: string[] = [cleanLower];
+      if (cleanLower.includes(':')) {
+        tokens.push(...cleanLower.split(':').map((p) => p.trim()).filter(Boolean));
+      }
+
+      // First check if any token matches an individual member pass ID, member ID, or enrollment number
+      for (const t of teams) {
+        const foundMem = (t.members || []).find((m) => {
+          const mId = (m.id || '').toLowerCase();
+          const mPass = (m.memberPassId || '').toLowerCase();
+          const mEnrollment = (m.enrollmentNo || '').toLowerCase();
+
+          return tokens.some(
+            (tok) => tok === mId || tok === mPass || (tok !== 'n/a' && tok.length > 3 && tok === mEnrollment)
+          );
+        });
+
+        if (foundMem) {
+          matchedMember = foundMem;
+          matchedTeam = t;
+          break;
+        }
+      }
+
+      // If no member matched, check for main team ID or team ticket pass ID
+      if (!matchedTeam) {
+        matchedTeam = teams.find((t) => {
+          const tId = (t.id || '').toLowerCase();
+          const tPass = (t.ticketPassId || '').toLowerCase();
+          return tokens.some((tok) => tok === tId || tok === tPass);
+        });
+      }
+    }
 
     if (matchedTeam) {
       sound.playBoot();
@@ -466,6 +648,11 @@ export const AdminCartridge: React.FC = () => {
     setNewLeadName('');
     setNewLeadEmail('');
     setNewLeadPhone('');
+    setNewLeadGithub('');
+    setNewLeadIsIemUem(true);
+    setNewLeadCollegeName('IEM / UEM');
+    setNewLeadEnrollmentNo('');
+    setNewExtraMembers([]);
     setNewPassword(generateRandomPassword());
     setShowAddTeamModal(true);
   };
@@ -478,13 +665,45 @@ export const AdminCartridge: React.FC = () => {
     }
 
     sound.playBoot();
+    const cleanLeadGithub = newLeadGithub.trim().replace(/^@/, '');
+
+    const leadMember: TeamMember = {
+      id: `mem-lead-${Date.now()}`,
+      name: newLeadName.trim() || 'Team Lead',
+      email: newLeadEmail.trim().toLowerCase(),
+      phone: newLeadPhone.trim(),
+      role: 'Team Lead',
+      githubId: cleanLeadGithub,
+      isLead: true,
+      collegeName: newLeadIsIemUem ? 'IEM / UEM' : (newLeadCollegeName.trim() || 'External'),
+      isIemUemStudent: newLeadIsIemUem,
+      enrollmentNo: '',
+    };
+
+    const extraMembersFormatted: TeamMember[] = newExtraMembers.map((m, idx) => ({
+      id: `mem-extra-${Date.now()}-${idx}`,
+      name: m.name.trim(),
+      email: m.email.trim().toLowerCase(),
+      phone: m.phone.trim(),
+      role: m.role.trim() || 'Developer',
+      githubId: m.githubId.trim().replace(/^@/, ''),
+      isLead: false,
+      collegeName: m.isIemUemStudent ? 'IEM / UEM' : (m.collegeName === 'IEM / UEM' ? 'External' : (m.collegeName.trim() || 'External')),
+      isIemUemStudent: m.isIemUemStudent,
+      enrollmentNo: '',
+    })).filter(m => m.name || m.email);
+
+    const allMembers = [leadMember, ...extraMembersFormatted];
+
     const res = await firebaseService.adminCreateTeam({
       customTeamId: newTeamId.trim() || undefined,
       teamName: newTeamName.trim(),
       leadName: newLeadName.trim() || 'Team Lead',
       leadEmail: newLeadEmail.trim(),
       leadPhone: newLeadPhone.trim(),
+      leadGitHubId: cleanLeadGithub,
       passwordHash: newPassword.trim(),
+      members: allMembers,
     });
 
     if (res.success && res.team) {
@@ -511,6 +730,62 @@ export const AdminCartridge: React.FC = () => {
   const [adminMemGithub, setAdminMemGithub] = useState<string>('');
   const [adminMemEnrollment, setAdminMemEnrollment] = useState<string>('');
   const [adminMemIsIemUem, setAdminMemIsIemUem] = useState<boolean>(true);
+  const [adminMemCollegeName, setAdminMemCollegeName] = useState<string>('');
+
+  // Admin Member Editing Modal State
+  const [editingMember, setEditingMember] = useState<{
+    memberId: string;
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+    githubId: string;
+    isIemUemStudent: boolean;
+    collegeName: string;
+    enrollmentNo: string;
+  } | null>(null);
+
+  const handleAdminSaveMemberEdits = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTeamModal || !editingMember) return;
+    if (!editingMember.name.trim() || !editingMember.email.trim()) {
+      alert('Member Name and Email address are required.');
+      return;
+    }
+
+    const cleanEmail = editingMember.email.trim().toLowerCase();
+    const cleanGithub = editingMember.githubId.trim().replace(/^@/, '');
+
+    const updatedMembers = selectedTeamModal.members.map((m) => {
+      if (m.id === editingMember.memberId || m.memberPassId === editingMember.memberId) {
+        const isIemUem = editingMember.isIemUemStudent;
+        return {
+          ...m,
+          name: editingMember.name.trim(),
+          email: cleanEmail,
+          phone: editingMember.phone.trim(),
+          role: editingMember.role.trim() || m.role,
+          githubId: cleanGithub,
+          isIemUemStudent: isIemUem,
+          collegeName: isIemUem
+            ? 'IEM / UEM'
+            : (editingMember.collegeName.trim() || 'External'),
+          enrollmentNo: isIemUem ? editingMember.enrollmentNo.trim() : '',
+        };
+      }
+      return m;
+    });
+
+    sound.playBoot();
+    const res = await firebaseService.updateTeamDetails(selectedTeamModal.id, selectedTeamModal.teamName, updatedMembers);
+    if (res.success && res.team) {
+      loadAdminData();
+      setSelectedTeamModal(res.team);
+      setEditingMember(null);
+    } else {
+      alert(res.message || 'Failed to save member edits.');
+    }
+  };
 
   const handleAdminAddMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -530,8 +805,8 @@ export const AdminCartridge: React.FC = () => {
       githubId: adminMemGithub.trim().replace(/^@/, ''),
       isLead: false,
       isIemUemStudent: adminMemIsIemUem,
-      collegeName: adminMemIsIemUem ? 'IEM / UEM' : 'External',
-      enrollmentNo: adminMemIsIemUem ? adminMemEnrollment.trim() : '',
+      collegeName: adminMemIsIemUem ? 'IEM / UEM' : (adminMemCollegeName.trim() || 'External'),
+      enrollmentNo: '',
     };
 
     const updatedMembers = [...(selectedTeamModal.members || []), newMember];
@@ -546,6 +821,7 @@ export const AdminCartridge: React.FC = () => {
       setAdminMemPhone('');
       setAdminMemGithub('');
       setAdminMemEnrollment('');
+      setAdminMemCollegeName('');
     } else {
       alert(res.message || 'Failed to add member.');
     }
@@ -700,10 +976,7 @@ Cognitia 2026 Organizing Team`;
         escapeCSV(m ? m.iemcrpScreenshotUrl || 'N/A' : 'N/A'),
       ];
 
-      const isIemUemTeamVerified = Boolean(
-        t.isIemUemTeam ||
-        (t.members && t.members.length > 0 && t.members.every((m) => Boolean(m.isIemUemStudent && m.enrollmentNo && m.enrollmentNo.trim().length >= 4)))
-      );
+      const isIemUemTeamVerified = isIemUemAllStudentTeam(t.members);
       const teamType = isIemUemTeamVerified ? 'IEM/UEM Student Team (Free Waiver)' : 'External / Mixed Team (₹200 Fee)';
       const feeAmt = isIemUemTeamVerified ? '₹0' : '₹200';
       const trackPrefs = t.trackPreferences ? t.trackPreferences.join(' > ') : t.selectedTrack || 'N/A';
@@ -849,34 +1122,70 @@ Cognitia 2026 Organizing Team`;
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => {
               sound.playBlip(600);
               setShowLiveScannerModal(true);
             }}
-            className="font-pixel text-[8px] sm:text-[9px] bg-[#1c2836] border border-[#00f0ff] text-[#00f0ff] hover:bg-[#25374d] px-3 py-1.5 rounded-xs flex items-center gap-1 cursor-pointer"
+            className="font-pixel text-[7.5px] xs:text-[8.5px] sm:text-[9px] bg-[#1c2836] border border-[#00f0ff] text-[#00f0ff] hover:bg-[#25374d] px-1.5 sm:px-3 py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer"
           >
-            <Camera size={12} /> LIVE SCANNER
+            <Camera size={12} /> <span className="truncate">SCANNER</span>
           </button>
           <button
             onClick={exportToCSV}
-            className="font-pixel text-[8px] sm:text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-3 py-1.5 rounded-xs flex items-center gap-1 cursor-pointer"
+            className="font-pixel text-[7.5px] xs:text-[8.5px] sm:text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-1.5 sm:px-3 py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer"
           >
-            <Download size={12} /> EXPORT CSV
+            <Download size={12} /> <span className="truncate">EXPORT</span>
           </button>
           <button
             onClick={handleAdminLogout}
-            className="font-pixel text-[8px] sm:text-[9px] bg-[#261414] border border-[#522525] text-[#eb5147] hover:bg-[#381c1c] px-3 py-1.5 rounded-xs flex items-center gap-1 cursor-pointer"
+            className="font-pixel text-[7.5px] xs:text-[8.5px] sm:text-[9px] bg-[#261414] border border-[#522525] text-[#eb5147] hover:bg-[#381c1c] px-1.5 sm:px-3 py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer"
           >
-            <LogOut size={12} /> EXIT ADMIN
+            <LogOut size={12} /> <span className="truncate">EXIT</span>
           </button>
         </div>
       </div>
 
-      {/* GLOBAL FOOD COUPONS SESSION CONTROLLER */}
-      <div className="p-3.5 bg-[#141d18] border-2 border-[#4ade80]/60 rounded-md space-y-2.5 shadow-[0_0_20px_rgba(74,222,128,0.15)]">
+      {/* TOP LEVEL ADMIN SUB-TABS NAVIGATION */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-b-2 border-[#2b2e30] pb-2 font-pixel text-[10px] sm:text-[11px]">
+        <button
+          type="button"
+          onClick={() => {
+            sound.playBlip(600);
+            setActiveAdminSubTab('food');
+          }}
+          className={`w-full px-3 sm:px-4 py-2.5 rounded-xs border transition-all cursor-pointer flex items-center justify-center gap-2 text-center ${
+            activeAdminSubTab === 'food'
+              ? 'bg-[#142417] text-[#4ade80] border-[#4ade80] shadow-[0_0_20px_rgba(74,222,128,0.3)] font-bold'
+              : 'bg-[#0f1411] text-[#86efac]/70 border-[#25522b] hover:text-[#4ade80] hover:border-[#34783a]'
+          }`}
+        >
+          <Utensils size={16} className="shrink-0" /> <span>🍱 FOOD COUPONS &amp; CATERING AUDIT</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            sound.playBlip(600);
+            setActiveAdminSubTab('teams');
+          }}
+          className={`w-full px-3 sm:px-4 py-2.5 rounded-xs border transition-all cursor-pointer flex items-center justify-center gap-2 text-center ${
+            activeAdminSubTab === 'teams'
+              ? 'bg-[#1c2836] text-[#00f0ff] border-[#00f0ff] shadow-[0_0_20px_rgba(0,240,255,0.3)] font-bold'
+              : 'bg-[#121a24] text-[#6fb3d9]/70 border-[#1e2d42] hover:text-[#00f0ff] hover:border-[#38bdf8]'
+          }`}
+        >
+          <Users size={16} className="shrink-0" /> <span>📊 TEAMS REGISTRATIONS &amp; VENUE ATTENDANCE</span>
+        </button>
+      </div>
+
+      {/* SUB-TAB 1: FOOD COUPONS & CATERING AUDIT */}
+      {activeAdminSubTab === 'food' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* GLOBAL FOOD COUPONS SESSION CONTROLLER */}
+          <div className="p-3.5 bg-[#141d18] border-2 border-[#4ade80]/60 rounded-md space-y-2.5 shadow-[0_0_20px_rgba(74,222,128,0.15)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#25522b] pb-2 gap-2">
           <div className="flex items-center gap-2 text-[#4ade80]">
             <Utensils size={16} />
@@ -900,14 +1209,14 @@ Cognitia 2026 Organizing Team`;
               sound.playBoot();
               await firebaseService.setActiveMealSession('day1_dinner');
             }}
-            className={`font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+            className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
               activeMealSession === 'day1_dinner'
                 ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
                 : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
             }`}
           >
             <span>🍱 DAY 1 DINNER</span>
-            {activeMealSession === 'day1_dinner' && <span className="text-[7px] text-[#4ade80] font-silkscreen">● ACTIVE NOW</span>}
+            {activeMealSession === 'day1_dinner' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
           </button>
 
           <button
@@ -916,14 +1225,14 @@ Cognitia 2026 Organizing Team`;
               sound.playBoot();
               await firebaseService.setActiveMealSession('day1_snacks');
             }}
-            className={`font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+            className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
               activeMealSession === 'day1_snacks'
                 ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
                 : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
             }`}
           >
             <span>🍕 DAY 1 SNACKS</span>
-            {activeMealSession === 'day1_snacks' && <span className="text-[7px] text-[#4ade80] font-silkscreen">● ACTIVE NOW</span>}
+            {activeMealSession === 'day1_snacks' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
           </button>
 
           <button
@@ -932,14 +1241,14 @@ Cognitia 2026 Organizing Team`;
               sound.playBoot();
               await firebaseService.setActiveMealSession('day2_breakfast');
             }}
-            className={`font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+            className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
               activeMealSession === 'day2_breakfast'
                 ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
                 : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
             }`}
           >
             <span>🥐 DAY 2 BREAKFAST</span>
-            {activeMealSession === 'day2_breakfast' && <span className="text-[7px] text-[#4ade80] font-silkscreen">● ACTIVE NOW</span>}
+            {activeMealSession === 'day2_breakfast' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
           </button>
 
           <button
@@ -948,14 +1257,14 @@ Cognitia 2026 Organizing Team`;
               sound.playBoot();
               await firebaseService.setActiveMealSession('day2_lunch');
             }}
-            className={`font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+            className={`font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
               activeMealSession === 'day2_lunch'
                 ? 'bg-[#1e4620] border-[#4ade80] text-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.4)]'
                 : 'bg-[#0f1712] border-[#25522b] text-[#86efac] hover:border-[#4ade80]'
             }`}
           >
             <span>🍱 DAY 2 LUNCH</span>
-            {activeMealSession === 'day2_lunch' && <span className="text-[7px] text-[#4ade80] font-silkscreen">● ACTIVE NOW</span>}
+            {activeMealSession === 'day2_lunch' && <span className="text-[9px] text-[#4ade80] font-silkscreen font-bold">● ACTIVE NOW</span>}
           </button>
 
           <button
@@ -964,20 +1273,505 @@ Cognitia 2026 Organizing Team`;
               sound.playBlip(300);
               await firebaseService.setActiveMealSession('none');
             }}
-            className={`col-span-2 sm:col-span-1 font-pixel text-[8.5px] uppercase py-2 px-2 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+            className={`col-span-2 sm:col-span-1 font-pixel text-[11px] sm:text-[12px] uppercase py-2.5 px-3 rounded-xs border transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
               activeMealSession === 'none'
                 ? 'bg-[#261414] border-[#eb5147] text-[#eb5147]'
                 : 'bg-[#170f0f] border-[#522525] text-[#fca5a5] hover:border-[#eb5147]'
             }`}
           >
             <span>🚫 DISABLE ALL</span>
-            {activeMealSession === 'none' && <span className="text-[7px] text-[#eb5147] font-silkscreen">● OFF</span>}
+            {activeMealSession === 'none' && <span className="text-[9px] text-[#eb5147] font-silkscreen font-bold">● OFF</span>}
           </button>
         </div>
       </div>
 
-      {/* QUICK VENUE ATTENDANCE CHECK-IN SCANNER */}
-      <div className="p-3.5 bg-[#141618] border-2 border-[#254225] rounded-md space-y-2">
+        {/* REAL-TIME FOOD DISTRIBUTION TRACKING & AUDIT LOG DASHBOARD */}
+        {(() => {
+          let day1DinnerCount = 0;
+          let day1SnacksCount = 0;
+          let day2BreakfastCount = 0;
+          let day2LunchCount = 0;
+          let totalCheckedInAttendees = 0;
+
+          interface FoodAuditRow {
+            id: string;
+            timestamp: string;
+            recipient: string;
+            type: 'Member Pass' | 'Team Pass';
+            passId: string;
+            teamName: string;
+            mealType: MealType;
+            admin: string;
+          }
+
+          const auditLogs: FoodAuditRow[] = [];
+
+          teams.forEach((t) => {
+            const checkedMems = (t.members || []).filter((m) => m.checkInStatus === 'checked_in');
+            totalCheckedInAttendees += checkedMems.length;
+
+            if (t.meals) {
+              (['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).forEach((mKey) => {
+                const rec = t.meals?.[mKey];
+                if (rec?.redeemed) {
+                  if (mKey === 'day1_dinner') day1DinnerCount++;
+                  if (mKey === 'day1_snacks') day1SnacksCount++;
+                  if (mKey === 'day2_breakfast') day2BreakfastCount++;
+                  if (mKey === 'day2_lunch') day2LunchCount++;
+
+                  auditLogs.push({
+                    id: `${t.id}-${mKey}`,
+                    timestamp: rec.redeemedAt || 'Earlier',
+                    recipient: `TEAM: ${t.teamName}`,
+                    type: 'Team Pass',
+                    passId: t.ticketPassId || t.id,
+                    teamName: t.teamName,
+                    mealType: mKey,
+                    admin: rec.redeemedByAdmin || 'Admin',
+                  });
+                }
+              });
+            }
+
+            (t.members || []).forEach((m) => {
+              if (m.meals) {
+                (['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).forEach((mKey) => {
+                  const rec = m.meals?.[mKey];
+                  if (rec?.redeemed) {
+                    if (mKey === 'day1_dinner') day1DinnerCount++;
+                    if (mKey === 'day1_snacks') day1SnacksCount++;
+                    if (mKey === 'day2_breakfast') day2BreakfastCount++;
+                    if (mKey === 'day2_lunch') day2LunchCount++;
+
+                    auditLogs.push({
+                      id: `${m.id}-${mKey}`,
+                      timestamp: rec.redeemedAt || 'Earlier',
+                      recipient: `${m.name} (${m.role || 'Member'})`,
+                      type: 'Member Pass',
+                      passId: m.memberPassId || m.id,
+                      teamName: t.teamName,
+                      mealType: mKey,
+                      admin: rec.redeemedByAdmin || 'Admin',
+                    });
+                  }
+                });
+              }
+            });
+          });
+
+          return (
+            <div className="pt-2 space-y-2.5 border-t border-[#25522b]">
+              <div className="flex items-center justify-between">
+                <span className="font-silkscreen text-[8.5px] text-[#4ade80] uppercase tracking-wider block">
+                  📊 REAL-TIME FOOD DISTRIBUTION AUDIT &amp; TRACKING SUMMARY:
+                </span>
+                <span className="font-mono text-[8px] text-[#86efac] bg-[#1a2d1e] px-2 py-0.5 border border-[#2e5934] rounded-xs">
+                  CHECKED-IN ATTENDEES: <strong>{totalCheckedInAttendees} PARTICIPANTS</strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-silkscreen text-[8.5px]">
+                <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
+                  <span className="text-[#cfe8ff] block">🍱 DAY 1 DINNER:</span>
+                  <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
+                    {day1DinnerCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
+                  </span>
+                </div>
+
+                <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
+                  <span className="text-[#cfe8ff] block">🍕 DAY 1 SNACKS:</span>
+                  <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
+                    {day1SnacksCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
+                  </span>
+                </div>
+
+                <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
+                  <span className="text-[#cfe8ff] block">🥐 DAY 2 BREAKFAST:</span>
+                  <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
+                    {day2BreakfastCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
+                  </span>
+                </div>
+
+                <div className="bg-[#0f1712] border border-[#25522b] p-2 rounded-xs space-y-0.5">
+                  <span className="text-[#cfe8ff] block">🍱 DAY 2 LUNCH:</span>
+                  <span className="font-pixel text-[13px] text-[#4ade80] block font-bold">
+                    {day2LunchCount} <span className="text-[8px] text-[#8f9396] font-normal">SERVED</span>
+                  </span>
+                </div>
+              </div>
+
+              {auditLogs.length > 0 && (
+                <div className="bg-[#0a0d10] border border-[#25522b] p-2.5 rounded-xs space-y-2">
+                  <div className="flex items-center justify-between text-[8px] font-silkscreen">
+                    <span className="text-[#4ade80]">
+                      📋 RECENT FOOD REDEMPTION LOGS ({auditLogs.length} REDEEMED):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.playBlip(500);
+                        const headers = ['Timestamp', 'Recipient', 'Type', 'Pass ID', 'Team Name', 'Meal Session', 'Verified By'];
+                        const csvRows = [headers.join(',')];
+
+                        auditLogs.forEach((row) => {
+                          const values = [
+                            `"${row.timestamp}"`,
+                            `"${row.recipient}"`,
+                            `"${row.type}"`,
+                            `"${row.passId}"`,
+                            `"${row.teamName}"`,
+                            `"${row.mealType}"`,
+                            `"${row.admin}"`,
+                          ];
+                          csvRows.push(values.join(','));
+                        });
+
+                        const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.join('\n');
+                        const encodedUri = encodeURI(csvContent);
+                        const link = document.createElement('a');
+                        link.setAttribute('href', encodedUri);
+                        link.setAttribute('download', `Cognitia_2026_Food_Redemptions_Audit_${new Date().toISOString().slice(0, 10)}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      className="bg-[#182418] hover:bg-[#203320] text-[#a7d38a] border border-[#254225] px-2 py-0.5 rounded-xs cursor-pointer flex items-center gap-1 font-pixel text-[7.5px]"
+                    >
+                      <Download size={10} /> EXPORT FOOD CSV
+                    </button>
+                  </div>
+
+                  <div className="max-h-36 overflow-y-auto border border-[#2b2e30] rounded-xs font-mono text-[8px]">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-[#121820] text-[#f4c151] sticky top-0 border-b border-[#2b2e30] text-[7.5px]">
+                        <tr>
+                          <th className="p-1">TIME</th>
+                          <th className="p-1">RECIPIENT</th>
+                          <th className="p-1">TEAM</th>
+                          <th className="p-1">MEAL</th>
+                          <th className="p-1 text-right">PASS ID</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#1e2329] text-[#cfe8ff]">
+                        {auditLogs.slice(-15).reverse().map((log) => (
+                          <tr key={log.id} className="hover:bg-[#151c24]">
+                            <td className="p-1 text-[#8f9396]">{log.timestamp}</td>
+                            <td className="p-1 font-bold text-white">{log.recipient}</td>
+                            <td className="p-1 text-[#86efac]">{log.teamName}</td>
+                            <td className="p-1 text-[#00f0ff] uppercase">{log.mealType.replace('_', ' ')}</td>
+                            <td className="p-1 text-right text-[#f4c151]">{log.passId}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* MANUAL PER-MEMBER MEAL SERVED SYSTEM (DROPDOWN & TOGGLE MATRIX) */}
+        <div className="bg-[#0b1015] border-2 border-[#25522b] p-3.5 sm:p-4 rounded-md space-y-4 font-silkscreen shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#1e3822] pb-2.5 gap-2">
+            <div className="flex items-center gap-2 text-[#4ade80]">
+              <Utensils size={20} />
+              <span className="font-pixel text-[13px] sm:text-[15px] uppercase font-bold">
+                MANUAL MEAL REDEMPTION SYSTEM &amp; MEMBER MATRIX
+              </span>
+            </div>
+            <span className="text-[10px] sm:text-[11px] text-[#86efac] bg-[#142417] border border-[#25522b] px-3 py-1 rounded-xs font-bold">
+              MANUAL ADMIN OVERRIDE &amp; PER-MEMBER TRACKING
+            </span>
+          </div>
+
+          {/* Dropdown Selectors Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-[10.5px] sm:text-[11.5px]">
+            {/* Select Team */}
+            <div className="space-y-1.5">
+              <label className="text-[#8f9396] block font-bold">1. SELECT REGISTERED TEAM:</label>
+              <select
+                value={selectedManualTeamId}
+                onChange={(e) => {
+                  setSelectedManualTeamId(e.target.value);
+                  setSelectedManualMemberId('all');
+                }}
+                className="w-full bg-[#121820] border border-[#2b2e30] text-[#cfe8ff] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none font-semibold"
+              >
+                <option value="">-- Choose Team ({teams.length} Teams) --</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.teamName} ({t.ticketPassId || t.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Select Member */}
+            <div className="space-y-1.5">
+              <label className="text-[#8f9396] block font-bold">2. SELECT TEAM MEMBER:</label>
+              <select
+                value={selectedManualMemberId}
+                onChange={(e) => setSelectedManualMemberId(e.target.value)}
+                disabled={!selectedManualTeamId}
+                className="w-full bg-[#121820] border border-[#2b2e30] text-[#cfe8ff] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none disabled:opacity-40 font-semibold"
+              >
+                <option value="all">-- Whole Team (Full Pass) --</option>
+                {(() => {
+                  const targetT = teams.find((t) => t.id === selectedManualTeamId);
+                  if (!targetT) return null;
+                  return targetT.members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.role || 'Member'}) - {m.checkInStatus === 'checked_in' ? '🟢 PRESENT' : '⚪ ABSENT'}
+                    </option>
+                  ));
+                })()}
+              </select>
+            </div>
+
+            {/* Select Meal */}
+            <div className="space-y-1.5">
+              <label className="text-[#8f9396] block font-bold">3. SELECT MEAL TYPE:</label>
+              <select
+                value={selectedManualMealType}
+                onChange={(e) => setSelectedManualMealType(e.target.value as MealType)}
+                className="w-full bg-[#121820] border border-[#2b2e30] text-[#4ade80] font-mono text-[11.5px] sm:text-[12.5px] p-2.5 rounded-xs focus:border-[#4ade80] focus:outline-none font-bold"
+              >
+                <option value="day1_dinner">🍱 Day 1 Dinner</option>
+                <option value="day1_snacks">🍕 Day 1 Late Night Snacks</option>
+                <option value="day2_breakfast">🥐 Day 2 Breakfast</option>
+                <option value="day2_lunch">🍱 Day 2 Lunch</option>
+              </select>
+            </div>
+
+            {/* Action Button */}
+            <div className="space-y-1 flex flex-col justify-end">
+              <button
+                type="button"
+                disabled={!selectedManualTeamId}
+                onClick={async () => {
+                  sound.playBoot();
+                  const targetT = teams.find((t) => t.id === selectedManualTeamId);
+                  if (!targetT) return;
+
+                  const passToMark =
+                    selectedManualMemberId !== 'all'
+                      ? selectedManualMemberId
+                      : targetT.ticketPassId || targetT.id;
+
+                  const res = await firebaseService.markMealRedeemed(passToMark, selectedManualMealType);
+                  if (res.success) {
+                    loadAdminData();
+                    setScanMessage({
+                      type: 'success',
+                      text: res.message || 'Meal status updated manually!',
+                    });
+                  } else if (res.message) {
+                    alert(res.message);
+                  }
+                }}
+                className="w-full bg-[#1e4620] hover:bg-[#28592b] text-[#4ade80] border border-[#4ade80] font-pixel text-[11.5px] sm:text-[12.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] disabled:opacity-40 transition-all font-bold"
+              >
+                <Utensils size={15} /> MARK MEAL SERVED
+              </button>
+            </div>
+          </div>
+
+          {/* Per-Member Meal Tracking Matrix Table for Selected Team */}
+          {selectedManualTeamId ? (() => {
+            const targetT = teams.find((t) => t.id === selectedManualTeamId);
+            if (!targetT) return null;
+
+            return (
+              <div className="pt-3 border-t border-[#1e3822] space-y-2.5">
+                <div className="flex items-center justify-between text-[12.5px] sm:text-[14px] font-silkscreen font-bold">
+                  <span className="text-[#f4c151]">
+                    PER-MEMBER MEAL STATUS MATRIX — {targetT.teamName} ({targetT.members.length} MEMBERS):
+                  </span>
+                  <span className="text-[#86efac]">
+                    GATE CHECKED IN: {targetT.members.filter((m) => m.checkInStatus === 'checked_in').length} / {targetT.members.length}
+                  </span>
+                </div>
+
+                {/* MOBILE CARD VIEW FOR FOOD MATRIX (PHONE SCREENS < 640px) */}
+                <div className="space-y-3 block sm:hidden">
+                  {/* Full Team Pass Card */}
+                  <div className="bg-[#101924] border-2 border-[#f4c151]/40 p-3 rounded-md space-y-2.5">
+                    <div className="flex items-center justify-between border-b border-[#1e2d42] pb-1.5">
+                      <span className="text-[#f4c151] font-bold text-[13px]">👑 FULL TEAM PASS ({targetT.teamName})</span>
+                      <span className="font-mono text-[11px] font-bold text-[#86efac]">
+                        {targetT.attendanceStatus === 'checked_in' ? '🟢 GATE PASS' : '⚪ NOT CHECKED IN'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 font-pixel text-[10.5px]">
+                      {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
+                        const isRedeemed = !!targetT.meals?.[mKey]?.redeemed;
+                        return (
+                          <button
+                            key={mKey}
+                            type="button"
+                            onClick={async () => {
+                              sound.playClick();
+                              await firebaseService.toggleMealRedemption(targetT.ticketPassId || targetT.id, mKey);
+                              loadAdminData();
+                            }}
+                            className={`py-2 px-2 rounded-xs border cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${
+                              isRedeemed
+                                ? 'bg-[#261414] text-[#eb5147] border-[#522525]'
+                                : 'bg-[#142417] text-[#4ade80] border-[#25522b]'
+                            }`}
+                          >
+                            <span className="text-[9px] uppercase font-silkscreen">{mKey.replace('_', ' ')}</span>
+                            <span className="font-bold">{isRedeemed ? '✓ SERVED' : '+ SERVE'}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Individual Members Cards */}
+                  {targetT.members.map((m) => (
+                    <div key={m.id} className="bg-[#0f1712] border border-[#25522b] p-3 rounded-md space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-[#1e3822] pb-1.5">
+                        <div>
+                          <span className="font-bold text-white block text-[13.5px]">{m.name}</span>
+                          <span className="text-[#8f9396] text-[11px] font-mono">{m.role || 'Member'} ({m.memberPassId || m.id})</span>
+                        </div>
+                        <span className={`font-pixel text-[10px] px-2 py-0.5 rounded-xs ${m.checkInStatus === 'checked_in' ? 'bg-[#182418] text-[#4ade80] border border-[#25522b]' : 'bg-[#1c1f24] text-[#8f9396] border border-[#2b2e30]'}`}>
+                          {m.checkInStatus === 'checked_in' ? '✓ PRESENT' : '⚪ ABSENT'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 font-pixel text-[10.5px]">
+                        {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
+                          const isRedeemed = !!m.meals?.[mKey]?.redeemed;
+                          return (
+                            <button
+                              key={mKey}
+                              type="button"
+                              onClick={async () => {
+                                sound.playClick();
+                                await firebaseService.toggleMealRedemption(m.memberPassId || m.id, mKey);
+                                loadAdminData();
+                              }}
+                              className={`py-2 px-2 rounded-xs border cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${
+                                isRedeemed
+                                  ? 'bg-[#261414] text-[#eb5147] border-[#522525]'
+                                  : 'bg-[#142417] text-[#4ade80] border-[#25522b]'
+                              }`}
+                            >
+                              <span className="text-[9px] uppercase font-silkscreen">{mKey.replace('_', ' ')}</span>
+                              <span className="font-bold">{isRedeemed ? '✓ SERVED' : '+ SERVE'}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* DESKTOP TABLE VIEW FOR FOOD MATRIX (DESKTOP & TABLET SCREENS ≥ 640px) */}
+                <div className="hidden sm:block w-full max-w-full overflow-x-auto border border-[#2b2e30] rounded-xs font-mono text-[11px] sm:text-[12px]">
+                  <table className="w-full text-left border-collapse min-w-[680px]">
+                    <thead className="bg-[#121820] text-[#00f0ff] border-b border-[#2b2e30] font-pixel text-[10.5px] sm:text-[11.5px]">
+                      <tr>
+                        <th className="py-2.5 px-2.5 min-w-[160px]">RECIPIENT</th>
+                        <th className="py-2.5 px-2.5 text-center min-w-[85px]">GATE</th>
+                        <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 1 DINNER</th>
+                        <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 1 SNACKS</th>
+                        <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 2 BREAKFAST</th>
+                        <th className="py-2.5 px-2.5 text-center min-w-[105px]">DAY 2 LUNCH</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e2329] text-[#cfe8ff] text-[12px] sm:text-[13px]">
+                      {/* Whole Team Pass Row */}
+                      <tr className="bg-[#101924] font-bold">
+                        <td className="p-3 text-[#f4c151] text-[13.5px] sm:text-[15px]">
+                          👑 FULL TEAM PASS ({targetT.teamName})
+                        </td>
+                        <td className="p-3 text-center text-[12px] sm:text-[13px]">
+                          {targetT.attendanceStatus === 'checked_in' ? '🟢 PASS' : '⚪ GATE'}
+                        </td>
+                        {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
+                          const isRedeemed = !!targetT.meals?.[mKey]?.redeemed;
+                          return (
+                            <td key={mKey} className="p-2 text-center">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  sound.playClick();
+                                  await firebaseService.toggleMealRedemption(targetT.ticketPassId || targetT.id, mKey);
+                                  loadAdminData();
+                                }}
+                                className={`px-3 py-1.5 rounded-xs border text-[11px] sm:text-[12px] cursor-pointer transition-all font-pixel font-bold ${
+                                  isRedeemed
+                                    ? 'bg-[#261414] text-[#eb5147] border-[#522525] hover:bg-[#3d1e1e]'
+                                    : 'bg-[#142417] text-[#4ade80] border-[#25522b] hover:border-[#4ade80]'
+                                }`}
+                              >
+                                {isRedeemed ? '✓ SERVED' : '+ SERVE'}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+
+                      {/* Individual Members Rows */}
+                      {targetT.members.map((m) => (
+                        <tr key={m.id} className="hover:bg-[#151c24]">
+                          <td className="p-3">
+                            <span className="font-bold text-white block text-[13.5px] sm:text-[15px]">{m.name}</span>
+                            <span className="text-[#8f9396] text-[11px] sm:text-[12px] font-mono">{m.role || 'Member'} ({m.memberPassId || m.id})</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            {m.checkInStatus === 'checked_in' ? (
+                              <span className="text-[#4ade80] font-bold text-[12.5px] sm:text-[13.5px]">✓ PRESENT</span>
+                            ) : (
+                              <span className="text-[#8f9396] text-[12px] sm:text-[13px]">⚪ ABSENT</span>
+                            )}
+                          </td>
+                          {(['day1_dinner', 'day1_snacks', 'day2_breakfast', 'day2_lunch'] as MealType[]).map((mKey) => {
+                            const isRedeemed = !!m.meals?.[mKey]?.redeemed;
+                            return (
+                              <td key={mKey} className="p-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    sound.playClick();
+                                    await firebaseService.toggleMealRedemption(m.memberPassId || m.id, mKey);
+                                    loadAdminData();
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xs border text-[11px] sm:text-[12px] cursor-pointer transition-all font-pixel font-bold ${
+                                    isRedeemed
+                                      ? 'bg-[#261414] text-[#eb5147] border-[#522525] hover:bg-[#3d1e1e]'
+                                      : 'bg-[#142417] text-[#4ade80] border-[#25522b] hover:border-[#4ade80]'
+                                  }`}
+                                >
+                                  {isRedeemed ? '✓ SERVED' : '+ SERVE'}
+                                </button>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })() : (
+            <p className="font-silkscreen text-[10px] sm:text-[11px] text-[#8f9396] italic text-center py-2">
+              Select a registered team from the dropdown above to view and manually manage its per-member meal redemption matrix.
+            </p>
+          )}
+        </div>
+      </div>
+      )}
+
+      {/* SUB-TAB 2: TEAMS REGISTRATIONS & VENUE ATTENDANCE */}
+      {activeAdminSubTab === 'teams' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* QUICK VENUE ATTENDANCE CHECK-IN SCANNER */}
+          <div className="p-3.5 bg-[#141618] border-2 border-[#254225] rounded-md space-y-2">
         <div className="flex items-center justify-between border-b border-[#254225] pb-1.5">
           <span className="font-pixel text-[10px] sm:text-[11px] text-[#a7d38a] flex items-center gap-1.5">
             <UserCheck size={14} /> LIVE VENUE ATTENDANCE SCANNER &amp; SEARCH
@@ -999,17 +1793,17 @@ Cognitia 2026 Organizing Team`;
           </div>
         )}
 
-        <form onSubmit={handleAttendanceScanSubmit} className="flex gap-2">
+        <form onSubmit={handleAttendanceScanSubmit} className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
             placeholder="Scan QR or enter Ticket Pass ID / Team ID (e.g. COGNITIA-2026-PASS-8192)"
             value={scanQuery}
             onChange={(e) => setScanQuery(e.target.value)}
-            className="grow bg-[#0c0e10] border border-[#254225] text-[#00f0ff] font-mono text-xs px-3 py-1.5 rounded-xs focus:border-[#a7d38a] focus:outline-none"
+            className="grow bg-[#0c0e10] border border-[#254225] text-[#00f0ff] font-mono text-xs px-3 py-2 sm:py-1.5 rounded-xs focus:border-[#a7d38a] focus:outline-none"
           />
           <button
             type="submit"
-            className="font-pixel text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-4 py-1.5 rounded-xs flex items-center gap-1 cursor-pointer shrink-0"
+            className="font-pixel text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-4 py-2 sm:py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
           >
             <CheckCircle2 size={12} /> MARK PRESENT
           </button>
@@ -1055,132 +1849,471 @@ Cognitia 2026 Organizing Team`;
         </div>
       </div>
 
-      {/* Teams Data Table */}
-      <div className="bg-[#141618] border-2 border-[#2b2e30] rounded-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#1c1f24] border-b-2 border-[#2b2e30] font-pixel text-[8px] text-[#8f9396] uppercase">
-                <th className="p-2.5">Team Name</th>
-                <th className="p-2.5">Lead Email</th>
-                <th className="p-2.5">IEM/UEM Status</th>
-                <th className="p-2.5">Phase 2 Registration Fee</th>
-                <th className="p-2.5">Venue Gate Attendance</th>
-                <th className="p-2.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#2b2e30] font-sans text-xs text-[#cfe8ff]">
-              {filteredTeams.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-6 text-center text-[#8f9396] font-silkscreen text-[8px]">
-                    No Phase 2 registrations or teams found.
-                  </td>
-                </tr>
-              ) : (
-                filteredTeams.map((t) => {
-                  const isIemUemTeam = t.isIemUemTeam || (t.members && t.members.length > 0 && t.members.every(m => m.isIemUemStudent && m.enrollmentNo));
+      {/* Track Slots Allocation Live FCFS Summary Bar (4 slots / track) */}
+      {(() => {
+        const allocations = calculateFcfsTrackAllocations(teams);
+        const counts: Record<string, number> = {};
+        allocations.forEach((alloc) => {
+          if (alloc.isQualified && alloc.assignedTrackId) {
+            counts[alloc.assignedTrackId] = (counts[alloc.assignedTrackId] || 0) + 1;
+          }
+        });
 
-                  return (
-                    <tr key={t.id} className="hover:bg-[#1b1f24]">
-                      <td className="p-2 font-semibold text-[#cfe8ff]">
-                        {t.teamName}
-                        {t.ticketPassId && (
-                          <span className="block font-mono text-[9px] text-[#86efac]">{t.ticketPassId}</span>
-                        )}
-                      </td>
-                      <td className="p-2 text-[#6fb3d9] font-mono">{t.leadEmail}</td>
+        return (
+          <div className="bg-[#090b0d] border border-[#2b4466] p-2.5 rounded-md space-y-1.5 font-silkscreen text-[8px]">
+            <div className="flex items-center justify-between border-b border-[#1e2d42] pb-1">
+              <span className="font-pixel text-[9px] text-[#38bdf8] flex items-center gap-1.5">
+                <Target size={11} /> TRACK SLOTS FCFS ALLOCATION SUMMARY (4 SLOTS PER TRACK MAX)
+              </span>
+              <span className="text-[#8f9396] text-[7.5px]">
+                QUALIFIED GATE TEAMS (2+ PRESENCE): {Array.from(allocations.values()).filter((a) => a.isQualified).length}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+              {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                const used = counts[ps.trackId] || 0;
+                const isFull = used >= 4;
+                return (
+                  <div
+                    key={ps.trackId}
+                    className={`p-1.5 rounded-xs border ${
+                      isFull
+                        ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                        : used > 0
+                        ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                        : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
+                    }`}
+                  >
+                    <span className="font-bold block truncate">{ps.trackName}</span>
+                    <div className="flex items-center justify-between pt-0.5 font-mono text-[7.5px]">
+                      <span>SLOTS: {used} / 4</span>
+                      <span>{isFull ? 'FULL' : `${4 - used} LEFT`}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
-                      {/* IEM / UEM Affiliation Badge */}
-                      <td className="p-2">
-                        {isIemUemTeam ? (
-                          <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs flex items-center gap-1 w-fit">
-                            🎓 IEM/UEM (FREE WAIVER)
-                          </span>
-                        ) : (
-                          <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs flex items-center gap-1 w-fit">
-                            🏫 EXTERNAL/MIXED (₹200 FEE)
-                          </span>
-                        )}
-                      </td>
+      {/* Teams Data Section */}
+      <div className="space-y-3">
+        {/* MOBILE CARD VIEW FOR TEAMS (PHONE SCREENS < 640px) */}
+        <div className="space-y-3 block sm:hidden">
+          {filteredTeams.length === 0 ? (
+            <div className="bg-[#141618] border-2 border-[#2b2e30] p-6 text-center text-[#8f9396] font-silkscreen text-[10px] rounded-md">
+              No Phase 2 registrations or teams found.
+            </div>
+          ) : (
+            filteredTeams.map((t) => {
+              const isIemUemTeam = isIemUemAllStudentTeam(t.members);
+              const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+              const totalMems = (t.members || []).length;
+              const minReq = Math.min(2, totalMems || 1);
+              const isQualified = checkedCount >= minReq;
 
-                      {/* Phase 2 Fee Status */}
-                      <td className="p-2">
+              return (
+                <div key={t.id} className="bg-[#141618] border-2 border-[#2b2e30] p-3.5 rounded-md space-y-3 font-sans text-xs text-[#cfe8ff]">
+                  {/* Card Header: Team Name, Pass ID & Category Badge */}
+                  <div className="flex items-start justify-between border-b border-[#2b2e30] pb-2 gap-2">
+                    <div>
+                      <span className="text-[15px] font-bold text-white block">{t.teamName}</span>
+                      <span className="text-[#6fb3d9] font-mono text-[11px] block">{t.leadEmail}</span>
+                      {t.ticketPassId && (
+                        <span className="font-mono text-[11px] text-[#86efac] font-bold block mt-0.5">{t.ticketPassId}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      {isIemUemTeam ? (
+                        <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
+                          🎓 IEM/UEM
+                        </span>
+                      ) : (
+                        <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
+                          🏫 EXTERNAL
+                        </span>
+                      )}
+                      {t.iemcrpScreenshotsSubmitted && (
+                        <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
+                          📸 PROOFS SUBMITTED
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Controls Stacked Vertically */}
+                  <div className="space-y-2.5 font-silkscreen text-[9.5px]">
+                    {/* 1. Track Assignment */}
+                    <div className="space-y-1">
+                      <label className="text-[#8f9396] block text-[9px] font-bold">TRACK ASSIGNMENT (FCFS / OVERRIDE):</label>
+                      <select
+                        value={t.selectedTrack || ''}
+                        onChange={(e) => handleTrackOverride(t.id, e.target.value)}
+                        className={`font-silkscreen text-[10px] px-2.5 py-1.5 rounded-xs border cursor-pointer w-full ${
+                          t.selectedTrack
+                            ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8] font-bold'
+                            : 'bg-[#090b0d] text-[#38bdf8] border-[#2b2e30]'
+                        }`}
+                      >
+                        <option value="">⚡ AUTO (FCFS Allocation)</option>
+                        {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
+                          <option key={ps.trackId} value={ps.trackName}>
+                            {ps.trackName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 2. Selection & Registration Fee */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[#8f9396] block text-[9px] font-bold">PHASE 2 SELECTION:</label>
+                        <select
+                          value={t.phase2Status || 'pending'}
+                          onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
+                          className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${
+                            t.phase2Status === 'selected'
+                              ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                              : t.phase2Status === 'waitlisted'
+                              ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                              : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                          }`}
+                        >
+                          <option value="pending">PENDING</option>
+                          <option value="selected">SELECTED</option>
+                          <option value="waitlisted">WAITLISTED</option>
+                          <option value="not_selected">NOT SELECTED</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[#8f9396] block text-[9px] font-bold">FEE STATUS:</label>
                         <select
                           value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
                           onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
-                          className={`font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border cursor-pointer ${t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
+                          className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${
+                            t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
                               ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
                               : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
+                              ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
+                              : 'bg-[#241818] text-[#eb5147] border-[#422525]'
+                          }`}
+                        >
+                          <option value="unpaid">P2: UNPAID</option>
+                          <option value="payment_pending">P2: PENDING</option>
+                          <option value="payment_verified">P2: VERIFIED</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* 3. Venue Gate Attendance */}
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[#8f9396] block text-[9px] font-bold">VENUE GATE ATTENDANCE:</label>
+                      <button
+                        onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
+                        className={`font-silkscreen text-[10px] px-3 py-2 rounded-xs border flex items-center gap-1.5 cursor-pointer w-full justify-center ${
+                          isQualified
+                            ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                            : checkedCount > 0
+                            ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                            : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                        }`}
+                      >
+                        <UserCheck size={13} />
+                        {isQualified
+                          ? `PRESENT (${checkedCount}/${totalMems})`
+                          : checkedCount > 0
+                          ? `PARTIAL (${checkedCount}/${totalMems})`
+                          : 'MARK PRESENT'}
+                      </button>
+
+                      {checkedCount > 0 && (
+                        <div className="space-y-1 font-mono text-[9.5px] text-[#8f9396] bg-[#090b0d] p-2 rounded-xs border border-[#1e2d42] mt-1">
+                          {(t.members || []).map((m, mIdx) => (
+                            <div key={mIdx} className="flex items-center justify-between gap-1">
+                              <span className="text-[#cfe8ff] font-semibold">{m.name} ({m.isLead ? 'L' : `M${mIdx+1}`})</span>
+                              <span className={m.checkInStatus === 'checked_in' ? 'text-[#86efac] font-bold' : 'text-[#525866]'}>
+                                {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || 'Checked In') : '—'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4. Action Buttons */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2b2e30]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sound.playBlip(500);
+                          setCopiedTemplate(false);
+                          setCreatedCredentialsModal({
+                            teamName: t.teamName,
+                            leadName: t.members?.[0]?.name || 'Team Lead',
+                            leadEmail: t.leadEmail,
+                            password: t.leadPasswordHash || 'Cognitia2026',
+                          });
+                        }}
+                        className="bg-[#182418] border border-[#254225] text-[#86efac] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
+                      >
+                        🔑 CREDS
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sound.playBlip(600);
+                          setSelectedTeamModal(t);
+                        }}
+                        className="bg-[#1e2329] border border-[#3a4149] text-[#f4c151] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
+                      >
+                        🔍 INSPECT
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* DESKTOP TABLE VIEW FOR TEAMS (DESKTOP & TABLET SCREENS ≥ 640px) */}
+        <div className="hidden sm:block bg-[#141618] border-2 border-[#2b2e30] rounded-md w-full max-w-full overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[960px]">
+            <thead>
+              <tr className="bg-[#1c1f24] border-b-2 border-[#2b2e30] font-pixel text-[10px] sm:text-[10.5px] text-[#8f9396] uppercase whitespace-nowrap">
+                <th className="py-2.5 px-2.5 min-w-[130px]">Team Name</th>
+                <th className="py-2.5 px-2.5 min-w-[130px]">Lead Email</th>
+                <th className="py-2.5 px-2.5 min-w-[145px]">Track Assignment</th>
+                <th className="py-2.5 px-2.5 min-w-[110px]">Phase 2 Selection</th>
+                <th className="py-2.5 px-2.5 min-w-[115px]">IEM/UEM Status</th>
+                <th className="py-2.5 px-2.5 min-w-[140px]">Registration Fee</th>
+                <th className="py-2.5 px-2.5 min-w-[140px]">Gate Attendance</th>
+                <th className="py-2.5 px-2.5 min-w-[95px] text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#2b2e30] font-sans text-xs text-[#cfe8ff]">
+                {filteredTeams.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-[#8f9396] font-silkscreen text-[10px]">
+                      No Phase 2 registrations or teams found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTeams.map((t) => {
+                    const isIemUemTeam = isIemUemAllStudentTeam(t.members);
+
+                    return (
+                      <tr key={t.id} className="hover:bg-[#1b1f24]">
+                        <td className="py-2.5 px-2.5 font-semibold text-[#cfe8ff]">
+                          <span className="text-[12.5px] sm:text-[13.5px] font-bold block leading-tight">{t.teamName}</span>
+                          {t.ticketPassId && (
+                            <span className="block font-mono text-[10px] text-[#86efac] font-bold mt-0.5">{t.ticketPassId}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2.5 text-[#6fb3d9] font-mono text-[11px] truncate max-w-[130px]" title={t.leadEmail}>
+                          {t.leadEmail}
+                        </td>
+
+                        {/* Track Assignment (FCFS Auto / Admin Override) */}
+                        <td className="py-2.5 px-2.5">
+                          {(() => {
+                            const allocations = calculateFcfsTrackAllocations(teams);
+                            const alloc = allocations.get(t.id);
+                            const currentTrackName = t.selectedTrack || alloc?.assignedTrackName || 'NLP & Computer Vision';
+                            const isOverridden = Boolean(t.selectedTrack);
+
+                            return (
+                              <div className="space-y-1">
+                                <select
+                                  value={t.selectedTrack || ''}
+                                  onChange={(e) => handleTrackOverride(t.id, e.target.value)}
+                                  className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer w-full max-w-[145px] truncate ${
+                                    isOverridden
+                                      ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8] font-bold'
+                                      : 'bg-[#141618] text-[#38bdf8] border-[#2b2e30]'
+                                  }`}
+                                  title={isOverridden ? `Admin Overridden: ${currentTrackName}` : `FCFS Auto Assigned: ${currentTrackName}`}
+                                >
+                                  <option value="">⚡ AUTO (FCFS Allocation)</option>
+                                  {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
+                                    <option key={ps.trackId} value={ps.trackName}>
+                                      {ps.trackName}
+                                    </option>
+                                  ))}
+                                </select>
+                                <div className="flex items-center gap-1 text-[8px] font-silkscreen">
+                                  {isOverridden ? (
+                                    <span className="bg-[#581c87] text-[#e9d5ff] px-1.5 py-0.5 rounded-xs border border-[#7e22ce]">
+                                      ⚡ OVERRIDDEN
+                                    </span>
+                                  ) : (
+                                    <span className="bg-[#1c2836] text-[#38bdf8] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30">
+                                      🤖 FCFS {alloc?.slotNumber ? `#${alloc.slotNumber}/4` : 'READY'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </td>
+
+                        {/* Phase 2 Selection Status */}
+                        <td className="py-2.5 px-2.5">
+                          <select
+                            value={t.phase2Status || 'pending'}
+                            onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
+                            className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${
+                              t.phase2Status === 'selected'
+                                ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                                : t.phase2Status === 'waitlisted'
+                                ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                                : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                            }`}
+                          >
+                            <option value="pending">PENDING</option>
+                            <option value="selected">SELECTED</option>
+                            <option value="waitlisted">WAITLISTED</option>
+                            <option value="not_selected">NOT SELECTED</option>
+                          </select>
+                        </td>
+
+                        {/* IEM / UEM Affiliation Badge */}
+                        <td className="py-2.5 px-2.5">
+                          {isIemUemTeam ? (
+                            <div className="space-y-1">
+                              <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
+                                🎓 IEM/UEM (FREE)
+                              </span>
+                              {t.iemcrpScreenshotsSubmitted && (
+                                <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1 py-0.5 rounded-xs block w-fit">
+                                  📸 PROOFS OK
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
+                              🏫 EXTERNAL (₹200)
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Phase 2 Fee Status */}
+                        <td className="py-2.5 px-2.5">
+                          <select
+                            value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
+                            onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
+                            className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${
+                              t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
+                                ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                                : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
                                 ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
                                 : 'bg-[#241818] text-[#eb5147] border-[#422525]'
                             }`}
-                        >
-                          <option value="unpaid">P2: UNPAID</option>
-                          <option value="payment_pending">P2: VERIFICATION PENDING</option>
-                          <option value="payment_verified">P2: VERIFIED &amp; TICKET ISSUED</option>
-                        </select>
-                      </td>
-
-                      {/* Attendance Status */}
-                      <td className="p-2">
-                        <button
-                          onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
-                          className={`font-silkscreen text-[7px] px-2 py-0.5 rounded-xs border flex items-center gap-1 cursor-pointer ${t.attendanceStatus === 'checked_in'
-                              ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                              : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
-                            }`}
-                        >
-                          <UserCheck size={10} />
-                          {t.attendanceStatus === 'checked_in'
-                            ? `PRESENT (${t.checkInTimestamp || 'OK'})`
-                            : 'MARK PRESENT'}
-                        </button>
-                      </td>
-
-                      <td className="p-2 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sound.playBlip(500);
-                              setCopiedTemplate(false);
-                              setCreatedCredentialsModal({
-                                teamName: t.teamName,
-                                leadName: t.members?.[0]?.name || 'Team Lead',
-                                leadEmail: t.leadEmail,
-                                password: t.leadPasswordHash || 'Cognitia2026',
-                              });
-                            }}
-                            className="bg-[#182418] border border-[#254225] hover:border-[#4ade80] font-pixel text-[7px] text-[#86efac] px-2 py-0.5 rounded-xs cursor-pointer"
-                            title="View & Copy Email Credentials Template"
                           >
-                            🔑 Creds
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sound.playBlip(600);
-                              setSelectedTeamModal(t);
-                            }}
-                            className="bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] font-pixel text-[7px] text-[#f4c151] px-2 py-0.5 rounded-xs cursor-pointer"
-                          >
-                            INSPECT
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }))}
-            </tbody>
-          </table>
+                            <option value="unpaid">P2: UNPAID</option>
+                            <option value="payment_pending">P2: PENDING</option>
+                            <option value="payment_verified">P2: VERIFIED</option>
+                          </select>
+                        </td>
+
+                        {/* Attendance Status */}
+                        <td className="py-2.5 px-2.5">
+                          {(() => {
+                            const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                            const totalMems = (t.members || []).length;
+                            const minReq = Math.min(2, totalMems || 1);
+                            const isQualified = checkedCount >= minReq;
+
+                            return (
+                              <div className="space-y-1">
+                                <button
+                                  onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
+                                  className={`font-silkscreen text-[8px] sm:text-[8.5px] px-2 py-1 rounded-xs border flex items-center gap-1 cursor-pointer w-full justify-center ${
+                                    isQualified
+                                      ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                                      : checkedCount > 0
+                                      ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                                      : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
+                                  }`}
+                                  title={
+                                    isQualified
+                                      ? `Verified present at venue (${checkedCount}/${totalMems} members)`
+                                      : `Minimum 2 members required (Current: ${checkedCount}/${totalMems})`
+                                  }
+                                >
+                                  <UserCheck size={10} />
+                                  {isQualified
+                                    ? `PRESENT (${checkedCount}/${totalMems})`
+                                    : checkedCount > 0
+                                    ? `PARTIAL (${checkedCount}/${totalMems})`
+                                    : 'MARK PRESENT'}
+                                </button>
+                                {checkedCount > 0 && (
+                                  <div className="space-y-0.5 font-mono text-[8px] text-[#8f9396] bg-[#090b0d] p-1 rounded-xs border border-[#1e2d42]">
+                                    {(t.members || []).map((m, mIdx) => (
+                                      <div key={mIdx} className="flex items-center justify-between gap-1 truncate">
+                                        <span className="truncate text-[#cfe8ff] font-semibold">{m.name.split(' ')[0]} ({m.isLead ? 'L' : `M${mIdx+1}`})</span>
+                                        <span className={m.checkInStatus === 'checked_in' ? 'text-[#86efac] font-bold' : 'text-[#525866]'}>
+                                          {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || 'OK') : '—'}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </td>
+
+                        <td className="py-2.5 px-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playBlip(500);
+                                setCopiedTemplate(false);
+                                setCreatedCredentialsModal({
+                                  teamName: t.teamName,
+                                  leadName: t.members?.[0]?.name || 'Team Lead',
+                                  leadEmail: t.leadEmail,
+                                  password: t.leadPasswordHash || 'Cognitia2026',
+                                });
+                              }}
+                              className="bg-[#182418] border border-[#254225] hover:border-[#4ade80] font-pixel text-[8px] sm:text-[8.5px] text-[#86efac] px-2 py-0.5 rounded-xs cursor-pointer"
+                              title="View & Copy Email Credentials Template"
+                            >
+                              🔑 Creds
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playBlip(600);
+                                setSelectedTeamModal(t);
+                              }}
+                              className="bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] font-pixel text-[8px] sm:text-[8.5px] text-[#f4c151] px-2 py-0.5 rounded-xs cursor-pointer"
+                            >
+                              INSPECT
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
         </div>
       </div>
+        </div>
+      )}
 
       {/* INSPECTOR MODAL */}
       {selectedTeamModal &&
         createPortal(
           <div className="fixed inset-0 z-[999999] bg-black/85 backdrop-blur-sm flex justify-center items-center p-3 sm:p-6 overflow-y-auto">
-            <div className="w-full max-w-2xl bg-[#141618] border-2 border-[#f4c151] p-4 sm:p-5 pb-6 rounded-md shadow-[0_0_50px_rgba(0,0,0,0.95)] max-h-[82vh] overflow-y-auto space-y-4 my-auto relative z-[999999]">
+            <div className="w-full max-w-2xl bg-[#141618] border-2 border-[#f4c151] p-4 sm:p-5 pb-6 rounded-md shadow-[0_0_50px_rgba(0,0,0,0.95)] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto space-y-4 my-auto relative z-[999999]">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
                 <div>
@@ -1277,7 +2410,7 @@ Cognitia 2026 Organizing Team`;
                         onChange={(e) => setAdminMemGithub(e.target.value)}
                         className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] p-1.5 rounded-xs font-mono"
                       />
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-1">
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
                             type="checkbox"
@@ -1286,13 +2419,13 @@ Cognitia 2026 Organizing Team`;
                           />
                           <span className="text-[#86efac]">IEM/UEM Student</span>
                         </label>
-                        {adminMemIsIemUem && (
+                        {!adminMemIsIemUem && (
                           <input
                             type="text"
-                            placeholder="Enrollment No."
-                            value={adminMemEnrollment}
-                            onChange={(e) => setAdminMemEnrollment(e.target.value)}
-                            className="bg-[#090b0d] border border-[#254225] text-[#86efac] p-1.5 rounded-xs grow font-mono"
+                            placeholder="College / University Name *"
+                            value={adminMemCollegeName}
+                            onChange={(e) => setAdminMemCollegeName(e.target.value)}
+                            className="bg-[#090b0d] border border-[#2b2e30] text-[#93c5fd] p-1.5 rounded-xs font-mono text-[9px]"
                           />
                         )}
                       </div>
@@ -1332,6 +2465,27 @@ Cognitia 2026 Organizing Team`;
                             <span className="text-[#4ade80] font-mono text-[8.5px] bg-[#142417] px-1.5 py-0.5 rounded-xs border border-[#25522b] font-bold">
                               {memberPassId}
                             </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playBlip(400);
+                                setEditingMember({
+                                  memberId: m.id || memberPassId,
+                                  name: m.name,
+                                  email: m.email,
+                                  phone: m.phone,
+                                  role: m.role || (m.isLead ? 'Team Lead' : 'Developer'),
+                                  githubId: m.githubId || '',
+                                  isIemUemStudent: isIemUemMember(m),
+                                  collegeName: m.collegeName || (isIemUemMember(m) ? 'IEM / UEM' : 'External'),
+                                  enrollmentNo: m.enrollmentNo || '',
+                                });
+                              }}
+                              className="p-1 px-1.5 bg-[#1e2836] border border-[#38bdf8]/40 hover:border-[#38bdf8] text-[#38bdf8] hover:text-white rounded-xs text-[8px] font-silkscreen flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Edit Member Details (Admin)"
+                            >
+                              <Edit2 size={10} /> EDIT
+                            </button>
                             {!m.isLead && (
                               <button
                                 type="button"
@@ -1422,33 +2576,110 @@ Cognitia 2026 Organizing Team`;
                 </div>
               </div>
 
-              {/* EVENT STAGE 3: TRACK PREFERENCES ORDER */}
-              <div className="bg-[#090b0d] border border-[#2b2e30] p-3 rounded-xs space-y-2">
-                <div className="flex items-center justify-between border-b border-[#2b2e30] pb-1.5">
-                  <span className="font-pixel text-[9px] text-[#f4c151] flex items-center gap-1.5">
-                    <Target size={12} /> STAGE 3: TRACK PREFERENCES ORDER
-                  </span>
-                  <span className={`font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs border ${selectedTeamModal.isTrackLocked ? 'bg-[#182418] text-[#a7d38a] border-[#254225]' : 'bg-[#241d14] text-[#f2933d] border-[#423325]'
-                    }`}>
-                    {selectedTeamModal.isTrackLocked ? 'LOCKED & CONFIRMED' : 'UNLOCKED PREFERENCES'}
+              {/* EVENT STAGE 3: TRACK PREFERENCES ORDER & MANUAL OVERRIDE & FAIR FCFS AUDIT */}
+              <div className="bg-[#090b0d] border border-[#2b2e30] p-3 rounded-xs space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-[#2b2e30] pb-2 gap-2">
+                  <div>
+                    <span className="font-pixel text-[9.5px] text-[#f4c151] flex items-center gap-1.5">
+                      <Target size={13} /> STAGE 3: TRACK ASSIGNMENT &amp; FAIR FCFS AUDIT
+                    </span>
+                    <p className="font-silkscreen text-[7.5px] text-[#8f9396] mt-0.5">
+                      Track slots auto-allocated on FCFS order when 2+ members check in at gate. Admin can manually override below.
+                    </p>
+                  </div>
+                  <span className={`font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs border ${
+                    selectedTeamModal.selectedTrack
+                      ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8]'
+                      : 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                  }`}>
+                    {selectedTeamModal.selectedTrack ? '⚡ MANUALLY OVERRIDDEN' : '🤖 AUTO FCFS ALLOCATED'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-silkscreen text-[8.5px]">
-                  {selectedTeamModal.trackPreferences && selectedTeamModal.trackPreferences.filter(Boolean).length > 0 ? (
-                    selectedTeamModal.trackPreferences.filter(Boolean).map((track, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-1.5 bg-[#141618] border border-[#2b2e30] rounded-xs">
-                        <span className="font-pixel text-[8px] text-[#f4c151] px-1.5 py-0.5 bg-[#2b2414] rounded-xs border border-[#423325] shrink-0">
-                          #{idx + 1} CHOICE
-                        </span>
-                        <span className="text-[#cfe8ff] font-bold truncate">{track}</span>
+                {/* Admin Manual Track Override Select Control */}
+                <div className="p-2.5 bg-[#141618] border border-[#38bdf8]/40 rounded-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-silkscreen text-[8px] text-[#38bdf8] font-bold">
+                      🛠️ ADMIN MANUAL TRACK OVERRIDE CONTROL:
+                    </span>
+                    {selectedTeamModal.selectedTrack && (
+                      <button
+                        type="button"
+                        onClick={() => handleTrackOverride(selectedTeamModal.id, '')}
+                        className="text-[#f87171] hover:underline font-silkscreen text-[7px] cursor-pointer"
+                      >
+                        RESET TO AUTO FCFS
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    value={selectedTeamModal.selectedTrack || ''}
+                    onChange={(e) => handleTrackOverride(selectedTeamModal.id, e.target.value)}
+                    className="w-full bg-[#090b0d] border border-[#38bdf8] text-[#cfe8ff] font-pixel text-[9px] p-2 rounded-xs cursor-pointer focus:outline-none focus:border-[#00f0ff]"
+                  >
+                    <option value="">⚡ AUTO (FCFS Preference Order based on Gate Qualified Timestamp)</option>
+                    {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
+                      <option key={ps.trackId} value={ps.trackName}>
+                        {ps.trackName} ({ps.trackId})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Participant Track Preferences Order */}
+                <div className="space-y-1">
+                  <span className="font-silkscreen text-[7.5px] text-[#8f9396]">PARTICIPANT SUBMITTED TRACK PREFERENCES ORDER:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-silkscreen text-[8.5px]">
+                    {selectedTeamModal.trackPreferences && selectedTeamModal.trackPreferences.filter(Boolean).length > 0 ? (
+                      selectedTeamModal.trackPreferences.filter(Boolean).map((track, idx) => (
+                        <div key={idx} className="flex items-center gap-2 p-1.5 bg-[#141618] border border-[#2b2e30] rounded-xs">
+                          <span className="font-pixel text-[8px] text-[#f4c151] px-1.5 py-0.5 bg-[#2b2414] rounded-xs border border-[#423325] shrink-0">
+                            #{idx + 1} CHOICE
+                          </span>
+                          <span className="text-[#cfe8ff] font-bold truncate">{track}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-[#8f9396] italic col-span-2 p-1.5 bg-[#141618] border border-[#2b2e30] rounded-xs text-[8px]">
+                        Selected Track: {selectedTeamModal.selectedTrack || 'General Track (No preferences locked)'}
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-[#8f9396] italic col-span-2 p-1 bg-[#141618]">
-                      Selected Track: {selectedTeamModal.selectedTrack || 'General Track (No preferences locked)'}
-                    </div>
-                  )}
+                    )}
+                  </div>
+                </div>
+
+                {/* MEMBER ATTENDANCE TIMESTAMPS BREAKDOWN FOR FAIR ASSIGNMENT AUDIT */}
+                <div className="space-y-1.5 pt-1 border-t border-[#2b2e30]">
+                  <span className="font-silkscreen text-[8px] text-[#86efac] flex items-center gap-1 font-bold">
+                    <Clock size={11} /> MEMBER ATTENDANCE TIMESTAMPS AUDIT (BACKUP &amp; FAIR FCFS VERIFICATION):
+                  </span>
+                  <div className="bg-[#141618] border border-[#2b2e30] rounded-xs divide-y divide-[#2b2e30] overflow-hidden font-silkscreen text-[8px]">
+                    {(selectedTeamModal.members || []).map((m, mIdx) => {
+                      const isChecked = m.checkInStatus === 'checked_in';
+                      return (
+                        <div key={mIdx} className="p-2 flex items-center justify-between gap-2 hover:bg-[#1b1f24]">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-1.5 py-0.5 rounded-xs font-mono text-[7px] ${m.isLead ? 'bg-[#2b2414] text-[#f4c151] border border-[#423325]' : 'bg-[#1c1f24] text-[#8f9396]'}`}>
+                              {m.isLead ? 'LEAD' : `MEM ${mIdx + 1}`}
+                            </span>
+                            <div>
+                              <span className="text-white font-bold block">{m.name}</span>
+                              <span className="text-[#6fb3d9] font-mono text-[7.5px]">{m.email || 'No Email'}</span>
+                            </div>
+                          </div>
+                          <div className="text-right space-y-0.5">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-xs border font-pixel text-[7px] ${
+                              isChecked ? 'bg-[#182418] text-[#86efac] border-[#25522b]' : 'bg-[#241818] text-[#eb5147] border-[#422525]'
+                            }`}>
+                              {isChecked ? '✓ CHECKED IN' : '✗ NOT CHECKED IN'}
+                            </span>
+                            <span className="block font-mono text-[7.5px] text-[#8f9396]">
+                              TIME: {isChecked ? (m.checkInTimestamp || 'Venue Check-in Recorded') : 'Pending Gate Arrival'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -1472,8 +2703,18 @@ Cognitia 2026 Organizing Team`;
                   </span>
                 </div>
 
-                {/* UTR / Ref ID */}
-                {(selectedTeamModal.phase2PaymentTransactionId || selectedTeamModal.paymentTransactionId) ? (
+                {/* Free Waiver banner for IEM/UEM vs UTR/Screenshot for External */}
+                {isIemUemAllStudentTeam(selectedTeamModal.members) ? (
+                  <div className="p-2.5 bg-[#122314] border border-[#27662c] rounded-xs font-silkscreen text-[8px] text-[#86efac] space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-[#4ade80]">
+                      <ShieldCheck size={12} />
+                      <span>🎓 100% FREE ENTRY WAIVER (IEM / UEM AFFILIATED TEAM)</span>
+                    </div>
+                    <p className="text-[#a7d38a] font-mono text-[7.5px] leading-relaxed">
+                      Zero registration fee required. Verified through member IEMCRP screenshots and Enrollment Nos. in Stage 2 above.
+                    </p>
+                  </div>
+                ) : (selectedTeamModal.phase2PaymentTransactionId || selectedTeamModal.paymentTransactionId) ? (
                   <div className="p-2 bg-[#141618] border border-[#2b2e30] rounded-xs font-mono text-xs text-[#86efac] flex items-center justify-between">
                     <span>PHASE 2 PAYMENT UTR / REF ID:</span>
                     <span className="font-bold text-white">{selectedTeamModal.phase2PaymentTransactionId || selectedTeamModal.paymentTransactionId}</span>
@@ -1484,7 +2725,7 @@ Cognitia 2026 Organizing Team`;
                   </div>
                 )}
 
-                {/* Payment Receipt */}
+                {/* Payment Receipt (for external teams or if uploaded) */}
                 {(selectedTeamModal.phase2PaymentScreenshotUrl || selectedTeamModal.paymentScreenshotUrl) && (
                   <div className="space-y-1">
                     <span className="font-silkscreen text-[8px] text-[#86efac] block">PHASE 2 SUBMITTED RECEIPT:</span>
@@ -1511,22 +2752,70 @@ Cognitia 2026 Organizing Team`;
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
-                  <span className="font-silkscreen text-[8px] text-[#8f9396] shrink-0">SET PHASE 2 STATUS:</span>
-                  <select
-                    value={selectedTeamModal.phase2PaymentStatus || selectedTeamModal.paymentStatus || 'unpaid'}
-                    onChange={(e) => handlePhase2PaymentStatusChange(selectedTeamModal.id, e.target.value as Phase2PaymentStatus)}
-                    className="font-pixel text-[8.5px] bg-[#1c1f24] border border-[#3a4149] text-[#f4c151] px-2 py-1.5 rounded-xs w-full cursor-pointer"
-                  >
-                    <option value="unpaid">MARK PHASE 2: UNPAID</option>
-                    <option value="payment_pending">MARK PHASE 2: PENDING VERIFICATION</option>
-                    <option value="payment_verified">MARK PHASE 2: VERIFIED &amp; ISSUE TICKET PASS</option>
-                  </select>
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <span className="font-silkscreen text-[8px] text-[#8f9396] shrink-0">PHASE 2 SELECTION:</span>
+                    <select
+                      value={selectedTeamModal.phase2Status || 'pending'}
+                      onChange={(e) => handlePhase2StatusChange(selectedTeamModal.id, e.target.value as Phase2SelectionStatus)}
+                      className={`font-pixel text-[8.5px] px-2 py-1.5 rounded-xs w-full cursor-pointer border ${
+                        selectedTeamModal.phase2Status === 'selected'
+                          ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                          : selectedTeamModal.phase2Status === 'waitlisted'
+                          ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                          : 'bg-[#1c1f24] text-[#cfe8ff] border-[#3a4149]'
+                      }`}
+                    >
+                      <option value="pending">PENDING SELECTION</option>
+                      <option value="selected">SELECTED FOR PHASE 2</option>
+                      <option value="waitlisted">WAITLISTED FOR PHASE 2</option>
+                      <option value="not_selected">NOT SELECTED</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <span className="font-silkscreen text-[8px] text-[#8f9396] shrink-0">SET PAYMENT STATUS:</span>
+                    <select
+                      value={selectedTeamModal.phase2PaymentStatus || selectedTeamModal.paymentStatus || 'unpaid'}
+                      onChange={(e) => handlePhase2PaymentStatusChange(selectedTeamModal.id, e.target.value as Phase2PaymentStatus)}
+                      className="font-pixel text-[8.5px] bg-[#1c1f24] border border-[#3a4149] text-[#f4c151] px-2 py-1.5 rounded-xs w-full cursor-pointer"
+                    >
+                      <option value="unpaid">MARK PHASE 2: UNPAID</option>
+                      <option value="payment_pending">MARK PHASE 2: PENDING VERIFICATION</option>
+                      <option value="payment_verified">MARK PHASE 2: VERIFIED &amp; ISSUE TICKET PASS</option>
+                    </select>
+                  </div>
+
+                  {!(selectedTeamModal.phase2PaymentStatus === 'payment_verified' || selectedTeamModal.paymentStatus === 'payment_verified') && (
+                    <button
+                      type="button"
+                      onClick={() => handlePhase2PaymentStatusChange(selectedTeamModal.id, 'payment_verified')}
+                      className="w-full bg-[#1e4620] hover:bg-[#275c2a] border-2 border-[#4ade80] text-[#86efac] font-pixel text-[8.5px] py-2 px-3 rounded-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-[2px_2px_0_0_#000] transition-colors"
+                    >
+                      <ShieldCheck size={14} />
+                      {isIemUemAllStudentTeam(selectedTeamModal.members)
+                        ? 'APPROVE IEM/UEM FREE WAIVER & ISSUE TICKET PASS'
+                        : 'VERIFY PHASE 2 PAYMENT & ISSUE TICKET PASS'}
+                    </button>
+                  )}
                 </div>
 
                 {selectedTeamModal.ticketPassId && (
-                  <div className="p-2 bg-[#182418] border border-[#254225] text-[#a7d38a] font-silkscreen text-[8.5px] text-center rounded-xs">
-                    OFFICIAL TICKET PASS ID: <span className="font-mono text-white font-bold">{selectedTeamModal.ticketPassId}</span>
+                  <div className="p-2.5 bg-[#182418] border border-[#254225] text-[#a7d38a] font-silkscreen text-[8.5px] flex flex-col sm:flex-row items-center justify-between gap-2 rounded-xs">
+                    <div>
+                      OFFICIAL TICKET PASS ID: <span className="font-mono text-white font-bold">{selectedTeamModal.ticketPassId}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        sound.playBlip(700);
+                        await downloadTicketPdf(selectedTeamModal);
+                      }}
+                      className="bg-[#1e4620] hover:bg-[#275c2a] text-[#86efac] border border-[#4ade80] font-pixel text-[8px] px-2.5 py-1 rounded-xs flex items-center gap-1 cursor-pointer shadow-[1px_1px_0_0_#000] transition-colors"
+                      title="Download official PDF ticket pass"
+                    >
+                      <Download size={11} /> DOWNLOAD PASS (PDF)
+                    </button>
                   </div>
                 )}
               </div>
@@ -1557,8 +2846,8 @@ Cognitia 2026 Organizing Team`;
       {/* MODAL: INSERT NEW TEAM CREDENTIALS */}
       {showAddTeamModal &&
         createPortal(
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-[#0c0e10] border-2 border-[#34783a] rounded-md max-w-lg w-full p-4 sm:p-5 space-y-4 shadow-[0_0_30px_rgba(52,120,58,0.4)]">
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-[#0c0e10] border-2 border-[#34783a] rounded-md max-w-lg w-full p-4 sm:p-5 space-y-4 shadow-[0_0_30px_rgba(52,120,58,0.4)] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
               <div className="flex items-center justify-between border-b border-[#254225] pb-2">
                 <span className="font-pixel text-[11px] text-[#86efac] flex items-center gap-1.5">
                   <Sparkles size={14} /> INSERT PHASE 2 TEAM CREDENTIALS
@@ -1642,6 +2931,206 @@ Cognitia 2026 Organizing Team`;
                 </div>
 
                 <div>
+                  <label className="block text-[#cfe8ff] mb-1">LEAD GITHUB USERNAME</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. peterparker (without @)"
+                    value={newLeadGithub}
+                    onChange={(e) => setNewLeadGithub(e.target.value)}
+                    className="w-full bg-[#141618] border border-[#2b2e30] text-[#38bdf8] font-mono text-xs px-3 py-1.5 rounded-xs focus:border-[#4ade80] focus:outline-none"
+                  />
+                </div>
+
+                {/* Lead Institution & Verification Status */}
+                <div className="p-2.5 bg-[#141618] border border-[#2b2e30] rounded-xs space-y-2">
+                  <label className="block text-[#86efac] font-bold">LEAD INSTITUTION &amp; CATEGORY</label>
+                  <div className="flex items-center gap-4 text-[9px]">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="lead_inst"
+                        checked={newLeadIsIemUem}
+                        onChange={() => setNewLeadIsIemUem(true)}
+                        className="accent-[#4ade80]"
+                      />
+                      <span className="text-[#86efac]">🎓 IEM / UEM Student (₹0 Waiver)</span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="lead_inst"
+                        checked={!newLeadIsIemUem}
+                        onChange={() => setNewLeadIsIemUem(false)}
+                        className="accent-[#38bdf8]"
+                      />
+                      <span className="text-[#93c5fd]">🏫 External College</span>
+                    </label>
+                  </div>
+
+                  {!newLeadIsIemUem && (
+                    <div>
+                      <label className="block text-[#8f9396] text-[8px] mb-1">COLLEGE / INSTITUTION NAME</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Heritage Institute of Technology"
+                        value={newLeadCollegeName}
+                        onChange={(e) => setNewLeadCollegeName(e.target.value)}
+                        className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#93c5fd] font-mono text-xs px-2.5 py-1 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* ADDITIONAL TEAM MEMBERS SECTION */}
+                <div className="p-2.5 bg-[#090b0d] border border-[#2b2e30] rounded-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#f4c151] font-bold text-[9px]">ADDITIONAL TEAM MEMBERS ({newExtraMembers.length} / 3)</span>
+                    {newExtraMembers.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewExtraMembers([
+                            ...newExtraMembers,
+                            {
+                              name: '',
+                              email: '',
+                              phone: '',
+                              role: `Member ${newExtraMembers.length + 2}`,
+                              githubId: '',
+                              isIemUemStudent: true,
+                              collegeName: 'IEM / UEM',
+                              enrollmentNo: '',
+                            },
+                          ]);
+                        }}
+                        className="bg-[#1e2836] hover:bg-[#28384d] text-[#38bdf8] border border-[#38bdf8]/50 font-pixel text-[8px] px-2 py-1 rounded-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        ➕ ADD MEMBER #{newExtraMembers.length + 2}
+                      </button>
+                    )}
+                  </div>
+
+                  {newExtraMembers.map((mem, idx) => (
+                    <div key={idx} className="p-2 bg-[#141618] border border-[#2b2e30] rounded-xs space-y-2 relative">
+                      <div className="flex items-center justify-between border-b border-[#2b2e30] pb-1">
+                        <span className="text-[#38bdf8] font-bold text-[8.5px]">MEMBER #{idx + 2}</span>
+                        <button
+                          type="button"
+                          onClick={() => setNewExtraMembers(newExtraMembers.filter((_, i) => i !== idx))}
+                          className="text-[#eb5147] hover:underline text-[8px]"
+                        >
+                          [ 🗑️ Remove ]
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Member Name *"
+                          value={mem.name}
+                          onChange={(e) => {
+                            const updated = [...newExtraMembers];
+                            updated[idx].name = e.target.value;
+                            setNewExtraMembers(updated);
+                          }}
+                          className="bg-[#0c0e10] border border-[#2b2e30] text-white font-mono text-[9.5px] px-2 py-1 rounded-xs"
+                        />
+                        <input
+                          type="email"
+                          placeholder="Member Email *"
+                          value={mem.email}
+                          onChange={(e) => {
+                            const updated = [...newExtraMembers];
+                            updated[idx].email = e.target.value;
+                            setNewExtraMembers(updated);
+                          }}
+                          className="bg-[#0c0e10] border border-[#2b2e30] text-[#6fb3d9] font-mono text-[9.5px] px-2 py-1 rounded-xs"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Phone"
+                          value={mem.phone}
+                          onChange={(e) => {
+                            const updated = [...newExtraMembers];
+                            updated[idx].phone = e.target.value;
+                            setNewExtraMembers(updated);
+                          }}
+                          className="bg-[#0c0e10] border border-[#2b2e30] text-white font-mono text-[9.5px] px-2 py-1 rounded-xs"
+                        />
+                        <input
+                          type="text"
+                          placeholder="GitHub Username"
+                          value={mem.githubId}
+                          onChange={(e) => {
+                            const updated = [...newExtraMembers];
+                            updated[idx].githubId = e.target.value;
+                            setNewExtraMembers(updated);
+                          }}
+                          className="bg-[#0c0e10] border border-[#2b2e30] text-[#38bdf8] font-mono text-[9.5px] px-2 py-1 rounded-xs"
+                        />
+                      </div>
+
+                      {/* IEM / UEM Member Category Selection */}
+                      <div className="flex flex-col gap-1.5 pt-1 text-[8.5px] font-silkscreen">
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`mem_cat_${idx}`}
+                              checked={mem.isIemUemStudent}
+                              onChange={() => {
+                                const updated = [...newExtraMembers];
+                                updated[idx].isIemUemStudent = true;
+                                updated[idx].collegeName = 'IEM / UEM';
+                                setNewExtraMembers(updated);
+                              }}
+                              className="accent-[#4ade80]"
+                            />
+                            <span className="text-[#86efac]">🎓 IEM / UEM</span>
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`mem_cat_${idx}`}
+                              checked={!mem.isIemUemStudent}
+                              onChange={() => {
+                                const updated = [...newExtraMembers];
+                                updated[idx].isIemUemStudent = false;
+                                if (updated[idx].collegeName === 'IEM / UEM') {
+                                  updated[idx].collegeName = '';
+                                }
+                                setNewExtraMembers(updated);
+                              }}
+                              className="accent-[#38bdf8]"
+                            />
+                            <span className="text-[#93c5fd]">🏫 External Student</span>
+                          </label>
+                        </div>
+
+                        {!mem.isIemUemStudent && (
+                          <div className="pt-1">
+                            <label className="block text-[7.5px] text-[#93c5fd] mb-0.5">
+                              COLLEGE / UNIVERSITY NAME *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Techno India / Heritage / NIT"
+                              value={mem.collegeName === 'IEM / UEM' || mem.collegeName === 'External' ? '' : mem.collegeName}
+                              onChange={(e) => {
+                                const updated = [...newExtraMembers];
+                                updated[idx].collegeName = e.target.value;
+                                setNewExtraMembers(updated);
+                              }}
+                              className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#93c5fd] font-mono text-[9.5px] px-2 py-1 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-[#cfe8ff]">LOGIN PASSWORD *</label>
                     <button
@@ -1686,8 +3175,8 @@ Cognitia 2026 Organizing Team`;
       {/* MODAL: VIEW / COPY CREDENTIALS EMAIL TEMPLATE */}
       {createdCredentialsModal &&
         createPortal(
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-[#0c0e10] border-2 border-[#f4c151] rounded-md max-w-xl w-full p-4 sm:p-5 space-y-3 shadow-[0_0_30px_rgba(244,193,81,0.3)]">
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-[#0c0e10] border-2 border-[#f4c151] rounded-md max-w-xl w-full p-4 sm:p-5 space-y-3 shadow-[0_0_30px_rgba(244,193,81,0.3)] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
               <div className="flex items-center justify-between border-b border-[#423325] pb-2">
                 <span className="font-pixel text-[11px] text-[#f4c151] flex items-center gap-1.5">
                   <Sparkles size={14} /> TEAM LOGIN CREDENTIALS &amp; EMAIL TEMPLATE
@@ -1795,11 +3284,11 @@ Cognitia 2026 Organizing Team`;
       {previewImageModal &&
         createPortal(
           <div
-            className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-zoom-out"
+            className="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999999] flex items-center justify-center p-4 cursor-zoom-out"
             onClick={() => setPreviewImageModal(null)}
           >
             <div
-              className="relative max-w-4xl max-h-[90vh] w-full bg-[#0a0c0e] border-2 border-[#f4c151] rounded-md p-3 sm:p-4 flex flex-col space-y-2 shadow-[0_0_40px_rgba(0,0,0,0.9)] cursor-default"
+              className="relative max-w-4xl max-h-[90vh] w-full bg-[#0a0c0e] border-2 border-[#f4c151] rounded-md p-3 sm:p-4 flex flex-col space-y-2 shadow-[0_0_50px_rgba(0,0,0,0.95)] cursor-default z-[9999999]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
@@ -1844,133 +3333,356 @@ Cognitia 2026 Organizing Team`;
       {/* INTERACTIVE VENUE ATTENDANCE VERIFICATION POPUP MODAL */}
       {attendanceModalData &&
         createPortal(
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in">
-            <div className="bg-[#0c0e11] border-2 border-[#4ade80] rounded-md max-w-lg w-full p-4 space-y-4 shadow-[0_0_40px_rgba(74,222,128,0.4)] font-sans">
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-[#25522b] pb-2.5">
-                <div className="flex items-center gap-2 text-[#4ade80]">
-                  <UserCheck size={22} className="text-[#4ade80]" />
-                  <span className="font-pixel text-[12px] sm:text-[14px] text-[#4ade80]">
-                    GATE ATTENDANCE VERIFICATION
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in overflow-y-auto">
+            {!attendanceModalData.matchedMember ? (
+              /* DEDICATED TEAM GATE ATTENDANCE ROSTER DIALOGUE */
+              <div className="bg-[#0c0e11] border-2 border-[#00f0ff] rounded-md max-w-xl w-full p-4 space-y-4 shadow-[0_0_40px_rgba(0,240,255,0.3)] font-sans max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-[#1e293b] pb-2.5">
+                  <div className="flex items-center gap-2 text-[#00f0ff]">
+                    <Users size={22} className="text-[#00f0ff]" />
+                    <span className="font-pixel text-[12px] sm:text-[14px] text-[#00f0ff]">
+                      TEAM GATE ATTENDANCE ROSTER
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceModalData(null)}
+                    className="text-[#8f9396] hover:text-white cursor-pointer p-1"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Team Info & Attendance Summary Card */}
+                <div className="bg-[#0f172a] border border-[#1e293b] p-3.5 rounded-xs space-y-2">
+                  <div className="flex items-center justify-between font-silkscreen text-[9px]">
+                    <span className="text-[#38bdf8] font-bold">
+                      TEAM ID: {attendanceModalData.matchedTeam.id}
+                    </span>
+                    <span className="bg-[#1e293b] text-[#38bdf8] border border-[#334155] px-2 py-0.5 rounded-xs font-mono">
+                      PASS: {attendanceModalData.matchedTeam.ticketPassId || 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <div>
+                      <h3 className="font-pixel text-[14px] text-white">
+                        {attendanceModalData.matchedTeam.teamName}
+                      </h3>
+                      <p className="font-silkscreen text-[8.5px] text-[#94a3b8] mt-0.5">
+                        LEAD EMAIL: {attendanceModalData.matchedTeam.leadEmail}
+                      </p>
+                    </div>
+
+                    {/* Checked in count summary badge */}
+                    {(() => {
+                      const members = attendanceModalData.matchedTeam.members || [];
+                      const checkedCount = members.filter((m) => m.checkInStatus === 'checked_in').length;
+                      const total = members.length;
+                      const minReq = Math.min(2, total || 1);
+                      const isQualified = checkedCount >= minReq;
+                      return (
+                        <div className={`px-3 py-1.5 rounded-xs border text-center font-silkscreen text-[8.5px] ${
+                          isQualified
+                            ? 'bg-[#142417] text-[#4ade80] border-[#25522b] shadow-[0_0_10px_rgba(74,222,128,0.2)]'
+                            : checkedCount > 0
+                            ? 'bg-[#382b18] text-[#f4c151] border-[#594424]'
+                            : 'bg-[#261414] text-[#fca5a5] border-[#522525]'
+                        }`}>
+                          <span className="font-bold block text-[10px]">{checkedCount} / {total} PRESENT</span>
+                          <span className="text-[7.5px] opacity-90">{isQualified ? 'FCFS TRACK ALLOCATION READY ✓' : `MIN 2 REQ (${checkedCount}/${total})`}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Event FCFS Track Rule Banner */}
+                <div className={`p-2.5 rounded-xs border font-silkscreen text-[8px] flex items-center gap-2 ${
+                  (attendanceModalData.matchedTeam.members || []).filter((m) => m.checkInStatus === 'checked_in').length >= Math.min(2, (attendanceModalData.matchedTeam.members || []).length || 1)
+                    ? 'bg-[#142417] text-[#86efac] border-[#25522b]'
+                    : 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                }`}>
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span>
+                    <strong>FCFS TRACK ALLOCATION RULE:</strong> At least <strong>2 team members</strong> must check in at the venue gate for event entry &amp; preference-based track distribution.
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setAttendanceModalData(null)}
-                  className="text-[#8f9396] hover:text-white cursor-pointer p-1"
-                >
-                  <X size={20} />
-                </button>
+
+                {/* Bulk Action Buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      sound.playBoot();
+                      const res = await firebaseService.markAttendance(attendanceModalData.matchedTeam.id, 'checked_in');
+                      if (res.success && res.team) {
+                        loadAdminData();
+                        setAttendanceModalData({
+                          ...attendanceModalData,
+                          matchedTeam: res.team,
+                        });
+                      }
+                    }}
+                    className="bg-[#182418] hover:bg-[#203820] text-[#4ade80] border border-[#25522b] hover:border-[#4ade80] font-pixel text-[9.5px] uppercase py-2 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000]"
+                  >
+                    <CheckCircle2 size={13} /> MARK ALL PRESENT
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      sound.playBlip(300);
+                      const res = await firebaseService.markAttendance(attendanceModalData.matchedTeam.id, 'not_checked_in');
+                      if (res.success && res.team) {
+                        loadAdminData();
+                        setAttendanceModalData({
+                          ...attendanceModalData,
+                          matchedTeam: res.team,
+                        });
+                      }
+                    }}
+                    className="bg-[#261414] hover:bg-[#3d1d1d] text-[#eb5147] border border-[#522525] hover:border-[#eb5147] font-pixel text-[9.5px] uppercase py-2 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000]"
+                  >
+                    <X size={13} /> MARK ALL ABSENT
+                  </button>
+                </div>
+
+                {/* Individual Member Roster List */}
+                <div className="space-y-2">
+                  <span className="font-silkscreen text-[9px] text-[#94a3b8] uppercase block font-bold border-b border-[#1e293b] pb-1">
+                    INDIVIDUAL TEAM MEMBERS GATE CHECK-IN ({attendanceModalData.matchedTeam.members.length})
+                  </span>
+
+                  <div className="space-y-2 max-h-[38vh] overflow-y-auto pr-1">
+                    {attendanceModalData.matchedTeam.members.map((m, idx) => {
+                      const memberPassId = m.memberPassId || `COG26-M${String(attendanceModalData.matchedTeam.id).slice(-3)}-${idx + 1}`;
+                      const isCheckedIn = m.checkInStatus === 'checked_in';
+
+                      return (
+                        <div
+                          key={m.id || idx}
+                          className={`p-3 rounded-xs border font-sans text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-colors ${
+                            isCheckedIn
+                              ? 'bg-[#142417]/80 border-[#25522b]'
+                              : 'bg-[#141618] border-[#2b2e30]'
+                          }`}
+                        >
+                          <div className="space-y-1 grow">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-white text-sm">
+                                {m.name}
+                              </span>
+                              {m.isLead && (
+                                <span className="font-silkscreen text-[7.5px] px-1.5 py-0.5 bg-[#241d14] text-[#f2933d] border border-[#423325] rounded-xs font-bold">
+                                  LEAD
+                                </span>
+                              )}
+                              <span className="font-mono text-[8px] text-[#38bdf8] bg-[#0f172a] px-1.5 py-0.5 rounded-xs border border-[#1e293b]">
+                                {memberPassId}
+                              </span>
+                            </div>
+
+                            <div className="font-silkscreen text-[8px] text-[#94a3b8] space-y-0.5">
+                              <p>ROLE: <span className="text-[#cfe8ff]">{m.role || 'Member'}</span></p>
+                              <p>INSTITUTION: <span className="text-[#86efac]">{m.isIemUemStudent ? `IEM/UEM (Roll: ${m.enrollmentNo || 'N/A'})` : m.collegeName || 'External'}</span></p>
+                              {m.phone && <p>PHONE: <span className="text-[#cfe8ff]">{m.phone}</span></p>}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-[#2b2e30] pt-2 sm:pt-0">
+                            {isCheckedIn ? (
+                              <span className="font-silkscreen text-[7.5px] bg-[#1e4620] text-[#4ade80] border border-[#34783a] px-2 py-1 rounded-xs flex items-center gap-1 font-bold">
+                                <CheckCircle2 size={10} /> PRESENT ({m.checkInTimestamp || 'OK'})
+                              </span>
+                            ) : (
+                              <span className="font-silkscreen text-[7.5px] bg-[#292218] text-[#f4c151] border border-[#594424] px-2 py-1 rounded-xs flex items-center gap-1 font-bold">
+                                <Clock size={10} /> NOT CHECKED IN
+                              </span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const newStatus = isCheckedIn ? 'not_checked_in' : 'checked_in';
+                                if (newStatus === 'checked_in') sound.playBoot();
+                                else sound.playBlip(300);
+
+                                const res = await firebaseService.markAttendance(memberPassId, newStatus);
+                                if (res.success && res.team) {
+                                  loadAdminData();
+                                  setAttendanceModalData({
+                                    ...attendanceModalData,
+                                    matchedTeam: res.team,
+                                  });
+                                }
+                              }}
+                              className={`font-pixel text-[8px] uppercase px-2.5 py-1.5 rounded-xs border cursor-pointer flex items-center gap-1 shadow-[1px_1px_0_0_#000] ${
+                                isCheckedIn
+                                  ? 'bg-[#261414] hover:bg-[#3d1d1d] text-[#eb5147] border-[#522525]'
+                                  : 'bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-[#25522b]'
+                              }`}
+                            >
+                              {isCheckedIn ? <X size={10} /> : <UserCheck size={10} />}
+                              {isCheckedIn ? 'MARK ABSENT' : 'MARK PRESENT'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between border-t border-[#1e293b] pt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTeamModal(attendanceModalData.matchedTeam);
+                      setAttendanceModalData(null);
+                    }}
+                    className="text-[#38bdf8] hover:underline font-pixel text-[9px] cursor-pointer flex items-center gap-1"
+                  >
+                    <Eye size={12} /> INSPECT FULL TEAM DETAILS
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceModalData(null)}
+                    className="bg-[#1c1f24] hover:bg-[#2b2e35] text-white border border-[#3a4149] font-pixel text-[9px] px-3 py-1.5 rounded-xs cursor-pointer"
+                  >
+                    CLOSE / SCAN NEXT
+                  </button>
+                </div>
               </div>
-
-              {/* Participant & Team Info Card */}
-              <div className="bg-[#142417] border border-[#25522b] p-3.5 rounded-xs space-y-2.5">
-                <div className="flex items-center justify-between font-silkscreen text-[9px]">
-                  <span className="text-[#86efac] font-bold">
-                    TEAM ID: {attendanceModalData.matchedTeam.id}
-                  </span>
-                  <span className="bg-[#1e4620] text-[#86efac] border border-[#34783a] px-2 py-0.5 rounded-xs">
-                    PASS: {attendanceModalData.matchedMember?.memberPassId || attendanceModalData.matchedTeam.ticketPassId || 'N/A'}
-                  </span>
+            ) : (
+              /* INDIVIDUAL MEMBER GATE ATTENDANCE VERIFICATION MODAL */
+              <div className="bg-[#0c0e11] border-2 border-[#4ade80] rounded-md max-w-lg w-full p-4 space-y-4 shadow-[0_0_40px_rgba(74,222,128,0.4)] font-sans max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-[#25522b] pb-2.5">
+                  <div className="flex items-center gap-2 text-[#4ade80]">
+                    <UserCheck size={22} className="text-[#4ade80]" />
+                    <span className="font-pixel text-[12px] sm:text-[14px] text-[#4ade80]">
+                      MEMBER GATE ATTENDANCE VERIFICATION
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceModalData(null)}
+                    className="text-[#8f9396] hover:text-white cursor-pointer p-1"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
 
-                <div className="space-y-1">
-                  <h3 className="font-pixel text-[13px] sm:text-[14px] text-white">
-                    {attendanceModalData.matchedMember
-                      ? `${attendanceModalData.matchedMember.name} (${attendanceModalData.matchedMember.role})`
-                      : `TEAM: ${attendanceModalData.matchedTeam.teamName} (ALL MEMBERS)`}
-                  </h3>
-                  <p className="font-silkscreen text-[10px] text-[#cfe8ff]">
-                    TEAM NAME: <strong className="text-[#f4c151]">{attendanceModalData.matchedTeam.teamName}</strong>
-                  </p>
-                  {attendanceModalData.matchedMember && (
+                {/* Participant Card */}
+                <div className="bg-[#142417] border border-[#25522b] p-3.5 rounded-xs space-y-2.5">
+                  <div className="flex items-center justify-between font-silkscreen text-[9px]">
+                    <span className="text-[#86efac] font-bold">
+                      TEAM ID: {attendanceModalData.matchedTeam.id}
+                    </span>
+                    <span className="bg-[#1e4620] text-[#86efac] border border-[#34783a] px-2 py-0.5 rounded-xs font-mono font-bold">
+                      PASS: {attendanceModalData.matchedMember.memberPassId || 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="font-pixel text-[14px] sm:text-[15px] text-white">
+                      {attendanceModalData.matchedMember.name} ({attendanceModalData.matchedMember.role})
+                    </h3>
+                    <p className="font-silkscreen text-[10px] text-[#cfe8ff]">
+                      TEAM NAME: <strong className="text-[#f4c151]">{attendanceModalData.matchedTeam.teamName}</strong>
+                    </p>
                     <div className="space-y-0.5 font-silkscreen text-[9px] text-[#bbf7d0]">
                       <p>INSTITUTION: {attendanceModalData.matchedMember.isIemUemStudent ? `IEM / UEM (Roll: ${attendanceModalData.matchedMember.enrollmentNo || 'N/A'})` : attendanceModalData.matchedMember.collegeName || 'External'}</p>
                       {attendanceModalData.matchedMember.email && <p className="text-[#93c5fd]">EMAIL: {attendanceModalData.matchedMember.email}</p>}
                       {attendanceModalData.matchedMember.phone && <p className="text-[#93c5fd]">PHONE: {attendanceModalData.matchedMember.phone}</p>}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Current Status Indicator */}
+                  <div className="pt-2 border-t border-[#25522b] flex items-center justify-between font-silkscreen text-[9.5px]">
+                    <span className="text-[#8fa892]">MEMBER GATE STATUS:</span>
+                    {attendanceModalData.matchedMember.checkInStatus === 'checked_in' ? (
+                      <span className="bg-[#1e4620] text-[#4ade80] border border-[#34783a] px-2.5 py-1 rounded-xs flex items-center gap-1 font-bold shadow-[0_0_10px_rgba(74,222,128,0.3)]">
+                        <CheckCircle2 size={13} /> PRESENT AT VENUE
+                      </span>
+                    ) : (
+                      <span className="bg-[#382b18] text-[#f4c151] border border-[#594424] px-2.5 py-1 rounded-xs flex items-center gap-1 font-bold">
+                        <Clock size={13} /> NOT CHECKED IN (ABSENT)
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Current Status Indicator */}
-                <div className="pt-2 border-t border-[#25522b] flex items-center justify-between font-silkscreen text-[9.5px]">
-                  <span className="text-[#8fa892]">CURRENT GATE STATUS:</span>
-                  {(attendanceModalData.matchedMember ? attendanceModalData.matchedMember.checkInStatus === 'checked_in' : attendanceModalData.matchedTeam.attendanceStatus === 'checked_in') ? (
-                    <span className="bg-[#1e4620] text-[#4ade80] border border-[#34783a] px-2.5 py-1 rounded-xs flex items-center gap-1 font-bold shadow-[0_0_10px_rgba(74,222,128,0.3)]">
-                      <CheckCircle2 size={13} /> PRESENT AT VENUE
-                    </span>
-                  ) : (
-                    <span className="bg-[#382b18] text-[#f4c151] border border-[#594424] px-2.5 py-1 rounded-xs flex items-center gap-1 font-bold">
-                      <Clock size={13} /> NOT CHECKED IN (ABSENT)
-                    </span>
-                  )}
+                {/* Quick Action Buttons */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const query = attendanceModalData.matchedMember?.memberPassId || attendanceModalData.matchedTeam.id;
+                      const res = await firebaseService.markAttendance(query, 'checked_in');
+                      if (res.success && res.team) {
+                        sound.playBoot();
+                        loadAdminData();
+                        setAttendanceModalData({
+                          ...attendanceModalData,
+                          matchedTeam: res.team,
+                          matchedMember: res.matchedMember || attendanceModalData.matchedMember,
+                        });
+                      }
+                    }}
+                    className="bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-2 border-[#25522b] hover:border-[#4ade80] font-pixel text-[10.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000]"
+                  >
+                    <UserCheck size={14} /> MARK PRESENT
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const query = attendanceModalData.matchedMember?.memberPassId || attendanceModalData.matchedTeam.id;
+                      const res = await firebaseService.markAttendance(query, 'not_checked_in');
+                      if (res.success && res.team) {
+                        sound.playBlip(300);
+                        loadAdminData();
+                        setAttendanceModalData({
+                          ...attendanceModalData,
+                          matchedTeam: res.team,
+                          matchedMember: res.matchedMember || attendanceModalData.matchedMember,
+                        });
+                      }
+                    }}
+                    className="bg-[#261414] hover:bg-[#3d1d1d] text-[#eb5147] border-2 border-[#522525] hover:border-[#eb5147] font-pixel text-[10.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000]"
+                  >
+                    <X size={14} /> MARK ABSENT
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-[#25522b] pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttendanceModalData({
+                        ...attendanceModalData,
+                        matchedMember: undefined,
+                      });
+                    }}
+                    className="text-[#00f0ff] hover:underline font-pixel text-[9px] cursor-pointer flex items-center gap-1"
+                  >
+                    <Users size={12} /> 👥 VIEW TEAM ROSTER
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceModalData(null)}
+                    className="bg-[#1c1f24] hover:bg-[#2b2e35] text-white border border-[#3a4149] font-pixel text-[9px] px-3 py-1.5 rounded-xs cursor-pointer"
+                  >
+                    CLOSE / SCAN NEXT
+                  </button>
                 </div>
               </div>
-
-              {/* Quick Action Buttons */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const query = attendanceModalData.matchedMember?.memberPassId || attendanceModalData.matchedTeam.id;
-                    const res = await firebaseService.markAttendance(query, 'checked_in');
-                    if (res.success && res.team) {
-                      sound.playBoot();
-                      loadAdminData();
-                      setAttendanceModalData({
-                        ...attendanceModalData,
-                        matchedTeam: res.team,
-                        matchedMember: res.matchedMember || attendanceModalData.matchedMember,
-                      });
-                    }
-                  }}
-                  className="bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-2 border-[#25522b] hover:border-[#4ade80] font-pixel text-[10.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000]"
-                >
-                  <UserCheck size={14} /> MARK PRESENT
-                </button>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const query = attendanceModalData.matchedMember?.memberPassId || attendanceModalData.matchedTeam.id;
-                    const res = await firebaseService.markAttendance(query, 'not_checked_in');
-                    if (res.success && res.team) {
-                      sound.playBlip(300);
-                      loadAdminData();
-                      setAttendanceModalData({
-                        ...attendanceModalData,
-                        matchedTeam: res.team,
-                        matchedMember: res.matchedMember || attendanceModalData.matchedMember,
-                      });
-                    }
-                  }}
-                  className="bg-[#261414] hover:bg-[#3d1d1d] text-[#eb5147] border-2 border-[#522525] hover:border-[#eb5147] font-pixel text-[10.5px] uppercase py-2.5 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000]"
-                >
-                  <X size={14} /> MARK ABSENT
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-[#25522b] pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedTeamModal(attendanceModalData.matchedTeam);
-                    setAttendanceModalData(null);
-                  }}
-                  className="text-[#6fb3d9] hover:underline font-pixel text-[9px] cursor-pointer flex items-center gap-1"
-                >
-                  <Eye size={12} /> INSPECT TEAM DETAILS
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setAttendanceModalData(null)}
-                  className="bg-[#1c1f24] hover:bg-[#2b2e35] text-white border border-[#3a4149] font-pixel text-[9px] px-3 py-1.5 rounded-xs cursor-pointer"
-                >
-                  CLOSE / SCAN NEXT
-                </button>
-              </div>
-            </div>
+            )}
           </div>,
           document.body
         )}
@@ -1978,8 +3690,8 @@ Cognitia 2026 Organizing Team`;
       {/* LIVE QR CAMERA SCANNER MODAL */}
       {showLiveScannerModal &&
         createPortal(
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in">
-            <div className="bg-[#0a0c0e] border-2 border-[#00f0ff] rounded-md max-w-md w-full p-4 space-y-3 shadow-[0_0_40px_rgba(0,240,255,0.4)]">
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in overflow-y-auto">
+            <div className="bg-[#0a0c0e] border-2 border-[#00f0ff] rounded-md max-w-md w-full p-4 space-y-3 shadow-[0_0_40px_rgba(0,240,255,0.4)] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
               <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
                 <span className="font-pixel text-[12px] text-[#00f0ff] flex items-center gap-2">
                   <Camera size={18} /> LIVE CAMERA QR SCANNER
@@ -2111,8 +3823,8 @@ Cognitia 2026 Organizing Team`;
       {/* INTERACTIVE FOOD COUPON VERIFICATION & REDEMPTION MODAL */}
       {foodCouponModalData &&
         createPortal(
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in">
-            <div className={`bg-[#0c0e11] border-2 rounded-md max-w-lg w-full p-4 space-y-4 shadow-[0_0_40px_rgba(74,222,128,0.4)] font-sans ${foodCouponModalData.alreadyRedeemed ? 'border-[#eb5147]' : 'border-[#4ade80]'}`}>
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in overflow-y-auto">
+            <div className={`bg-[#0c0e11] border-2 rounded-md max-w-lg w-full p-4 space-y-4 shadow-[0_0_40px_rgba(74,222,128,0.4)] font-sans max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto ${foodCouponModalData.alreadyRedeemed ? 'border-[#eb5147]' : 'border-[#4ade80]'}`}>
               {/* Header */}
               <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2.5">
                 <div className="flex items-center gap-2 text-[#4ade80]">
@@ -2175,6 +3887,29 @@ Cognitia 2026 Organizing Team`;
                 </div>
               </div>
 
+              {/* Present Members Roster Info for Team Pass */}
+              {!foodCouponModalData.matchedMember && (
+                <div className="bg-[#101712] border border-[#25522b] p-3 rounded-xs space-y-1 font-silkscreen text-[8.5px] text-[#86efac]">
+                  <p className="font-bold text-[#4ade80] flex items-center gap-1">
+                    <UserCheck size={12} /> FULL TEAM PASS SCAN &bull; PRESENT MEMBERS ({foodCouponModalData.matchedTeam.members.filter((m) => m.checkInStatus === 'checked_in').length} PRESENT):
+                  </p>
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {foodCouponModalData.matchedTeam.members.map((m) => (
+                      <span
+                        key={m.id}
+                        className={`px-2 py-0.5 rounded-xs border text-[7.5px] ${
+                          m.checkInStatus === 'checked_in'
+                            ? 'bg-[#1e4620] text-[#4ade80] border-[#34783a]'
+                            : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                        }`}
+                      >
+                        {m.checkInStatus === 'checked_in' ? '🟢' : '⚪'} {m.name} ({m.role || 'Member'})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="space-y-2 pt-1">
                 {!foodCouponModalData.alreadyRedeemed ? (
@@ -2182,9 +3917,14 @@ Cognitia 2026 Organizing Team`;
                     type="button"
                     onClick={async () => {
                       sound.playBoot();
+                      const passToMark = foodCouponModalData.matchedMember
+                        ? (foodCouponModalData.matchedMember.memberPassId || foodCouponModalData.matchedMember.id)
+                        : foodCouponModalData.passId;
+
                       const res = await firebaseService.markMealRedeemed(
-                        foodCouponModalData.passId,
-                        foodCouponModalData.mealType
+                        passToMark,
+                        foodCouponModalData.mealType,
+                        foodCouponModalData.matchedMember?.id
                       );
                       if (res.success && res.team) {
                         loadAdminData();
@@ -2197,9 +3937,12 @@ Cognitia 2026 Organizing Team`;
                         alert(res.message);
                       }
                     }}
-                    className="w-full bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-2 border-[#25522b] hover:border-[#4ade80] font-pixel text-[11px] uppercase py-3 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000]"
+                    className="w-full bg-[#182418] hover:bg-[#203820] text-[#4ade80] border-2 border-[#25522b] hover:border-[#4ade80] font-pixel text-[10.5px] sm:text-[11px] uppercase py-3 px-3 rounded-xs cursor-pointer flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] transition-all"
                   >
-                    <Utensils size={16} /> CONFIRM &amp; MARK MEAL SERVED
+                    <Utensils size={16} />
+                    {foodCouponModalData.matchedMember
+                      ? `CONFIRM & MARK MEAL SERVED FOR ${foodCouponModalData.matchedMember.name.toUpperCase()}`
+                      : `CONFIRM & MARK MEAL SERVED FOR ALL PRESENT MEMBERS (${foodCouponModalData.matchedTeam.members.filter((m) => m.checkInStatus === 'checked_in').length} MEMBERS)`}
                   </button>
                 ) : null}
 
@@ -2211,6 +3954,150 @@ Cognitia 2026 Organizing Team`;
                   CLOSE / SCAN NEXT COUPON
                 </button>
               </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      {/* MODAL: ADMIN EDIT TEAM MEMBER DETAILS */}
+      {editingMember &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-[#0c0e10] border-2 border-[#38bdf8] rounded-md max-w-lg w-full p-4 sm:p-5 space-y-4 shadow-[0_0_30px_rgba(56,189,248,0.3)] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+              <div className="flex items-center justify-between border-b border-[#1e344d] pb-2">
+                <span className="font-pixel text-[11px] sm:text-[12px] text-[#38bdf8] flex items-center gap-1.5">
+                  <Edit2 size={14} /> EDIT MEMBER DETAILS (ADMIN)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditingMember(null)}
+                  className="text-[#8f9396] hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAdminSaveMemberEdits} className="space-y-3 font-silkscreen text-[9px]">
+                <div>
+                  <label className="block text-[#cfe8ff] mb-1">MEMBER FULL NAME *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingMember.name}
+                    onChange={(e) => setEditingMember({ ...editingMember, name: e.target.value })}
+                    className="w-full bg-[#141618] border border-[#2b2e30] text-white font-mono text-xs px-3 py-1.5 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[#cfe8ff] mb-1">EMAIL ADDRESS *</label>
+                    <input
+                      type="email"
+                      required
+                      value={editingMember.email}
+                      onChange={(e) => setEditingMember({ ...editingMember, email: e.target.value })}
+                      className="w-full bg-[#141618] border border-[#2b2e30] text-[#6fb3d9] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#cfe8ff] mb-1">PHONE NUMBER</label>
+                    <input
+                      type="text"
+                      value={editingMember.phone}
+                      onChange={(e) => setEditingMember({ ...editingMember, phone: e.target.value })}
+                      className="w-full bg-[#141618] border border-[#2b2e30] text-white font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[#cfe8ff] mb-1">ROLE / POSITION</label>
+                    <input
+                      type="text"
+                      value={editingMember.role}
+                      onChange={(e) => setEditingMember({ ...editingMember, role: e.target.value })}
+                      className="w-full bg-[#141618] border border-[#2b2e30] text-[#f4c151] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#cfe8ff] mb-1">GITHUB USERNAME</label>
+                    <input
+                      type="text"
+                      value={editingMember.githubId}
+                      onChange={(e) => setEditingMember({ ...editingMember, githubId: e.target.value })}
+                      className="w-full bg-[#141618] border border-[#2b2e30] text-[#38bdf8] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* INSTITUTION & WAIVER CATEGORY */}
+                <div className="p-2.5 bg-[#090b0d] border border-[#2b2e30] rounded-xs space-y-2">
+                  <label className="block text-[#f4c151] font-bold">INSTITUTION CATEGORY &amp; FEE STATUS</label>
+                  <div className="flex items-center gap-4 text-[8.5px]">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="edit_mem_cat"
+                        checked={editingMember.isIemUemStudent}
+                        onChange={() => setEditingMember({ ...editingMember, isIemUemStudent: true, collegeName: 'IEM / UEM' })}
+                        className="accent-[#4ade80]"
+                      />
+                      <span className="text-[#86efac]">🎓 IEM / UEM Student</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="edit_mem_cat"
+                        checked={!editingMember.isIemUemStudent}
+                        onChange={() => setEditingMember({ ...editingMember, isIemUemStudent: false, collegeName: editingMember.collegeName === 'IEM / UEM' ? '' : editingMember.collegeName })}
+                        className="accent-[#38bdf8]"
+                      />
+                      <span className="text-[#93c5fd]">🏫 External Student</span>
+                    </label>
+                  </div>
+
+                  {editingMember.isIemUemStudent ? (
+                    <div>
+                      <label className="block text-[8px] text-[#86efac] mb-0.5">STUDENT ROLL / ENROLLMENT NO.</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 12022002001001"
+                        value={editingMember.enrollmentNo}
+                        onChange={(e) => setEditingMember({ ...editingMember, enrollmentNo: e.target.value })}
+                        className="w-full bg-[#141618] border border-[#25522b] text-[#86efac] font-mono text-xs px-2.5 py-1 rounded-xs focus:border-[#4ade80] focus:outline-none font-bold"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-[8px] text-[#93c5fd] mb-0.5">COLLEGE / UNIVERSITY NAME *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Techno India / Heritage / NIT"
+                        value={editingMember.collegeName === 'IEM / UEM' || editingMember.collegeName === 'External' ? '' : editingMember.collegeName}
+                        onChange={(e) => setEditingMember({ ...editingMember, collegeName: e.target.value })}
+                        className="w-full bg-[#141618] border border-[#2b2e30] text-[#93c5fd] font-mono text-xs px-2.5 py-1 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingMember(null)}
+                    className="bg-[#1c1f24] text-[#8f9396] font-pixel text-[9px] px-3 py-1.5 rounded-xs border border-[#2b2e30] cursor-pointer"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-[#1e4620] hover:bg-[#275c2a] text-[#86efac] border border-[#4ade80] font-pixel text-[9px] px-4 py-1.5 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer transition-colors"
+                  >
+                    💾 SAVE MEMBER CHANGES
+                  </button>
+                </div>
+              </form>
             </div>
           </div>,
           document.body
