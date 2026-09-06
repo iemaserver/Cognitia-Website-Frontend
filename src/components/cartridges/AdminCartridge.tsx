@@ -359,8 +359,9 @@ export const AdminCartridge: React.FC = () => {
     if (selectedTeamModal && (selectedTeamModal.id === teamId || selectedTeamModal.ticketPassId === teamId)) {
       setSelectedTeamModal({
         ...selectedTeamModal,
-        selectedTrack: trackValue,
-        isTrackLocked: Boolean(trackValue),
+        adminTrackOverride: trackValue || undefined,
+        selectedTrack: trackValue || selectedTeamModal.trackPreferences?.[0] || undefined,
+        isTrackLocked: Boolean(trackValue || selectedTeamModal.isTrackLocked),
       });
     }
   };
@@ -979,7 +980,9 @@ Cognitia 2026 Organizing Team`;
       const isIemUemTeamVerified = isIemUemAllStudentTeam(t.members);
       const teamType = isIemUemTeamVerified ? 'IEM/UEM Student Team (Free Waiver)' : 'External / Mixed Team (₹200 Fee)';
       const feeAmt = isIemUemTeamVerified ? '₹0' : '₹200';
-      const trackPrefs = t.trackPreferences ? t.trackPreferences.join(' > ') : t.selectedTrack || 'N/A';
+      const alloc = calculateFcfsTrackAllocations(teams).get(t.id);
+      const assignedTrack = t.adminTrackOverride || alloc?.assignedTrackName || t.selectedTrack || 'N/A';
+      const trackPrefs = t.trackPreferences ? t.trackPreferences.join(' > ') : 'N/A';
 
       const rosterSummary = t.members
         .map(
@@ -994,7 +997,7 @@ Cognitia 2026 Organizing Team`;
         escapeCSV(t.teamName),
         escapeCSV(t.ticketPassId || 'N/A'),
         escapeCSV(t.ticketIssuedAt || 'N/A'),
-        escapeCSV(t.selectedTrack || 'N/A'),
+        escapeCSV(assignedTrack),
         escapeCSV(trackPrefs),
         escapeCSV((t.phase2Status || 'pending').toUpperCase()),
         escapeCSV(t.rsvpConfirmed ? 'YES' : 'NO'),
@@ -1948,15 +1951,15 @@ Cognitia 2026 Organizing Team`;
                     <div className="space-y-1">
                       <label className="text-[#8f9396] block text-[9px] font-bold">TRACK ASSIGNMENT (FCFS / OVERRIDE):</label>
                       <select
-                        value={t.selectedTrack || ''}
+                        value={t.adminTrackOverride || ''}
                         onChange={(e) => handleTrackOverride(t.id, e.target.value)}
                         className={`font-silkscreen text-[10px] px-2.5 py-1.5 rounded-xs border cursor-pointer w-full ${
-                          t.selectedTrack
+                          t.adminTrackOverride
                             ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8] font-bold'
                             : 'bg-[#090b0d] text-[#38bdf8] border-[#2b2e30]'
                         }`}
                       >
-                        <option value="">⚡ AUTO (FCFS Allocation)</option>
+                        <option value="">⚡ AUTO (FCFS: {calculateFcfsTrackAllocations(teams).get(t.id)?.assignedTrackName || 'Allocation'})</option>
                         {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
                           <option key={ps.trackId} value={ps.trackName}>
                             {ps.trackName}
@@ -2121,13 +2124,13 @@ Cognitia 2026 Organizing Team`;
                           {(() => {
                             const allocations = calculateFcfsTrackAllocations(teams);
                             const alloc = allocations.get(t.id);
-                            const currentTrackName = t.selectedTrack || alloc?.assignedTrackName || 'NLP & Computer Vision';
-                            const isOverridden = Boolean(t.selectedTrack);
+                            const currentTrackName = t.adminTrackOverride || alloc?.assignedTrackName || 'NLP & Computer Vision';
+                            const isOverridden = Boolean(t.adminTrackOverride);
 
                             return (
                               <div className="space-y-1">
                                 <select
-                                  value={t.selectedTrack || ''}
+                                  value={t.adminTrackOverride || ''}
                                   onChange={(e) => handleTrackOverride(t.id, e.target.value)}
                                   className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer w-full max-w-[145px] truncate ${
                                     isOverridden
@@ -2136,7 +2139,7 @@ Cognitia 2026 Organizing Team`;
                                   }`}
                                   title={isOverridden ? `Admin Overridden: ${currentTrackName}` : `FCFS Auto Assigned: ${currentTrackName}`}
                                 >
-                                  <option value="">⚡ AUTO (FCFS Allocation)</option>
+                                  <option value="">⚡ AUTO (FCFS: {alloc?.assignedTrackName || 'Allocation'})</option>
                                   {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
                                     <option key={ps.trackId} value={ps.trackName}>
                                       {ps.trackName}
@@ -2588,11 +2591,11 @@ Cognitia 2026 Organizing Team`;
                     </p>
                   </div>
                   <span className={`font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs border ${
-                    selectedTeamModal.selectedTrack
+                    selectedTeamModal.adminTrackOverride
                       ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8]'
                       : 'bg-[#182418] text-[#a7d38a] border-[#254225]'
                   }`}>
-                    {selectedTeamModal.selectedTrack ? '⚡ MANUALLY OVERRIDDEN' : '🤖 AUTO FCFS ALLOCATED'}
+                    {selectedTeamModal.adminTrackOverride ? '⚡ MANUALLY OVERRIDDEN' : '🤖 AUTO FCFS ALLOCATED'}
                   </span>
                 </div>
 
@@ -2602,7 +2605,7 @@ Cognitia 2026 Organizing Team`;
                     <span className="font-silkscreen text-[8px] text-[#38bdf8] font-bold">
                       🛠️ ADMIN MANUAL TRACK OVERRIDE CONTROL:
                     </span>
-                    {selectedTeamModal.selectedTrack && (
+                    {selectedTeamModal.adminTrackOverride && (
                       <button
                         type="button"
                         onClick={() => handleTrackOverride(selectedTeamModal.id, '')}
@@ -2613,11 +2616,11 @@ Cognitia 2026 Organizing Team`;
                     )}
                   </div>
                   <select
-                    value={selectedTeamModal.selectedTrack || ''}
+                    value={selectedTeamModal.adminTrackOverride || ''}
                     onChange={(e) => handleTrackOverride(selectedTeamModal.id, e.target.value)}
                     className="w-full bg-[#090b0d] border border-[#38bdf8] text-[#cfe8ff] font-pixel text-[9px] p-2 rounded-xs cursor-pointer focus:outline-none focus:border-[#00f0ff]"
                   >
-                    <option value="">⚡ AUTO (FCFS Preference Order based on Gate Qualified Timestamp)</option>
+                    <option value="">⚡ AUTO (FCFS: {calculateFcfsTrackAllocations(teams).get(selectedTeamModal.id)?.assignedTrackName || 'Allocation'})</option>
                     {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
                       <option key={ps.trackId} value={ps.trackName}>
                         {ps.trackName} ({ps.trackId})
@@ -2641,7 +2644,7 @@ Cognitia 2026 Organizing Team`;
                       ))
                     ) : (
                       <div className="text-[#8f9396] italic col-span-2 p-1.5 bg-[#141618] border border-[#2b2e30] rounded-xs text-[8px]">
-                        Selected Track: {selectedTeamModal.selectedTrack || 'General Track (No preferences locked)'}
+                        Selected Track: {selectedTeamModal.adminTrackOverride || (calculateFcfsTrackAllocations(teams).get(selectedTeamModal.id)?.assignedTrackName) || selectedTeamModal.selectedTrack || 'General Track (No preferences locked)'}
                       </div>
                     )}
                   </div>

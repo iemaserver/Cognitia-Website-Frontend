@@ -145,6 +145,7 @@ export interface TeamRegistration {
   members: TeamMember[];
   isMembersLocked?: boolean;
   selectedTrack?: string;
+  adminTrackOverride?: string;
   trackPreferences?: string[];
   isTrackLocked?: boolean;
   trackLockedAt?: string;

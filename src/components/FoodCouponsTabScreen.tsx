@@ -4,8 +4,6 @@ import {
   QrCode,
   AlertTriangle,
   CheckCircle2,
-  Printer,
-  Download,
   X,
   UserCheck,
   UserX,
@@ -18,7 +16,6 @@ import {
 import { TeamRegistration, TeamMember, MealType } from '../types';
 import { firebaseService } from '../services/firebaseService';
 import { sound } from '../utils/audio';
-import { downloadFoodCouponsPdf, printFoodCouponsPdf } from '../utils/ticketPdfGenerator';
 
 interface FoodCouponsTabScreenProps {
   teamIdFromProp?: string;
@@ -35,7 +32,6 @@ export const FoodCouponsTabScreen: React.FC<FoodCouponsTabScreenProps> = ({
   const [activeMealSession, setActiveMealSession] = useState<MealType | 'none'>('none');
   const [zoomQr, setZoomQr] = useState<{ url: string; title: string; subtitle: string } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
 
   // Extract teamId from URL search param if not passed via props
   useEffect(() => {
@@ -155,48 +151,16 @@ export const FoodCouponsTabScreen: React.FC<FoodCouponsTabScreenProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              onClick={async () => {
-                if (!team) return;
-                sound.playBlip(500);
-                setIsGeneratingPdf(true);
-                try {
-                  await downloadFoodCouponsPdf(team, activeMealSession);
-                } finally {
-                  setIsGeneratingPdf(false);
-                }
-              }}
-              disabled={isGeneratingPdf}
-              className="bg-[#1e4620] hover:bg-[#28592b] text-[#4ade80] border border-[#4ade80] font-pixel text-[9px] px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-[2px_2px_0_0_#000] disabled:opacity-50"
-            >
-              <Download size={13} /> {isGeneratingPdf ? 'GENERATING PDF...' : 'DOWNLOAD FOOD PDF'}
-            </button>
-            <button
-              onClick={async () => {
-                if (!team) return;
-                sound.playBlip(500);
-                setIsGeneratingPdf(true);
-                try {
-                  await printFoodCouponsPdf(team, activeMealSession);
-                } finally {
-                  setIsGeneratingPdf(false);
-                }
-              }}
-              disabled={isGeneratingPdf}
-              className="bg-[#182418] hover:bg-[#203320] text-[#a7d38a] border border-[#254225] font-pixel text-[9px] px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
-            >
-              <Printer size={13} /> PRINT FOOD PDF
-            </button>
-            {isModal && onCloseModal && (
+          {isModal && onCloseModal && (
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
               <button
                 onClick={onCloseModal}
                 className="bg-[#261414] hover:bg-[#381c1c] text-[#eb5147] border border-[#522525] font-pixel text-[9px] px-3 py-1.5 rounded-xs flex items-center gap-1 cursor-pointer"
               >
                 <X size={14} /> CLOSE
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </header>
 
         {/* ADMIN ACTIVE SESSION CONTROLLER BANNER */}

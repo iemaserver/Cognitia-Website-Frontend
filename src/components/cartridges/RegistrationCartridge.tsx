@@ -48,7 +48,7 @@ import {
 } from 'lucide-react';
 import { FoodCouponsTabScreen } from '../FoodCouponsTabScreen';
 import { MealType, isIemUemMember, isIemUemAllStudentTeam } from '../../types';
-import { downloadTicketPdf, printTicketPdf, downloadFoodCouponsPdf } from '../../utils/ticketPdfGenerator';
+import { downloadTicketPdf, printTicketPdf } from '../../utils/ticketPdfGenerator';
 
 const AVAILABLE_TRACKS = [
   {
@@ -2173,7 +2173,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                           </p>
                         )}
                         <p className="text-[#a7d38a]">
-                          TRACK: {activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'General Track'}
+                          TRACK: {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'General Track'}
                         </p>
                         <p className="text-[#8f9396]">
                           VENUE: IEM Aegis Building, College More, Salt Lake Sector V, Kolkata
@@ -2401,16 +2401,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      sound.playBlip(500);
-                      await downloadFoodCouponsPdf(activeLeadTeam, activeMealSession);
-                    }}
-                    className="bg-[#1e4620] hover:bg-[#28592b] text-[#4ade80] border border-[#4ade80] font-pixel text-[8.5px] uppercase px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-[2px_2px_0_0_#000] shrink-0"
-                  >
-                    <Download size={12} /> DOWNLOAD FOOD PDF
-                  </button>
                   <button
                     type="button"
                     onClick={() => {

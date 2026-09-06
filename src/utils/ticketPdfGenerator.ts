@@ -235,7 +235,7 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
 
   const prefs = (team.trackPreferences && team.trackPreferences.filter(Boolean).length > 0)
     ? team.trackPreferences.filter(Boolean)
-    : [team.selectedTrack || 'General Track'];
+    : [team.adminTrackOverride || team.selectedTrack || 'General Track'];
 
   // #1 Choice (Primary Track)
   doc.setFillColor(254, 243, 199); // Amber light

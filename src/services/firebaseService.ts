@@ -667,7 +667,9 @@ class FirebaseService {
     }
 
     team.trackPreferences = trackPreferences;
-    team.selectedTrack = trackPreferences[0] || '';
+    if (!team.adminTrackOverride) {
+      team.selectedTrack = trackPreferences[0] || '';
+    }
     team.isTrackLocked = true;
     team.trackLockedAt = new Date().toISOString();
     this.saveToStorage();
@@ -688,12 +690,11 @@ class FirebaseService {
     );
     if (!team) return { success: false };
 
-    team.selectedTrack = selectedTrack;
+    team.adminTrackOverride = selectedTrack || undefined;
+    team.selectedTrack = selectedTrack || (team.trackPreferences && team.trackPreferences[0]) || undefined;
     if (selectedTrack) {
       team.isTrackLocked = true;
       team.trackLockedAt = team.trackLockedAt || new Date().toISOString();
-    } else {
-      team.isTrackLocked = false;
     }
     this.saveToStorage();
     this.notifyListeners();
@@ -1367,7 +1368,7 @@ export function calculateFcfsTrackAllocations(teams: TeamRegistration[]): Map<st
     const { team, checkedCount, totalMembers, qualifiedAt } = q;
 
     let isOverridden = false;
-    let assignedTrackName = team.selectedTrack || '';
+    let assignedTrackName = team.adminTrackOverride || '';
     let matchedTrackObj = Object.values(TRACK_PROBLEM_STATEMENTS).find(
       (p) => p.trackName.toLowerCase() === assignedTrackName.toLowerCase() || p.trackId.toLowerCase() === assignedTrackName.toLowerCase()
     );
@@ -1421,7 +1422,7 @@ export function calculateFcfsTrackAllocations(teams: TeamRegistration[]): Map<st
     const checkedCount = mems.filter((m) => m.checkInStatus === 'checked_in').length;
     const totalMembers = mems.length;
 
-    const firstPref = t.selectedTrack || (t.trackPreferences && t.trackPreferences[0]) || 'Natural Language Processing & Computer Vision';
+    const firstPref = t.adminTrackOverride || (t.trackPreferences && t.trackPreferences[0]) || t.selectedTrack || 'Natural Language Processing & Computer Vision';
     const matchedTrackObj = Object.values(TRACK_PROBLEM_STATEMENTS).find(
       (p) => p.trackName.toLowerCase() === firstPref.toLowerCase() || p.trackId.toLowerCase() === firstPref.toLowerCase()
     ) || Object.values(TRACK_PROBLEM_STATEMENTS)[0];
