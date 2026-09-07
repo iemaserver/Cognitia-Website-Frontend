@@ -873,6 +873,7 @@ Cognitia 2026 Organizing Team`;
       // Section 1: Team Identification & Pass Credentials
       'Team ID (TID)',
       'Team Name',
+      'Team Password',
       'Official Pass Ticket ID',
       'Ticket Issued At',
       'Selected Track',
@@ -981,6 +982,7 @@ Cognitia 2026 Organizing Team`;
         // Section 1: Team Identification & Pass Credentials
         escapeCSV(t.id),
         escapeCSV(t.teamName),
+        escapeCSV(t.leadPasswordHash || 'Cognitia2026'),
         escapeCSV(t.ticketPassId || 'N/A'),
         escapeCSV(t.ticketIssuedAt || 'N/A'),
         escapeCSV(assignedTrack),
