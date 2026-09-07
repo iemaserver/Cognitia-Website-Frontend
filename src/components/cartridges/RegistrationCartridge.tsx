@@ -1991,27 +1991,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                         );
                       })()}
                     </div>
-
-                    {/* Hackathon Track Assignment Status */}
-                    <div className="border-t border-[#2b2e30] pt-2 space-y-1">
-                      <span className="font-silkscreen text-[7.5px] text-[#f4c151] uppercase block">
-                        HACKATHON TRACK ASSIGNMENT:
-                      </span>
-                      <div className="font-silkscreen text-[7.5px]">
-                        {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack ? (
-                          <span className="bg-[#142417] border border-[#25522b] text-[#86efac] px-2 py-1 rounded-xs flex items-center gap-1 font-bold">
-                            🎯 ASSIGNED TRACK: {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack}
-                          </span>
-                        ) : (
-                          <span className="text-[#f4c151] bg-[#241d14] px-2 py-1 border border-[#423325] rounded-xs flex items-center gap-1">
-                            ℹ️ PENDING TRACK ASSIGNMENT BY ADMIN
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-
-
                     {/* Individual Member Pass Badges */}
                     <div className="border-t border-[#2b2e30] pt-3 space-y-2">
                       <span className="font-silkscreen text-[8.5px] text-[#a7d38a] uppercase block tracking-wider">
