@@ -36,7 +36,7 @@ import {
   Utensils,
   Edit2,
 } from 'lucide-react';
-import { firebaseService, calculateFcfsTrackAllocations, TRACK_PROBLEM_STATEMENTS } from '../../services/firebaseService';
+import { firebaseService, calculateFcfsTrackAllocations, getTrackSlotAvailability, TRACK_PROBLEM_STATEMENTS } from '../../services/firebaseService';
 import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus, MealType, isIemUemMember, isIemUemAllStudentTeam } from '../../types';
 import { sound } from '../../utils/audio';
 import { downloadTicketPdf } from '../../utils/ticketPdfGenerator';
@@ -354,15 +354,23 @@ export const AdminCartridge: React.FC = () => {
 
   const handleTrackOverride = async (teamId: string, trackValue: string) => {
     sound.playBlip(600);
-    await firebaseService.overrideTeamTrack(teamId, trackValue);
+    const res = await firebaseService.overrideTeamTrack(teamId, trackValue);
+    if (!res.success && res.message) {
+      sound.playBlip(300);
+      alert(`⚠️ CANNOT ASSIGN TRACK:\n\n${res.message}`);
+      return;
+    }
     loadAdminData();
-    if (selectedTeamModal && (selectedTeamModal.id === teamId || selectedTeamModal.ticketPassId === teamId)) {
-      setSelectedTeamModal({
-        ...selectedTeamModal,
-        adminTrackOverride: trackValue || undefined,
-        selectedTrack: trackValue || selectedTeamModal.trackPreferences?.[0] || undefined,
-        isTrackLocked: Boolean(trackValue || selectedTeamModal.isTrackLocked),
-      });
+    if (res.team) {
+      if (selectedTeamModal && (selectedTeamModal.id === teamId || selectedTeamModal.ticketPassId === teamId)) {
+        setSelectedTeamModal(res.team);
+      }
+      if (attendanceModalData && (attendanceModalData.matchedTeam.id === teamId || attendanceModalData.matchedTeam.ticketPassId === teamId)) {
+        setAttendanceModalData({
+          ...attendanceModalData,
+          matchedTeam: res.team,
+        });
+      }
     }
   };
 
@@ -898,7 +906,7 @@ Cognitia 2026 Organizing Team`;
       'Enrolled At',
       // Section 2: Financial & IEMCRP Audit
       'Team Type',
-      'IEM/UEM Free Waiver Verified?',
+      'IEM Free Waiver Verified?',
       'Phase 2 Fee Amount',
       'Phase 2 Payment Status',
       'UPI UTR Ref Transaction ID',
@@ -978,7 +986,7 @@ Cognitia 2026 Organizing Team`;
       ];
 
       const isIemUemTeamVerified = isIemUemAllStudentTeam(t.members);
-      const teamType = isIemUemTeamVerified ? 'IEM/UEM Student Team (Free Waiver)' : 'External / Mixed Team (₹200 Fee)';
+      const teamType = isIemUemTeamVerified ? 'IEM Student Team (Free Waiver)' : 'External / Mixed Team (₹200 Fee)';
       const feeAmt = isIemUemTeamVerified ? '₹0' : '₹200';
       const alloc = calculateFcfsTrackAllocations(teams).get(t.id);
       const assignedTrack = t.adminTrackOverride || alloc?.assignedTrackName || t.selectedTrack || 'N/A';
@@ -987,7 +995,7 @@ Cognitia 2026 Organizing Team`;
       const rosterSummary = t.members
         .map(
           (m, idx) =>
-            `[M${idx + 1}] ${m.name} (${m.role}) - Email: ${m.email || 'N/A'}, Phone: ${m.phone || 'N/A'}, GitHub: @${m.githubId}, Institution: ${m.isIemUemStudent ? `IEM/UEM [Roll: ${m.enrollmentNo || 'N/A'}, Proof: ${m.iemcrpScreenshotUrl || 'N/A'}]` : `External (${m.collegeName || 'N/A'})`}, Pass ID: ${m.memberPassId || 'N/A'}, Gate Check-in: ${m.checkInStatus || 'not_checked_in'}`
+            `[M${idx + 1}] ${m.name} (${m.role}) - Email: ${m.email || 'N/A'}, Phone: ${m.phone || 'N/A'}, GitHub: @${m.githubId}, Institution: ${m.isIemUemStudent ? `IEM [Roll: ${m.enrollmentNo || 'N/A'}, Proof: ${m.iemcrpScreenshotUrl || 'N/A'}]` : `External (${m.collegeName || 'N/A'})`}, Pass ID: ${m.memberPassId || 'N/A'}, Gate Check-in: ${m.checkInStatus || 'not_checked_in'}`
         )
         .join(' ; ');
 
@@ -1918,7 +1926,7 @@ Cognitia 2026 Organizing Team`;
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           {isIemUemTeam ? (
                             <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
-                              🎓 IEM/UEM
+                              🎓 IEM
                             </span>
                           ) : (
                             <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
@@ -1937,36 +1945,67 @@ Cognitia 2026 Organizing Team`;
                       <div className="space-y-2.5 font-silkscreen text-[9.5px]">
                         {/* 1. Track Assignment */}
                         <div className="space-y-1 bg-[#090b0d] p-2 rounded-xs border border-[#2b2e30]">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[#8f9396] block text-[8.5px] font-bold">TRACK ASSIGNMENT:</label>
-                            {t.adminTrackOverride ? (
-                              <span className="bg-[#581c87] text-[#e9d5ff] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#7e22ce] font-bold">
-                                ⚡ OVERRIDDEN
-                              </span>
-                            ) : (
-                              <span className="bg-[#1c2836] text-[#38bdf8] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
-                                🤖 FCFS ALLOCATED
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[#38bdf8] font-pixel text-[10.5px] font-bold leading-snug">
-                            {t.adminTrackOverride || calculateFcfsTrackAllocations(teams).get(t.id)?.assignedTrackName || ''}
-                          </p>
-                          <select
-                            value={t.adminTrackOverride || ''}
-                            onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                            className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${t.adminTrackOverride
-                              ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8] font-bold'
-                              : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
-                              }`}
-                          >
-                            <option value="">⚡ KEEP AUTO FCFS</option>
-                            {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
-                              <option key={ps.trackId} value={ps.trackName}>
-                                {ps.trackName}
-                              </option>
-                            ))}
-                          </select>
+                          {(() => {
+                            const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                            const isQualified = checkedCount >= 2;
+                            const availability = getTrackSlotAvailability(teams);
+                            const currentAssigned = t.adminTrackOverride || t.selectedTrack || '';
+
+                            return (
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[#8f9396] block text-[8.5px] font-bold">TRACK ASSIGNMENT:</label>
+                                  {currentAssigned ? (
+                                    <span className="bg-[#182418] text-[#86efac] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#25522b] font-bold">
+                                      🎯 ASSIGNED
+                                    </span>
+                                  ) : isQualified ? (
+                                    <span className="bg-[#1c2836] text-[#38bdf8] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
+                                      ⚡ READY
+                                    </span>
+                                  ) : (
+                                    <span className="bg-[#241d14] text-[#f2933d] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#423325] font-bold">
+                                      🔒 NEED 2+ PRESENT
+                                    </span>
+                                  )}
+                                </div>
+                                <p className={`font-pixel text-[10.5px] font-bold leading-snug ${currentAssigned ? 'text-[#86efac]' : 'text-[#f4c151]'}`}>
+                                  {currentAssigned || 'Pending Venue Gate Check-In'}
+                                </p>
+                                <select
+                                  disabled={!isQualified}
+                                  value={currentAssigned}
+                                  onChange={(e) => handleTrackOverride(t.id, e.target.value)}
+                                  className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${!isQualified
+                                      ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
+                                      : currentAssigned
+                                        ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
+                                        : 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                                    }`}
+                                  title={
+                                    !isQualified
+                                      ? `Requires min 2 members present to assign track (Current: ${checkedCount})`
+                                      : `Select track for ${t.teamName}`
+                                  }
+                                >
+                                  <option value="">
+                                    {!isQualified ? `🔒 NEED 2+ PRESENT (${checkedCount})` : '-- ASSIGN TRACK --'}
+                                  </option>
+                                  {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                                    const slotInfo = availability[ps.trackId];
+                                    const remaining = slotInfo ? slotInfo.remainingSlots : 4;
+                                    const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
+
+                                    return (
+                                      <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
+                                        {ps.trackName} {isFull ? '(FULL)' : `(${remaining}/4 Free)`}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         {/* 2. Selection & Registration Fee */}
@@ -2088,7 +2127,7 @@ Cognitia 2026 Organizing Team`;
                     <th className="py-2.5 px-2.5 min-w-[130px]">Lead Email</th>
                     <th className="py-2.5 px-2.5 min-w-[185px]">Track Assignment</th>
                     <th className="py-2.5 px-2.5 min-w-[110px]">Phase 2 Selection</th>
-                    <th className="py-2.5 px-2.5 min-w-[115px]">IEM/UEM Status</th>
+                    <th className="py-2.5 px-2.5 min-w-[115px]">IEM Status</th>
                     <th className="py-2.5 px-2.5 min-w-[140px]">Registration Fee</th>
                     <th className="py-2.5 px-2.5 min-w-[140px]">Gate Attendance</th>
                     <th className="py-2.5 px-2.5 min-w-[95px] text-right">Actions</th>
@@ -2117,54 +2156,72 @@ Cognitia 2026 Organizing Team`;
                             {t.leadEmail}
                           </td>
 
-                          {/* Track Assignment (FCFS Auto / Admin Override) */}
+                          {/* Track Assignment (Admin Assignment upon 2+ Members Present) */}
                           <td className="py-2.5 px-2.5">
                             {(() => {
-                              const allocations = calculateFcfsTrackAllocations(teams);
-                              const alloc = allocations.get(t.id);
-                              const currentTrackName = t.adminTrackOverride || alloc?.assignedTrackName || 'Natural Language Processing & Computer Vision';
-                              const isOverridden = Boolean(t.adminTrackOverride);
+                              const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                              const isQualified = checkedCount >= 2;
+                              const availability = getTrackSlotAvailability(teams);
+                              const currentAssigned = t.adminTrackOverride || t.selectedTrack || '';
 
                               return (
                                 <div className="space-y-1 max-w-[190px]">
-                                  {/* Allocated Track Name Display */}
+                                  {/* Assigned Track Name Display */}
                                   <span
-                                    className={`text-[11px] font-bold block leading-tight ${isOverridden ? 'text-[#d8b4fe]' : 'text-[#38bdf8]'
-                                      }`}
-                                    title={currentTrackName}
+                                    className={`text-[11px] font-bold block leading-tight ${currentAssigned ? 'text-[#86efac]' : 'text-[#f4c151]'}`}
+                                    title={currentAssigned || 'Pending Venue Check-In'}
                                   >
-                                    {currentTrackName}
+                                    {currentAssigned || 'Pending Venue Check-In'}
                                   </span>
 
-                                  {/* FCFS / Override Status Badge */}
+                                  {/* Track Status Badge */}
                                   <div className="flex items-center gap-1 text-[8px] font-silkscreen">
-                                    {isOverridden ? (
-                                      <span className="bg-[#581c87] text-[#e9d5ff] px-1.5 py-0.5 rounded-xs border border-[#7e22ce] font-bold">
-                                        ⚡ OVERRIDDEN
+                                    {currentAssigned ? (
+                                      <span className="bg-[#182418] text-[#86efac] px-1.5 py-0.5 rounded-xs border border-[#25522b] font-bold">
+                                        🎯 TRACK ASSIGNED
+                                      </span>
+                                    ) : isQualified ? (
+                                      <span className="bg-[#1c2836] text-[#38bdf8] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
+                                        ⚡ READY TO ASSIGN
                                       </span>
                                     ) : (
-                                      <span className="bg-[#1c2836] text-[#38bdf8] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
-                                        🤖 FCFS {alloc?.slotNumber ? `#${alloc.slotNumber}/4` : 'ALLOCATED'}
+                                      <span className="bg-[#241d14] text-[#f2933d] px-1.5 py-0.5 rounded-xs border border-[#423325] font-bold">
+                                        🔒 NEED 2+ PRESENT
                                       </span>
                                     )}
                                   </div>
 
-                                  {/* Admin Override Control */}
+                                  {/* Admin Track Selection Control */}
                                   <select
-                                    value={t.adminTrackOverride || ''}
+                                    disabled={!isQualified}
+                                    value={currentAssigned}
                                     onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                                    className={`font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs border cursor-pointer w-full truncate ${isOverridden
-                                      ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8]'
-                                      : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
+                                    className={`font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs border cursor-pointer w-full truncate ${!isQualified
+                                        ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
+                                        : currentAssigned
+                                          ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
+                                          : 'bg-[#292218] text-[#f4c151] border-[#594424]'
                                       }`}
-                                    title={isOverridden ? `Admin Overridden to: ${currentTrackName}` : `FCFS Auto-Allocated: ${currentTrackName}. Select to override.`}
+                                    title={
+                                      !isQualified
+                                        ? `Requires min 2 members present to assign track (Current: ${checkedCount})`
+                                        : `Select track for ${t.teamName}`
+                                    }
                                   >
-                                    <option value="">⚡ KEEP AUTO FCFS</option>
-                                    {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
-                                      <option key={ps.trackId} value={ps.trackName}>
-                                        {ps.trackName}
-                                      </option>
-                                    ))}
+                                    <option value="">
+                                      {!isQualified ? `🔒 NEED 2+ PRESENT (${checkedCount})` : '-- ASSIGN TRACK --'}
+                                    </option>
+                                    {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                                      const slotInfo = availability[ps.trackId];
+                                      const remaining = slotInfo ? slotInfo.remainingSlots : 4;
+                                      const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
+
+                                      return (
+                                        <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
+                                          {ps.trackName} {isFull ? '(FULL)' : `(${remaining}/4 Free)`}
+                                        </option>
+                                      );
+                                    })}
                                   </select>
                                 </div>
                               );
@@ -2195,7 +2252,7 @@ Cognitia 2026 Organizing Team`;
                             {isIemUemTeam ? (
                               <div className="space-y-1">
                                 <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
-                                  🎓 IEM/UEM (FREE)
+                                  🎓 IEM (FREE)
                                 </span>
                                 {t.iemcrpScreenshotsSubmitted && (
                                   <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1 py-0.5 rounded-xs block w-fit">
@@ -2426,7 +2483,7 @@ Cognitia 2026 Organizing Team`;
                             checked={adminMemIsIemUem}
                             onChange={(e) => setAdminMemIsIemUem(e.target.checked)}
                           />
-                          <span className="text-[#86efac]">IEM/UEM Student</span>
+                          <span className="text-[#86efac]">IEM Student</span>
                         </label>
                         {!adminMemIsIemUem && (
                           <input
@@ -2585,75 +2642,97 @@ Cognitia 2026 Organizing Team`;
                 </div>
               </div>
 
-              {/* EVENT STAGE 3: TRACK PREFERENCES ORDER & MANUAL OVERRIDE & FAIR FCFS AUDIT */}
+              {/* EVENT STAGE 3: HACKATHON TRACK ASSIGNMENT */}
               <div className="bg-[#090b0d] border border-[#2b2e30] p-3 rounded-xs space-y-3">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-[#2b2e30] pb-2 gap-2">
-                  <div>
-                    <span className="font-pixel text-[9.5px] text-[#f4c151] flex items-center gap-1.5">
-                      <Target size={13} /> STAGE 3: TRACK ASSIGNMENT &amp; FAIR FCFS AUDIT
-                    </span>
-                    <p className="font-silkscreen text-[7.5px] text-[#8f9396] mt-0.5">
-                      Track slots auto-allocated on FCFS order when 2+ members check in at gate. Admin can manually override below.
-                    </p>
-                  </div>
-                  <span className={`font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs border ${selectedTeamModal.adminTrackOverride
-                    ? 'bg-[#29173b] text-[#d8b4fe] border-[#6b21a8]'
-                    : 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                    }`}>
-                    {selectedTeamModal.adminTrackOverride ? '⚡ MANUALLY OVERRIDDEN' : '🤖 AUTO FCFS ALLOCATED'}
-                  </span>
-                </div>
+                {(() => {
+                  const checkedCount = (selectedTeamModal.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                  const totalMems = (selectedTeamModal.members || []).length;
+                  const isQualified = checkedCount >= 2;
+                  const availability = getTrackSlotAvailability(teams);
+                  const currentAssigned = selectedTeamModal.adminTrackOverride || selectedTeamModal.selectedTrack || '';
 
-                {/* Admin Manual Track Override Select Control */}
-                <div className="p-2.5 bg-[#141618] border border-[#38bdf8]/40 rounded-xs space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-silkscreen text-[8px] text-[#38bdf8] font-bold">
-                      🛠️ ADMIN MANUAL TRACK OVERRIDE CONTROL:
-                    </span>
-                    {selectedTeamModal.adminTrackOverride && (
-                      <button
-                        type="button"
-                        onClick={() => handleTrackOverride(selectedTeamModal.id, '')}
-                        className="text-[#f87171] hover:underline font-silkscreen text-[7px] cursor-pointer"
-                      >
-                        RESET TO AUTO FCFS
-                      </button>
-                    )}
-                  </div>
-                  <select
-                    value={selectedTeamModal.adminTrackOverride || ''}
-                    onChange={(e) => handleTrackOverride(selectedTeamModal.id, e.target.value)}
-                    className="w-full bg-[#090b0d] border border-[#38bdf8] text-[#cfe8ff] font-pixel text-[9px] p-2 rounded-xs cursor-pointer focus:outline-none focus:border-[#00f0ff]"
-                  >
-                    <option value="">⚡ AUTO (FCFS: {calculateFcfsTrackAllocations(teams).get(selectedTeamModal.id)?.assignedTrackName || 'Allocation'})</option>
-                    {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => (
-                      <option key={ps.trackId} value={ps.trackName}>
-                        {ps.trackName} ({ps.trackId})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Participant Track Preferences Order */}
-                <div className="space-y-1">
-                  <span className="font-silkscreen text-[7.5px] text-[#8f9396]">PARTICIPANT SUBMITTED TRACK PREFERENCES ORDER:</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-silkscreen text-[8.5px]">
-                    {selectedTeamModal.trackPreferences && selectedTeamModal.trackPreferences.filter(Boolean).length > 0 ? (
-                      selectedTeamModal.trackPreferences.filter(Boolean).map((track, idx) => (
-                        <div key={idx} className="flex items-center gap-2 p-1.5 bg-[#141618] border border-[#2b2e30] rounded-xs">
-                          <span className="font-pixel text-[8px] text-[#f4c151] px-1.5 py-0.5 bg-[#2b2414] rounded-xs border border-[#423325] shrink-0">
-                            #{idx + 1} CHOICE
+                  return (
+                    <>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-[#2b2e30] pb-2 gap-2">
+                        <div>
+                          <span className="font-pixel text-[9.5px] text-[#f4c151] flex items-center gap-1.5">
+                            <Target size={13} /> STAGE 3: HACKATHON TRACK ASSIGNMENT
                           </span>
-                          <span className="text-[#cfe8ff] font-bold truncate">{track}</span>
+                          <p className="font-silkscreen text-[7.5px] text-[#8f9396] mt-0.5">
+                            Assigned by Event Administrators at venue check-in based on track slot availability when at least 2 members are present.
+                          </p>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-[#8f9396] italic col-span-2 p-1.5 bg-[#141618] border border-[#2b2e30] rounded-xs text-[8px]">
-                        Selected Track: {selectedTeamModal.adminTrackOverride || (calculateFcfsTrackAllocations(teams).get(selectedTeamModal.id)?.assignedTrackName) || selectedTeamModal.selectedTrack || 'General Track (No preferences locked)'}
+                        <span className={`font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs border font-bold ${currentAssigned
+                            ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                            : isQualified
+                              ? 'bg-[#1c2836] text-[#38bdf8] border-[#00f0ff]/30'
+                              : 'bg-[#241d14] text-[#f2933d] border-[#423325]'
+                          }`}>
+                          {currentAssigned
+                            ? '🎯 TRACK ASSIGNED'
+                            : isQualified
+                              ? `⚡ READY (${checkedCount}/${totalMems} PRESENT)`
+                              : `🔒 LOCKED (${checkedCount}/${totalMems} PRESENT - MIN 2 REQ)`}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                </div>
+
+                      {/* Admin Manual Track Selection Control */}
+                      <div className="p-2.5 bg-[#141618] border border-[#38bdf8]/40 rounded-xs space-y-1.5 font-silkscreen text-[8.5px]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#38bdf8] font-bold">
+                            🛠️ ADMIN TRACK ASSIGNMENT CONTROL:
+                          </span>
+                          {currentAssigned && (
+                            <button
+                              type="button"
+                              onClick={() => handleTrackOverride(selectedTeamModal.id, '')}
+                              className="text-[#f87171] hover:underline text-[7px] cursor-pointer"
+                            >
+                              CLEAR ASSIGNMENT
+                            </button>
+                          )}
+                        </div>
+
+                        {!isQualified ? (
+                          <div className="p-2 bg-[#1c1414] border border-[#522525] rounded-xs text-[#fca5a5] text-[8px]">
+                            ⚠️ Track assignment requires at least 2 team members to be checked in at venue gate (Current: {checkedCount}/{totalMems}).
+                          </div>
+                        ) : (
+                          <select
+                            value={currentAssigned}
+                            onChange={(e) => handleTrackOverride(selectedTeamModal.id, e.target.value)}
+                            className="w-full bg-[#090b0d] border border-[#38bdf8] text-[#cfe8ff] font-sans text-xs p-2 rounded-xs cursor-pointer focus:outline-none focus:border-[#00f0ff]"
+                          >
+                            <option value="">-- Select Track --</option>
+                            {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                              const slotInfo = availability[ps.trackId];
+                              const remaining = slotInfo ? slotInfo.remainingSlots : 4;
+                              const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
+
+                              return (
+                                <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
+                                  {ps.trackName} {isFull ? '(FULL - 0/4 Free)' : `(${remaining}/4 Free)`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        )}
+                      </div>
+
+                      {/* Assigned Track Status Display */}
+                      <div className="space-y-1 font-silkscreen text-[8.5px]">
+                        <span className="text-[#8f9396]">CURRENT ASSIGNED HACKATHON TRACK:</span>
+                        <div className="p-2 bg-[#141618] border border-[#2b2e30] rounded-xs font-bold text-[#86efac]">
+                          {currentAssigned ? (
+                            <span>🎯 {currentAssigned}</span>
+                          ) : (
+                            <span className="text-[#f4c151] font-normal italic">Pending venue attendance check-in (Admin will assign track once 2+ members check in)</span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 {/* MEMBER ATTENDANCE TIMESTAMPS BREAKDOWN FOR FAIR ASSIGNMENT AUDIT */}
                 <div className="space-y-1.5 pt-1 border-t border-[#2b2e30]">
@@ -2710,7 +2789,7 @@ Cognitia 2026 Organizing Team`;
                   </span>
                 </div>
 
-                {/* Free Waiver banner for IEM/UEM vs UTR/Screenshot for External */}
+                {/* Free Waiver banner for IEM vs UTR/Screenshot for External */}
                 {isIemUemAllStudentTeam(selectedTeamModal.members) ? (
                   <div className="p-2.5 bg-[#122314] border border-[#27662c] rounded-xs font-silkscreen text-[8px] text-[#86efac] space-y-1">
                     <div className="flex items-center gap-1.5 font-bold text-[#4ade80]">
@@ -2800,7 +2879,7 @@ Cognitia 2026 Organizing Team`;
                     >
                       <ShieldCheck size={14} />
                       {isIemUemAllStudentTeam(selectedTeamModal.members)
-                        ? 'APPROVE IEM/UEM FREE WAIVER & ISSUE TICKET PASS'
+                        ? 'APPROVE IEM FREE WAIVER & ISSUE TICKET PASS'
                         : 'VERIFY PHASE 2 PAYMENT & ISSUE TICKET PASS'}
                     </button>
                   )}
@@ -3489,7 +3568,7 @@ Cognitia 2026 Organizing Team`;
 
                             <div className="font-silkscreen text-[8px] text-[#94a3b8] space-y-0.5">
                               <p>ROLE: <span className="text-[#cfe8ff]">{m.role || 'Member'}</span></p>
-                              <p>INSTITUTION: <span className="text-[#86efac]">{m.isIemUemStudent ? `IEM/UEM (Roll: ${m.enrollmentNo || 'N/A'})` : m.collegeName || 'External'}</span></p>
+                              <p>INSTITUTION: <span className="text-[#86efac]">{m.isIemUemStudent ? `IEM (Roll: ${m.enrollmentNo || 'N/A'})` : m.collegeName || 'External'}</span></p>
                               {m.phone && <p>PHONE: <span className="text-[#cfe8ff]">{m.phone}</span></p>}
                             </div>
                           </div>
@@ -3617,6 +3696,62 @@ Cognitia 2026 Organizing Team`;
                     )}
                   </div>
                 </div>
+
+                {/* Track Assignment Box for Admin during Attendance */}
+                {(() => {
+                  const t = attendanceModalData.matchedTeam;
+                  const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                  const totalMems = (t.members || []).length;
+                  const isQualified = checkedCount >= 2;
+                  const availability = getTrackSlotAvailability(teams);
+                  const currentAssigned = t.adminTrackOverride || t.selectedTrack || '';
+
+                  return (
+                    <div className="bg-[#090b0d] border border-[#2b2e30] p-3 rounded-xs space-y-2 font-silkscreen text-[9px]">
+                      <div className="flex items-center justify-between border-b border-[#2b2e30] pb-1.5">
+                        <span className="font-pixel text-[10px] text-[#f4c151] flex items-center gap-1.5">
+                          <Target size={13} /> HACKATHON TRACK ASSIGNMENT
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-xs font-bold ${isQualified ? 'bg-[#182418] text-[#86efac] border border-[#25522b]' : 'bg-[#241d14] text-[#f2933d] border border-[#423325]'}`}>
+                          {isQualified ? `✓ READY (${checkedCount}/${totalMems} PRESENT)` : `🔒 LOCKED (${checkedCount}/${totalMems} PRESENT - MIN 2 REQ)`}
+                        </span>
+                      </div>
+
+                      {!isQualified ? (
+                        <div className="p-2 bg-[#1c1414] border border-[#522525] rounded-xs text-[#fca5a5] text-[8.5px] leading-snug">
+                          ⚠️ At least 2 team members must check in at the venue gate before an admin can assign a hackathon track to this team. (Current present: {checkedCount}/{totalMems})
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <label className="block text-[#cfe8ff]">SELECT HACKATHON TRACK FOR TEAM ({t.teamName}):</label>
+                          <select
+                            value={currentAssigned}
+                            onChange={(e) => handleTrackOverride(t.id, e.target.value)}
+                            className="w-full bg-[#141618] border border-[#38bdf8]/50 text-white font-sans text-xs px-2.5 py-2 rounded-xs focus:border-[#f4c151] focus:outline-none"
+                          >
+                            <option value="">-- Select Track (Admin Assignment) --</option>
+                            {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                              const slotInfo = availability[ps.trackId];
+                              const remaining = slotInfo ? slotInfo.remainingSlots : 4;
+                              const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
+
+                              return (
+                                <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
+                                  {ps.trackName} {isFull ? '(FULL - 0/4 Free)' : `(${remaining}/4 Slots Free)`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          {currentAssigned && (
+                            <p className="text-[#86efac] font-bold text-[8.5px]">
+                              🎯 CURRENTLY ASSIGNED: {currentAssigned}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Quick Action Buttons */}
                 <div className="grid grid-cols-2 gap-2 pt-1">

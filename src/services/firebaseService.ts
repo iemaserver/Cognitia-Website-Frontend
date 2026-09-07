@@ -395,7 +395,7 @@ class FirebaseService {
     }
   }
 
-  // Helper method to check if a team is an IEM/UEM all-student team (qualifying for ₹0 free registration)
+  // Helper method to check if a team is an IEM all-student team (qualifying for ₹0 free registration)
   public checkIsIemUemTeam(members: TeamMember[]): { isIemUemTeam: boolean; feeAmount: number } {
     const allIemUem = isIemUemAllStudentTeam(members);
     return {
@@ -441,7 +441,7 @@ class FirebaseService {
       role: 'Team Lead',
       githubId: cleanGitHub,
       isLead: true,
-      collegeName: data.collegeName || (data.isIemUemStudent ? 'IEM / UEM' : ''),
+      collegeName: data.collegeName || (data.isIemUemStudent ? 'IEM Salt Lake' : ''),
       isIemUemStudent: !!data.isIemUemStudent,
       enrollmentNo: data.enrollmentNo?.trim() || '',
     };
@@ -524,7 +524,7 @@ class FirebaseService {
       role: 'Team Lead',
       githubId: data.leadGitHubId || '',
       isLead: true,
-      collegeName: 'IEM / UEM',
+      collegeName: 'IEM Salt Lake',
       isIemUemStudent: true,
       enrollmentNo: '',
     };
@@ -598,7 +598,24 @@ class FirebaseService {
   public getActiveLeadTeam(): TeamRegistration | null {
     const teamId = localStorage.getItem(STORAGE_KEY_AUTH);
     if (!teamId) return null;
-    return this.teams.find((t) => t.id === teamId) || null;
+    const team = this.teams.find((t) => t.id === teamId) || null;
+
+    if (team && team.rsvpConfirmed && isIemUemAllStudentTeam(team.members) && team.paymentStatus !== 'payment_verified') {
+      team.isIemUemTeam = true;
+      team.phase2FeeAmount = 0;
+      team.paymentStatus = 'payment_verified';
+      team.phase2PaymentStatus = 'payment_verified';
+      this.ensureMemberPassIds(team);
+      if (!team.ticketPassId) {
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        team.ticketPassId = `COGNITIA-2026-PASS-${randomDigits}`;
+        team.ticketIssuedAt = new Date().toISOString();
+      }
+      this.saveToStorage();
+      this.syncTeamToFirestore(team);
+    }
+
+    return team;
   }
 
   public logoutTeamLead() {
@@ -680,21 +697,32 @@ class FirebaseService {
     return { success: true, team };
   }
 
-  // Admin manual override for team track assignment
+  // Admin manual override for team track assignment (requires at least 2 members checked in)
   public async overrideTeamTrack(
     teamId: string,
     selectedTrack: string
-  ): Promise<{ success: boolean; team?: TeamRegistration }> {
+  ): Promise<{ success: boolean; team?: TeamRegistration; message?: string }> {
     const team = this.teams.find(
       (t) => t.id === teamId || (t.ticketPassId && t.ticketPassId.toLowerCase() === teamId.toLowerCase())
     );
-    if (!team) return { success: false };
+    if (!team) return { success: false, message: 'Team not found.' };
+
+    const checkedCount = (team.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+    if (selectedTrack && checkedCount < 2) {
+      return {
+        success: false,
+        team,
+        message: `Track assignment requires at least 2 members to be present and checked in at venue gate (Current: ${checkedCount}/${team.members?.length || 0}).`,
+      };
+    }
 
     team.adminTrackOverride = selectedTrack || undefined;
-    team.selectedTrack = selectedTrack || (team.trackPreferences && team.trackPreferences[0]) || undefined;
+    team.selectedTrack = selectedTrack || undefined;
     if (selectedTrack) {
       team.isTrackLocked = true;
       team.trackLockedAt = team.trackLockedAt || new Date().toISOString();
+    } else {
+      team.isTrackLocked = false;
     }
     this.saveToStorage();
     this.notifyListeners();
@@ -751,6 +779,21 @@ class FirebaseService {
     }
 
     team.rsvpConfirmed = true;
+
+    // Full IEM/UEM student teams auto-verify and receive official ticket pass upon RSVP confirmation
+    if (isIemUemAllStudentTeam(team.members)) {
+      team.isIemUemTeam = true;
+      team.phase2FeeAmount = 0;
+      team.paymentStatus = 'payment_verified';
+      team.phase2PaymentStatus = 'payment_verified';
+      this.ensureMemberPassIds(team);
+      if (!team.ticketPassId) {
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        team.ticketPassId = `COGNITIA-2026-PASS-${randomDigits}`;
+        team.ticketIssuedAt = new Date().toISOString();
+      }
+    }
+
     this.saveToStorage();
     this.notifyListeners();
 
@@ -1101,10 +1144,10 @@ class FirebaseService {
       mealType === 'day1_dinner'
         ? 'Day 1 Dinner'
         : mealType === 'day1_snacks'
-        ? 'Day 1 Late Night Snacks'
-        : mealType === 'day2_breakfast'
-        ? 'Day 2 Breakfast'
-        : 'Day 2 Lunch';
+          ? 'Day 1 Late Night Snacks'
+          : mealType === 'day2_breakfast'
+            ? 'Day 2 Breakfast'
+            : 'Day 2 Lunch';
 
     const checkedInCount = (team.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
 
@@ -1463,6 +1506,36 @@ export function calculateFcfsTrackAllocations(teams: TeamRegistration[]): Map<st
   });
 
   return result;
+}
+
+export function getTrackSlotAvailability(teams: TeamRegistration[]): Record<string, { trackId: string; trackName: string; assignedCount: number; maxSlots: number; remainingSlots: number }> {
+  const MAX_SLOTS_PER_TRACK = 4;
+  const availability: Record<string, { trackId: string; trackName: string; assignedCount: number; maxSlots: number; remainingSlots: number }> = {};
+
+  Object.values(TRACK_PROBLEM_STATEMENTS).forEach((ps) => {
+    availability[ps.trackId] = {
+      trackId: ps.trackId,
+      trackName: ps.trackName,
+      assignedCount: 0,
+      maxSlots: MAX_SLOTS_PER_TRACK,
+      remainingSlots: MAX_SLOTS_PER_TRACK,
+    };
+  });
+
+  (teams || []).forEach((t) => {
+    const assignedTrack = t.adminTrackOverride || t.selectedTrack;
+    if (assignedTrack) {
+      const matched = Object.values(TRACK_PROBLEM_STATEMENTS).find(
+        (ps) => ps.trackName.toLowerCase() === assignedTrack.toLowerCase() || ps.trackId.toLowerCase() === assignedTrack.toLowerCase()
+      );
+      if (matched && availability[matched.trackId]) {
+        availability[matched.trackId].assignedCount += 1;
+        availability[matched.trackId].remainingSlots = Math.max(0, MAX_SLOTS_PER_TRACK - availability[matched.trackId].assignedCount);
+      }
+    }
+  });
+
+  return availability;
 }
 
 export const firebaseService = new FirebaseService();

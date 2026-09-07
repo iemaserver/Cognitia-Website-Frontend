@@ -101,11 +101,10 @@ interface RegistrationCartridgeProps {
 
 const EMPTY_TRACK_PREFS = ['', '', '', '', ''];
 
-type TeamDashboardTab = 'rsvp' | 'tracks_selection' | 'fee_payment' | 'phase2_status' | 'team';
+type TeamDashboardTab = 'rsvp' | 'fee_payment' | 'phase2_status' | 'team';
 
 const TAB_ORDER: TeamDashboardTab[] = [
   'rsvp',
-  'tracks_selection',
   'fee_payment',
   'phase2_status',
 ];
@@ -161,15 +160,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       if (activeLeadTeam.phase2PaymentStatus === 'payment_verified' && activeLeadTeam.ticketPassId) {
         setActiveTab('phase2_status');
       }
-      // 2. Else if Track Preferences are locked -> Lock strictly to fee_payment (No previous navigation to track selection)
-      else if (activeLeadTeam.isTrackLocked) {
+      // 2. Else if RSVP is confirmed and not waitlisted -> Move to fee_payment
+      else if (activeLeadTeam.rsvpConfirmed && activeLeadTeam.phase2Status !== 'waitlisted') {
         setActiveTab('fee_payment');
       }
-      // 3. Else if RSVP is confirmed and not waitlisted -> Move to tracks_selection
-      else if (activeLeadTeam.rsvpConfirmed && activeLeadTeam.phase2Status !== 'waitlisted') {
-        setActiveTab('tracks_selection');
-      }
-      // 4. Else -> Start at rsvp (Step 1 RSVP Confirmation Page)
+      // 3. Else -> Start at rsvp (Step 1 RSVP Confirmation Page)
       else {
         setActiveTab('rsvp');
       }
@@ -353,10 +348,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         setAuthSuccess('Team lead authenticated successfully.');
         if (res.team.phase2PaymentStatus === 'payment_verified' && res.team.ticketPassId) {
           setActiveTab('phase2_status');
-        } else if (res.team.isTrackLocked) {
-          setActiveTab('fee_payment');
         } else if (res.team.rsvpConfirmed) {
-          setActiveTab('tracks_selection');
+          setActiveTab('fee_payment');
         } else {
           setActiveTab('rsvp');
         }
@@ -593,14 +586,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     }
     if ((targetTab === 'fee_payment' || targetTab === 'phase2_status') && !activeLeadTeam?.rsvpConfirmed) {
       sound.playBlip(300);
-      alert('Please CONFIRM YOUR PHASE 2 OFFLINE PARTICIPATION RSVP in Track Selection before proceeding to Payment.');
-      setActiveTab('tracks_selection');
-      return;
-    }
-    if ((targetTab === 'fee_payment' || targetTab === 'phase2_status') && !activeLeadTeam?.isTrackLocked) {
-      sound.playBlip(300);
-      alert('Please SELECT AND PERMANENTLY LOCK YOUR TRACK PREFERENCES in Track Selection before proceeding to Payment.');
-      setActiveTab('tracks_selection');
+      alert('Please CONFIRM YOUR PHASE 2 OFFLINE PARTICIPATION RSVP in Step 1 before proceeding.');
+      setActiveTab('rsvp');
       return;
     }
     sound.playBlip(600);
@@ -1007,7 +994,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                           onChange={() => setLeadIsIemUem(true)}
                           className="accent-[#38bdf8]"
                         />
-                        <span className="text-[#86efac]">🎓 IEM / UEM Student (FREE Reg)</span>
+                        <span className="text-[#86efac]">🎓 IEM Student (Salt Lake Campus) - ₹0 FREE</span>
                       </label>
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
@@ -1017,13 +1004,13 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                           onChange={() => setLeadIsIemUem(false)}
                           className="accent-[#ef4444]"
                         />
-                        <span className="text-[#93c5fd]">🏫 External Student (₹200 Fee)</span>
+                        <span className="text-[#93c5fd]">🏫 External College Student (₹200 Fee)</span>
                       </label>
                     </div>
 
                     {leadIsIemUem ? (
                       <div className="p-2 bg-[#0c180e] border border-[#25522b] rounded-xs font-silkscreen text-[8px] text-[#86efac]">
-                        🎓 IEM / UEM Student Free Pass Eligible (Enrollment No. &amp; IEMCRP proof will be verified at Payment step).
+                        🎓 IEM Salt Lake Student Free Pass Eligible (Automatically verified upon RSVP confirmation).
                       </div>
                     ) : (
                       <div>
@@ -1237,7 +1224,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                 onClick={async () => {
                   await handleConfirmRsvp();
                   if (activeLeadTeam.phase2Status !== 'waitlisted') {
-                    setActiveTab('tracks_selection');
+                    const isIemTeam = isIemUemAllStudentTeam(activeLeadTeam.members);
+                    setActiveTab(isIemTeam ? 'phase2_status' : 'fee_payment');
                   }
                 }}
                 className="w-full sm:w-auto bg-[#2b1f3d] border-2 border-[#b180ff] hover:bg-[#392854] font-pixel text-[10.5px] text-[#b180ff] hover:text-white uppercase py-2.5 px-6 rounded-xs inline-flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] cursor-pointer transition-all"
@@ -1251,19 +1239,48 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               <CheckCircle2 size={28} className="text-[#4ade80] mx-auto" />
               <h4 className="font-pixel text-[13px] text-[#4ade80]">OFFLINE PARTICIPATION RSVP CONFIRMED!</h4>
               <p className="font-silkscreen text-[10px] text-[#cfe8ff] max-w-md mx-auto">
-                Your team RSVP is recorded. You can now proceed to Step 2 to rank your challenge track preferences.
+                {isIemUemAllStudentTeam(activeLeadTeam.members)
+                  ? 'Your team RSVP is recorded. As a full IEM / UEM Student Team, your ₹0 Free Phase 2 Pass Ticket has been automatically verified and generated!'
+                  : 'Your team RSVP is recorded. You can now proceed to Step 2 to complete fee payment.'}
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playBlip(600);
-                  setActiveTab('tracks_selection');
-                }}
-                className="font-[#4ade80] font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#4ade80] text-[#4ade80] py-2.5 px-5 rounded-xs inline-flex items-center gap-2 cursor-pointer shadow-[2px_2px_0_0_#000] transition-all"
-              >
-                <span>PROCEED TO STEP 2: TRACK PREFERENCE SELECTION</span>
-                <ArrowRight size={14} />
-              </button>
+
+              {/* Track Assignment Information Notice */}
+              <div className="p-3 bg-[#132338] border border-[#38bdf8]/40 rounded-xs font-silkscreen text-[9.5px] text-[#cfe8ff] text-left flex items-start gap-2">
+                <Sparkles size={16} className="text-[#38bdf8] shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-pixel text-[10.5px] text-[#38bdf8] uppercase">ℹ️ VENUE TRACK ASSIGNMENT WORKFLOW</p>
+                  <p className="text-[#93c5fd] text-[9.5px] leading-snug">
+                    Challenge tracks are assigned at venue gate check-in by Event Administrators based on real-time slot availability. <strong>At least 2 team members must be present</strong> at check-in for track assignment.
+                  </p>
+                </div>
+              </div>
+
+              {isIemUemAllStudentTeam(activeLeadTeam.members) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playBlip(600);
+                    setActiveTab('phase2_status');
+                  }}
+                  className="font-[#4ade80] font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#4ade80] text-[#4ade80] py-2.5 px-5 rounded-xs inline-flex items-center gap-2 cursor-pointer shadow-[2px_2px_0_0_#000] transition-all"
+                >
+                  <Ticket size={14} />
+                  <span>VIEW OFFICIAL PASS TICKET</span>
+                  <ArrowRight size={14} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playBlip(600);
+                    setActiveTab('fee_payment');
+                  }}
+                  className="font-[#4ade80] font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#4ade80] text-[#4ade80] py-2.5 px-5 rounded-xs inline-flex items-center gap-2 cursor-pointer shadow-[2px_2px_0_0_#000] transition-all"
+                >
+                  <span>PROCEED TO STEP 2: REGISTRATION FEE PAYMENT</span>
+                  <ArrowRight size={14} />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1313,11 +1330,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                         )}
                         {isIemUemMember(m) ? (
                           <span className="bg-[#142417] text-[#86efac] border border-[#25522b] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
-                            🎓 IEM/UEM Student
+                            🎓 IEM Student (Salt Lake)
                           </span>
                         ) : (
                           <span className="bg-[#1a1c20] text-[#93c5fd] border border-[#2d3748] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
-                            🏫 External ({m.collegeName || 'Other'})
+                            🏫 External College ({m.collegeName || 'Other'})
                           </span>
                         )}
                       </div>
@@ -1351,222 +1368,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
         </div>
       )}
 
-      {/* STEP 2: TRACK PREFERENCE SELECTION */}
-      {activeTab === 'tracks_selection' && (
-        <div className="space-y-3 grow overflow-y-auto">
-          {/* Header Banner */}
-          <div className="p-3 bg-[#141618] border-2 border-[#2b2e30] rounded-md space-y-1">
-            <div className="flex items-center justify-between border-b border-[#2b2e30] pb-2">
-              <span className="font-pixel text-[12px] sm:text-[13px] text-[#f4c151] flex items-center gap-1.5">
-                <Target size={15} /> STEP 2: CHALLENGE TRACK PREFERENCE RANKING (1 TO 5)
-              </span>
-              {activeLeadTeam.isTrackLocked ? (
-                <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                  <Lock size={11} /> PERMANENTLY LOCKED
-                </span>
-              ) : (
-                <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                  <AlertTriangle size={11} /> SELECTION PENDING
-                </span>
-              )}
-            </div>
-            <p className="font-silkscreen text-[10.5px] text-[#d0d7e0] pt-1 leading-normal">
-              Rank all 5 challenge tracks in order of preference (Preference 1 through 5). <strong className="text-[#eb5147]">ONCE CONFIRMED &amp; LOCKED, YOUR PREFERENCE LIST CANNOT BE CHANGED FOR THE ENTIRE HACKATHON.</strong>
-            </p>
-          </div>
-
-          {!activeLeadTeam.rsvpConfirmed ? (
-            <div className="p-4 bg-[#141618] border-2 border-[#b180ff] rounded-md space-y-3 text-center">
-              <AlertTriangle className="text-[#b180ff] size-7 mx-auto animate-pulse" />
-              <h4 className="font-pixel text-[12px] text-[#b180ff]">STEP 1 RSVP REQUIRED FIRST</h4>
-              <p className="font-silkscreen text-[10px] text-[#cfe8ff] max-w-md mx-auto">
-                Please confirm your team&apos;s Phase 2 offline attendance RSVP in Step 1 before ranking track preferences.
-              </p>
-              <button
-                type="button"
-                onClick={() => setActiveTab('rsvp')}
-                className="font-pixel text-[9.5px] bg-[#2b1f3d] border border-[#b180ff] text-[#b180ff] hover:text-white px-4 py-2 rounded-xs inline-flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0_0_#000]"
-              >
-                <ArrowLeft size={12} /> GO TO STEP 1 RSVP
-              </button>
-            </div>
-          ) : (
-            <div className="p-3 bg-[#142417] border border-[#25522b] rounded-md flex items-center justify-between">
-              <span className="font-pixel text-[10px] text-[#4ade80] flex items-center gap-1.5">
-                <CheckCircle2 size={14} /> OFFLINE PARTICIPATION RSVP CONFIRMED
-              </span>
-              <span className="font-silkscreen text-[8.5px] text-[#86efac] bg-[#1e4620] px-2 py-0.5 border border-[#34783a] rounded-xs font-bold">
-                PHASE 2 RSVP CONFIRMED
-              </span>
-            </div>
-          )}
-
-          {/* Warning Banner if unlocked */}
-          {!activeLeadTeam.isTrackLocked ? (
-            <div className="p-3 bg-[#1c1414] border border-[#522525] rounded-xs font-silkscreen text-[9.5px] text-[#fca5a5] flex items-start gap-2">
-              <AlertTriangle size={15} className="text-[#ef4444] shrink-0 mt-0.5" />
-              <div>
-                <p className="font-pixel text-[10.5px] text-[#eb5147] uppercase">⚠️ PERMANENT RANKING DECISION WARNING</p>
-                <p className="text-[#fca5a5] text-[9.5px] leading-snug">
-                  Track preference ordering is binding. Once you click "CONFIRM &amp; PERMANENTLY LOCK TRACK PREFERENCES", your preference list (1 to 5) will be locked forever and cannot be modified even before the registration deadline completes.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="p-3 bg-[#142417] border border-[#25522b] rounded-xs font-silkscreen text-[9.5px] text-[#86efac] flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-pixel text-[11px]">
-                <ShieldCheck size={15} className="text-[#4ade80]" />
-                CONFIRMED TRACK PREFERENCES (1ST CHOICE: {activeLeadTeam.selectedTrack})
-              </span>
-              <span className="text-[9px] text-[#86efac] font-silkscreen">
-                LOCKED ON {new Date(activeLeadTeam.trackLockedAt || Date.now()).toLocaleDateString()}
-              </span>
-            </div>
-          )}
-
-          {/* Track Preferences List (Ordered 1 to 5) */}
-          <div className="space-y-2.5">
-            {trackPreferences.map((trackName, index) => {
-              const trackInfo = AVAILABLE_TRACKS.find((t) => t.name === trackName);
-              const rankLabels = ['1st Preference (Primary Track)', '2nd Preference', '3rd Preference', '4th Preference', '5th Preference'];
-              const rankBadges = ['🥇 PREFERENCE 1', '🥈 PREFERENCE 2', '🥉 PREFERENCE 3', '4️⃣ PREFERENCE 4', '5️⃣ PREFERENCE 5'];
-              const isPrimary = index === 0;
-
-              // Dynamically decrease options list by excluding tracks chosen in OTHER slots
-              const chosenInOtherSlots = trackPreferences.filter((val, idx) => idx !== index && val && val.trim() !== '');
-              const availableTracksForSlot = AVAILABLE_TRACKS.filter((t) => !chosenInOtherSlots.includes(t.name));
-
-              return (
-                <div
-                  key={index}
-                  className={`p-3 sm:p-3.5 rounded-md border-2 transition-all ${activeLeadTeam.isTrackLocked
-                    ? isPrimary
-                      ? 'bg-[#162719] border-[#25522b] shadow-[0_0_12px_rgba(37,82,43,0.4)]'
-                      : 'bg-[#101214] border-[#232629]'
-                    : isPrimary
-                      ? 'bg-[#1e2838] border-[#f4c151] shadow-[2px_2px_0_0_#000]'
-                      : 'bg-[#101214] border-[#232629]'
-                    }`}
-                >
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-[#232629] pb-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-pixel text-[11px] px-2.5 py-0.5 rounded-xs border ${isPrimary
-                        ? 'bg-[#2a2313] text-[#f4c151] border-[#524425]'
-                        : 'bg-[#181b1e] text-[#a0aab3] border-[#2b2e30]'
-                        }`}>
-                        {rankBadges[index]}
-                      </span>
-                      <span className="font-silkscreen text-[10px] text-[#00f0ff] font-bold uppercase tracking-wider">
-                        {rankLabels[index]}
-                      </span>
-                    </div>
-
-                    {!activeLeadTeam.isTrackLocked ? (
-                      <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                        <select
-                          value={trackName}
-                          onChange={(e) => handlePreferenceChange(index, e.target.value)}
-                          className="grow sm:grow-0 bg-[#090b0d] border border-[#3a4149] text-[#cfe8ff] font-sans text-xs sm:text-sm px-2.5 py-1.5 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                        >
-                          <option value="">-- Select Preference {index + 1} ({availableTracksForSlot.length} available) --</option>
-                          {availableTracksForSlot.map((t) => (
-                            <option key={t.id} value={t.name}>
-                              {t.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            disabled={index === 0}
-                            onClick={() => handleMovePreference(index, 'up')}
-                            className="p-1.5 bg-[#181b1e] border border-[#2b2e30] text-[#cfe8ff] hover:bg-[#252a30] disabled:opacity-30 disabled:cursor-not-allowed rounded-xs"
-                            title="Move Up"
-                          >
-                            <ChevronUp size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={index === trackPreferences.length - 1}
-                            onClick={() => handleMovePreference(index, 'down')}
-                            className="p-1.5 bg-[#181b1e] border border-[#2b2e30] text-[#cfe8ff] hover:bg-[#252a30] disabled:opacity-30 disabled:cursor-not-allowed rounded-xs"
-                            title="Move Down"
-                          >
-                            <ChevronDown size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="bg-[#182418] text-[#a7d38a] border border-[#254225] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                        <Lock size={10} /> PERMANENTLY LOCKED
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-start justify-between">
-                    <div>
-                      {trackName ? (
-                        <>
-                          <h4 className="font-pixel text-[13px] sm:text-[14px] text-[#f4c151] mb-0.5 flex items-center gap-1.5">
-                            <Award size={14} className="text-[#f4c151]" /> {trackName}
-                          </h4>
-                          <p className="font-silkscreen text-[9.5px] text-[#00f0ff] mb-1">
-                            {trackInfo?.tagline}
-                          </p>
-                          <p className="font-silkscreen text-[10px] text-[#b4c2d3] leading-relaxed mb-1.5">
-                            {trackInfo?.description}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="font-silkscreen text-[10px] text-[#f4c151] italic py-1">
-                          Please choose a track for Preference {index + 1} from the dropdown above.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Bottom Lock Action Bar or Navigation */}
-          <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-[#2b2e30] gap-2 mt-2">
-            {!activeLeadTeam.isTrackLocked && (
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playBlip(500);
-                  setActiveTab('rsvp');
-                }}
-                className="font-pixel text-[10.5px] bg-[#181b1e] border border-[#2b2e30] text-[#8f9396] hover:text-white px-3.5 py-2 rounded-xs flex items-center gap-1 cursor-pointer"
-              >
-                <ArrowLeft size={13} /> BACK TO STEP 1 RSVP
-              </button>
-            )}
-
-            {!activeLeadTeam.isTrackLocked ? (
-              <button
-                type="button"
-                onClick={handleConfirmLockTrack}
-                className="w-full sm:w-auto font-pixel text-[11px] bg-[#261414] border-2 border-[#eb5147] text-[#fca5a5] hover:bg-[#381a1a] hover:text-white px-4 py-2.5 rounded-xs flex items-center justify-center gap-2 shadow-[2px_2px_0_0_#000] cursor-pointer ml-auto"
-              >
-                <Lock size={13} className="text-[#eb5147]" />
-                CONFIRM &amp; PERMANENTLY LOCK TRACK PREFERENCES (1 TO 5)
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleProceedToNextTab('fee_payment')}
-                className="w-full sm:w-auto font-pixel text-[10.5px] bg-[#1e2838] border border-[#2b4466] hover:border-[#f4c151] text-[#f4c151] px-4 py-2 rounded-xs flex items-center justify-center gap-1.5 shadow-[2px_2px_0_0_#000] cursor-pointer hover:bg-[#25354a] ml-auto"
-              >
-                PROCEED TO PAYMENT <ArrowRight size={13} />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TAB: REGISTRATION FEE PAYMENT (IEM/UEM FREE vs EXTERNAL ₹200) */}
+      {/* TAB: REGISTRATION FEE PAYMENT (IEM FREE vs EXTERNAL ₹200) */}
       {activeTab === 'fee_payment' && (
         <div className="space-y-3 grow overflow-y-auto">
           {(() => {
@@ -1574,21 +1376,13 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
             const feeAmount = isIemUemAllStudentTeamStatus ? 0 : 200;
 
             if (isIemUemAllStudentTeamStatus) {
-              const allEnrollmentsFilled = activeLeadTeam.members.every(
-                (m) => Boolean(m.enrollmentNo && m.enrollmentNo.trim().length >= 4)
-              );
-              const allScreenshotsUploaded = activeLeadTeam.members.every(
-                (m) => Boolean(iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl)
-              );
-              const isIemFormComplete = allEnrollmentsFilled && allScreenshotsUploaded;
-
               return (
                 <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md shadow-[0_0_20px_rgba(37,82,43,0.5)] space-y-4">
                   <div className="flex items-center justify-between border-b border-[#25522b] pb-2.5">
                     <div className="flex items-center gap-2 text-[#4ade80]">
                       <Sparkles size={20} className="text-[#4ade80]" />
                       <span className="font-pixel text-[13px] sm:text-[14px] text-[#4ade80]">
-                        🎓 IEM / UEM ALL-STUDENT TEAM: ₹0 FREE PHASE 2 REGISTRATION
+                        🎓 IEM SALTLAKE ALL-STUDENT TEAM: ₹0 FREE PHASE 2 REGISTRATION
                       </span>
                     </div>
                     <span className="bg-[#1e4620] text-[#86efac] border border-[#34783a] font-silkscreen text-[9px] px-2.5 py-1 rounded-xs">
@@ -1596,194 +1390,46 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                     </span>
                   </div>
 
-                  {/* Status Banner */}
                   {activeLeadTeam.paymentStatus === 'payment_verified' ? (
-                    <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md shadow-[0_0_16px_rgba(37,82,43,0.5)] space-y-2">
+                    <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md shadow-[0_0_16px_rgba(37,82,43,0.5)] space-y-3">
                       <div className="flex items-center gap-2 text-[#a7d38a]">
-                        <ShieldCheck size={20} className="text-[#4ade80]" />
+                        <ShieldCheck size={22} className="text-[#4ade80]" />
                         <span className="font-pixel text-[13px] sm:text-[14px] text-[#4ade80]">
-                          🎉 IEM / UEM VERIFICATION APPROVED &amp; OFFICIAL PASS ISSUED!
+                          🎉 IEM SALTLAKE AUTOMATICALLY VERIFIED &amp; OFFICIAL PASS ISSUED!
                         </span>
                       </div>
                       <p className="font-silkscreen text-[11px] text-[#cfe8ff] leading-relaxed">
-                        Your IEM / UEM student credentials have been verified by the administrator. Your team <strong>{activeLeadTeam.teamName}</strong> has been issued Official Pass: <strong className="font-mono text-white">{activeLeadTeam.ticketPassId}</strong>.
+                        Your IEM Salt Lake student credentials have been automatically verified. Your team <strong>{activeLeadTeam.teamName}</strong> has been issued Official Pass: <strong className="font-mono text-white">{activeLeadTeam.ticketPassId}</strong>.
                       </p>
-                    </div>
-                  ) : activeLeadTeam.iemcrpScreenshotsSubmitted || activeLeadTeam.paymentStatus === 'payment_pending' ? (
-                    <div className="p-3.5 bg-[#241d14] border-2 border-[#544622] rounded-md space-y-1.5">
-                      <div className="flex items-center gap-2 text-[#f2933d]">
-                        <Clock size={18} className="text-[#f4c151] animate-spin" />
-                        <span className="font-pixel text-[11.5px] sm:text-[12.5px] text-[#f4c151]">
-                          ⌛ IEM / UEM VERIFICATION PENDING ADMIN APPROVAL
-                        </span>
-                      </div>
-                      <p className="font-silkscreen text-[10px] text-[#d0d7e0] leading-relaxed">
-                        Your enrollment numbers and IEMCRP student screenshots have been submitted. The Cognitia Admin team is reviewing your proofs. Once verified by admin, your official Phase 2 Ticket Pass will be issued.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-[#0d1a0e] border border-[#25522b] rounded-xs space-y-1.5 font-silkscreen text-[10.5px] text-[#bbf7d0]">
-                      <p className="font-bold text-[#f4c151] flex items-center gap-1.5">
-                        <AlertTriangle size={14} className="text-[#f4c151]" />
-                        MANDATORY IEM/UEM ENROLLMENT NO. &amp; IEMCRP SCREENSHOT PROOF:
-                      </p>
-                      <p className="leading-relaxed">
-                        Instead of paying ₹200 fee, type the <strong>Student Enrollment Number</strong> and upload the <strong>IEMCRP Student Information screenshot</strong> for <strong>EVERY team member</strong> below. An event administrator will review your proof to approve your <strong>₹0 Free Phase 2 Pass Ticket</strong>.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Member IEMCRP Screenshot & Enrollment Cards */}
-                  <div className="space-y-3 pt-1">
-                    <span className="font-pixel text-[10px] text-[#86efac] block uppercase tracking-wider">
-                      MEMBER VERIFICATION CHECKLIST ({activeLeadTeam.members.filter(m => Boolean(m.enrollmentNo && (iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl))).length} / {activeLeadTeam.members.length} COMPLETED):
-                    </span>
-
-                    {activeLeadTeam.members.map((m, idx) => {
-                      const screenshotUrl = iemcrpScreenshots[m.id] || m.iemcrpScreenshotUrl;
-                      const isUploading = uploadingMemberId === m.id;
-
-                      return (
-                        <div
-                          key={m.id || idx}
-                          className={`p-3 border rounded-xs transition-all space-y-2.5 ${screenshotUrl && m.enrollmentNo
-                            ? 'bg-[#0f2112] border-[#34783a]'
-                            : 'bg-[#1a1c1a] border-[#443818]'
-                            }`}
-                        >
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <div className="flex items-center gap-2 font-silkscreen text-[10.5px]">
-                              <span className="bg-[#1e3b21] text-[#4ade80] px-2 py-0.5 rounded-xs font-pixel text-[9px]">
-                                {m.isLead ? 'Cpt / Lead' : `Member ${idx}`}
-                              </span>
-                              <span className="font-bold text-white">{m.name}</span>
-                              <span className="text-[#94a3b8]">({m.email})</span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {screenshotUrl && m.enrollmentNo ? (
-                                <span className="bg-[#1e4620] text-[#4ade80] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs flex items-center gap-1 font-bold">
-                                  <CheckCircle2 size={11} /> VERIFICATION COMPLETE
-                                </span>
-                              ) : (
-                                <span className="bg-[#362710] text-[#f4c151] font-silkscreen text-[8.5px] px-2 py-0.5 rounded-xs flex items-center gap-1 animate-pulse">
-                                  <AlertTriangle size={11} /> ENROLLMENT &amp; SCREENSHOT REQUIRED
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Member Enrollment Number Input */}
-                          <div className="p-2 bg-[#0c0e10] border border-[#25522b] rounded-xs space-y-1">
-                            <label className="block font-silkscreen text-[8.5px] text-[#86efac] font-bold">
-                              {m.name.toUpperCase()}'S IEM / UEM ENROLLMENT NO. *
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Enter Student Enrollment No. (e.g. 12022002015099) *"
-                              value={m.enrollmentNo || ''}
-                              onChange={(e) => handleUpdateMemberIemDetails(m.id, true, e.target.value)}
-                              className="w-full bg-[#141618] border border-[#25522b] text-[#86efac] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#4ade80] focus:outline-none"
-                            />
-                          </div>
-
-                          {/* Upload & Preview area */}
-                          <div className="flex flex-col sm:flex-row items-center gap-3 pt-1 border-t border-[#254225]">
-                            {screenshotUrl ? (
-                              <div
-                                className="relative group cursor-pointer shrink-0"
-                                onClick={() => {
-                                  sound.playBlip(500);
-                                  setPreviewImageModal({
-                                    url: screenshotUrl,
-                                    title: `${m.name}'s IEMCRP Student Info Screenshot (Enrollment: ${m.enrollmentNo || 'N/A'})`,
-                                  });
-                                }}
-                              >
-                                <img
-                                  src={screenshotUrl}
-                                  alt={`${m.name} IEMCRP Screenshot`}
-                                  className="w-36 h-20 object-cover border border-[#4ade80] rounded-xs shadow-md group-hover:border-white transition-all"
-                                />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[9px] font-silkscreen text-[#86efac] gap-1 transition-opacity">
-                                  <Eye size={13} /> CLICK TO ZOOM
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-36 h-20 bg-[#09120a] border border-dashed border-[#f4c151]/50 rounded-xs flex flex-col items-center justify-center text-center p-2 shrink-0">
-                                <CloudUpload size={20} className="text-[#f4c151] mb-1" />
-                                <span className="font-silkscreen text-[8px] text-[#d0d7e0]">NO SCREENSHOT</span>
-                              </div>
-                            )}
-
-                            <div className="grow space-y-1 text-left w-full sm:w-auto">
-                              <p className="font-silkscreen text-[9.5px] text-[#cfe8ff]">
-                                Upload <strong>{m.name}'s</strong> IEMCRP Logged-In Student Information page screenshot:
-                              </p>
-                              <label className="inline-flex items-center gap-1.5 bg-[#1b351d] hover:bg-[#254d28] text-[#86efac] border border-[#34783a] font-pixel text-[9.5px] px-3 py-1.5 rounded-xs cursor-pointer shadow-[2px_2px_0_0_#000] transition-all">
-                                <Upload size={12} />
-                                {isUploading ? 'UPLOADING...' : screenshotUrl ? 'CHANGE SCREENSHOT' : 'SELECT IEMCRP SCREENSHOT'}
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleIemcrpScreenshotSelect(m.id, file);
-                                  }}
-                                  disabled={isUploading}
-                                />
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {iemcrpSubmitMessage && (
-                    <div
-                      className={`p-2.5 rounded-xs font-silkscreen text-[10px] ${iemcrpSubmitMessage.type === 'success'
-                        ? 'bg-[#1b381e] text-[#86efac] border border-[#2e6333]'
-                        : 'bg-[#3b1c1c] text-[#f87171] border border-[#6b2d2d]'
-                        }`}
-                    >
-                      {iemcrpSubmitMessage.text}
-                    </div>
-                  )}
-
-                  {/* Confirmation Button */}
-                  {activeLeadTeam.paymentStatus !== 'payment_verified' ? (
-                    <button
-                      type="button"
-                      disabled={!isIemFormComplete || isSubmittingFee}
-                      onClick={handleSubmitIemcrpVerifications}
-                      className={`w-full font-pixel text-[11px] py-3 px-4 rounded-xs shadow-[2px_2px_0_0_#000] transition-all flex items-center justify-center gap-2 ${isIemFormComplete && !isSubmittingFee
-                        ? 'bg-[#1e4620] hover:bg-[#275c2a] border-2 border-[#4ade80] text-[#86efac] cursor-pointer'
-                        : 'bg-[#182019] border-2 border-[#2c402e] text-[#5b735e] cursor-not-allowed'
-                        }`}
-                    >
-                      <CheckCircle2 size={16} />
-                      {isSubmittingFee
-                        ? '[ SUBMITTING VERIFICATIONS... ]'
-                        : isIemFormComplete
-                          ? activeLeadTeam.iemcrpScreenshotsSubmitted
-                            ? '[ UPDATE & RE-SUBMIT VERIFICATION PROOFS ]'
-                            : '[ SUBMIT ENROLLMENT NOS. & IEMCRP PROOFS FOR ADMIN VERIFICATION ]'
-                          : `[ FILL ENROLLMENT NOS. & UPLOAD SCREENSHOTS FOR ALL ${activeLeadTeam.members.length} MEMBERS ]`}
-                    </button>
-                  ) : (
-                    <div className="bg-[#182418] border border-[#254225] p-3 rounded-xs font-pixel text-[10.5px] text-[#a7d38a] flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <ShieldCheck size={16} className="text-[#4ade80]" />
-                        FREE REGISTRATION VERIFIED &amp; TICKET ISSUED ({activeLeadTeam.ticketPassId})
-                      </span>
                       <button
                         type="button"
-                        onClick={() => setActiveTab('phase2_status')}
-                        className="font-silkscreen text-[8.5px] text-[#00f0ff] hover:underline cursor-pointer"
+                        onClick={() => {
+                          sound.playBlip(600);
+                          setActiveTab('phase2_status');
+                        }}
+                        className="bg-[#1e4620] hover:bg-[#275c2a] border-2 border-[#4ade80] text-[#86efac] font-pixel text-[11px] py-2.5 px-5 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer transition-all inline-flex items-center gap-2 mt-2"
                       >
-                        [ VIEW PASS TICKET ]
+                        <Ticket size={16} /> [ VIEW OFFICIAL PASS TICKET ]
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-[#0d1a0e] border border-[#25522b] rounded-xs space-y-3 font-silkscreen text-[10.5px] text-[#bbf7d0]">
+                      <p className="font-bold text-[#4ade80] flex items-center gap-1.5 font-pixel text-[12px]">
+                        <Sparkles size={16} className="text-[#4ade80]" />
+                        AUTOMATIC FREE VERIFICATION READY:
+                      </p>
+                      <p className="leading-relaxed text-[#cfe8ff]">
+                        No proof upload or enrollment number verification is required for full IEM / UEM student teams. Simply confirm your Phase 2 Offline Participation RSVP in Step 1 to automatically verify your team and generate your Official Pass Ticket instantly!
+                      </p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleConfirmRsvp();
+                          setActiveTab('phase2_status');
+                        }}
+                        className="bg-[#1e4620] hover:bg-[#275c2a] border-2 border-[#4ade80] text-[#86efac] font-pixel text-[10.5px] py-2.5 px-5 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer transition-all inline-flex items-center gap-2 mt-1"
+                      >
+                        <CheckCircle2 size={15} /> [ CONFIRM RSVP &amp; GENERATE TICKET PASS NOW ]
                       </button>
                     </div>
                   )}
@@ -2029,18 +1675,16 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
           {/* Bottom Action Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-[#2b2e30] gap-2 mt-2">
-            {!activeLeadTeam.isTrackLocked && (
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playBlip(500);
-                  setActiveTab('tracks_selection');
-                }}
-                className="font-pixel text-[10.5px] bg-[#181b1e] border border-[#2b2e30] text-[#8f9396] hover:text-white px-3.5 py-2 rounded-xs flex items-center gap-1 cursor-pointer"
-              >
-                <ArrowLeft size={13} /> BACK TO TRACK SELECTION
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                sound.playBlip(500);
+                setActiveTab('rsvp');
+              }}
+              className="font-pixel text-[10.5px] bg-[#181b1e] border border-[#2b2e30] text-[#8f9396] hover:text-white px-3.5 py-2 rounded-xs flex items-center gap-1 cursor-pointer"
+            >
+              <ArrowLeft size={13} /> BACK TO STEP 1 RSVP
+            </button>
 
             {(activeLeadTeam.paymentStatus === 'payment_verified' || activeLeadTeam.phase2PaymentStatus === 'payment_verified' || activeLeadTeam.ticketPassId) && (
               <button
@@ -2173,7 +1817,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                           </p>
                         )}
                         <p className="text-[#a7d38a]">
-                          TRACK: {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'General Track'}
+                          TRACK: {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack || 'Pending Venue Gate Assignment'}
                         </p>
                         <p className="text-[#8f9396]">
                           VENUE: IEM Aegis Building, College More, Salt Lake Sector V, Kolkata
@@ -2244,21 +1888,19 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                       })()}
                     </div>
 
-                    {/* Full Track Preferences List */}
+                    {/* Hackathon Track Assignment Status */}
                     <div className="border-t border-[#2b2e30] pt-2 space-y-1">
                       <span className="font-silkscreen text-[7.5px] text-[#f4c151] uppercase block">
-                        FULL TRACK PREFERENCES ORDER:
+                        HACKATHON TRACK ASSIGNMENT:
                       </span>
-                      <div className="flex flex-wrap gap-1 font-silkscreen text-[7.5px]">
-                        {activeLeadTeam.trackPreferences && activeLeadTeam.trackPreferences.filter(Boolean).length > 0 ? (
-                          activeLeadTeam.trackPreferences.filter(Boolean).map((track, idx) => (
-                            <span key={idx} className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-2 py-0.5 rounded-xs flex items-center gap-1">
-                              <span className="text-[#f4c151] font-bold">#{idx + 1}:</span> {track}
-                            </span>
-                          ))
+                      <div className="font-silkscreen text-[7.5px]">
+                        {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack ? (
+                          <span className="bg-[#142417] border border-[#25522b] text-[#86efac] px-2 py-1 rounded-xs flex items-center gap-1 font-bold">
+                            🎯 ASSIGNED TRACK: {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack}
+                          </span>
                         ) : (
-                          <span className="text-[#cfe8ff] bg-[#090b0d] px-2 py-0.5 border border-[#2b2e30] rounded-xs">
-                            {activeLeadTeam.selectedTrack || 'General Track'}
+                          <span className="text-[#f4c151] bg-[#241d14] px-2 py-1 border border-[#423325] rounded-xs flex items-center gap-1">
+                            ℹ️ PENDING VENUE GATE CHECK-IN (Admin assigns track upon 2+ members present)
                           </span>
                         )}
                       </div>
@@ -2678,7 +2320,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                         )}
                         {isIemUemMember(m) ? (
                           <span className="bg-[#142417] text-[#86efac] border border-[#25522b] text-[7.5px] px-1.5 py-0.5 rounded-xs">
-                            🎓 IEM/UEM Student
+                            🎓 IEM Student
                           </span>
                         ) : (
                           <span className="bg-[#1a1c20] text-[#93c5fd] border border-[#2d3748] text-[7.5px] px-1.5 py-0.5 rounded-xs">

@@ -181,9 +181,10 @@ export interface TeamRegistration {
 export const isIemUemMember = (m?: TeamMember): boolean => {
   if (!m) return false;
   if (m.isIemUemStudent === false) return false;
-  if (m.isIemUemStudent === true) return true;
   const col = (m.collegeName || '').trim().toUpperCase();
-  return col === 'IEM / UEM' || col === 'IEM' || col === 'UEM';
+  if (col === 'UEM' || col.startsWith('UEM') || col.includes('UNIVERSITY OF ENGINEERING')) return false;
+  if (m.isIemUemStudent === true) return true;
+  return col === 'IEM' || col === 'IEM SALTLAKE' || col === 'IEM SALT LAKE' || col === 'IEM / UEM' || col.includes('SALT LAKE') || col.includes('INSTITUTE OF ENGINEERING & MANAGEMENT');
 };
 
 export const isIemUemAllStudentTeam = (members?: TeamMember[]): boolean => {

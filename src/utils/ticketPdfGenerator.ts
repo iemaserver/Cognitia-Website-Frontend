@@ -152,7 +152,7 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
   doc.setFontSize(7);
   if (isIemTeam) {
     doc.setTextColor(21, 128, 61); // Green
-    doc.text('Affiliation: IEM / UEM Group (100% Free Entry Waiver Approved)', 13, cardY + 39, { maxWidth: 135 });
+    doc.text('Affiliation: IEM Salt Lake (100% Free Entry Waiver Approved)', 13, cardY + 39, { maxWidth: 135 });
   } else {
     doc.setTextColor(180, 83, 9); // Amber
     const refText = team.phase2PaymentTransactionId || team.paymentTransactionId ? ` • Ref: ${team.phase2PaymentTransactionId || team.paymentTransactionId}` : '';
@@ -221,7 +221,7 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
   doc.setTextColor(203, 213, 225);
   doc.text('College More, Salt Lake Sector V, Kolkata', 145, schedY + 15);
 
-  // 7. Track Preferences Order Section
+  // 7. Track Assignment Section
   const trackY = 112;
   doc.setFillColor(241, 245, 249);
   doc.setDrawColor(203, 213, 225);
@@ -231,31 +231,40 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text('LOCKED CHALLENGE TRACK PREFERENCES ORDER:', 14, trackY + 5);
+  doc.text('OFFICIAL HACKATHON TRACK ASSIGNMENT:', 14, trackY + 5);
 
-  const prefs = (team.trackPreferences && team.trackPreferences.filter(Boolean).length > 0)
-    ? team.trackPreferences.filter(Boolean)
-    : [team.adminTrackOverride || team.selectedTrack || 'General Track'];
+  const assignedTrack = team.adminTrackOverride || team.selectedTrack;
 
-  // #1 Choice (Primary Track)
-  doc.setFillColor(254, 243, 199); // Amber light
-  doc.setDrawColor(217, 119, 6);
-  doc.rect(14, trackY + 7.5, contentWidth - 8, 7, 'FD');
+  if (assignedTrack) {
+    // Assigned Track Box
+    doc.setFillColor(254, 243, 199); // Amber light
+    doc.setDrawColor(217, 119, 6);
+    doc.rect(14, trackY + 7.5, contentWidth - 8, 7, 'FD');
 
-  doc.setTextColor(180, 83, 9);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.text(`★  #1 PREFERENCE (PRIMARY TRACK): ${prefs[0] || 'Domain Track'}`, 17, trackY + 12);
+    doc.setTextColor(180, 83, 9);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text(`★  OFFICIALLY ASSIGNED TRACK: ${assignedTrack}`, 17, trackY + 12);
 
-  // Other ranks
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  const remaining = prefs.slice(1).map((t, i) => `#${i + 2}: ${t}`).join('   |   ');
-  if (remaining) {
-    doc.text(`Alternative Choices: ${remaining}`, 14, trackY + 19);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Track assigned and verified at event attendance gate check-in.`, 14, trackY + 19);
   } else {
-    doc.text(`Selected Track: ${prefs[0]}`, 14, trackY + 19);
+    // Pending Track Box
+    doc.setFillColor(254, 249, 195);
+    doc.setDrawColor(202, 138, 4);
+    doc.rect(14, trackY + 7.5, contentWidth - 8, 7, 'FD');
+
+    doc.setTextColor(161, 98, 7);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text(`ℹ️  TRACK STATUS: Pending Venue Gate Check-In`, 17, trackY + 12);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Admin will assign track based on slot availability when at least 2 team members check in.`, 14, trackY + 19);
   }
 
   // 8. Team Members Roster Table WITH INDIVIDUAL MEMBER QR CODES
@@ -324,7 +333,7 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
     const isMemberIemUem = isIemUemMember(m);
     if (isMemberIemUem) {
       doc.setTextColor(21, 128, 61);
-      doc.text('IEM / UEM', 123, currentY + 5);
+      doc.text('IEM Salt Lake', 123, currentY + 5);
       doc.setFont('courier', 'bold');
       doc.setFontSize(6.5);
       doc.text(`Enr: ${m.enrollmentNo || 'Verified'}`, 123, currentY + 10);
@@ -488,7 +497,7 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
       'Attendance may be monitored throughout the hackathon, including overnight hours.',
       'Participants must remain within the designated venue unless permission is granted by organizers.',
       'Participants must follow proper dress attire including proper full trousers all throughout the hackathon.',
-      'Phase 2 registration fee is Rs. 200 for external/mixed teams, and Rs. 0 (Free Waiver) for verified IEM/UEM student teams.',
+      'Phase 2 registration fee is Rs. 200 for external/mixed teams, and Rs. 0 (Free Waiver) for verified IEM student teams.',
     ],
     'Inaccurate details, refusal of ID verification, or non-compliance with venue rules will invalidate team selection.',
     [14, 116, 144],

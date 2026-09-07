@@ -47,8 +47,8 @@ const FAQ_ITEMS: FAQItem[] = [
     category: 'GENERAL',
     question: 'IS THERE ANY REGISTRATION OR CONFIRMATION FEE?',
     answer:
-      'Phase 2 offline round registration is completely FREE (₹0 Waiver) for verified IEM/UEM student teams. For external/mixed teams, the Phase 2 team entry fee is ₹200.',
-    highlights: ['₹0 Free Waiver for IEM/UEM teams', '₹200 Phase 2 fee for external teams'],
+      'Phase 2 offline round registration is completely FREE (₹0 Waiver) for verified IEM student teams. For external/mixed teams, the Phase 2 team entry fee is ₹200.',
+    highlights: ['₹0 Free Waiver for IEM teams', '₹200 Phase 2 fee for external teams'],
   },
   {
     id: 3,
@@ -233,8 +233,8 @@ export function FAQCartridge() {
                 borderLeftWidth: '3px',
               }}
               className={`rounded-md border backdrop-blur-md transition-all overflow-hidden group/card break-words ${isExpanded
-                  ? 'bg-[#0a0c0e]/60 border-[#38bdf8]/30 shadow-md'
-                  : 'bg-[#0a0c0e]/35 border-[#38bdf8]/15 hover:bg-[#0a0c0e]/50 hover:border-[#38bdf8]/35'
+                ? 'bg-[#0a0c0e]/60 border-[#38bdf8]/30 shadow-md'
+                : 'bg-[#0a0c0e]/35 border-[#38bdf8]/15 hover:bg-[#0a0c0e]/50 hover:border-[#38bdf8]/35'
                 }`}
             >
               {/* Question Row Header */}
@@ -249,8 +249,8 @@ export function FAQCartridge() {
                     src={isExpanded ? '/red_pin.png' : '/white_pin.png'}
                     alt="pointer pin"
                     className={`w-3.5 h-3.5 object-contain pixelated shrink-0 transition-transform duration-150 ${isExpanded
-                        ? 'scale-110'
-                        : 'opacity-50 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5'
+                      ? 'scale-110'
+                      : 'opacity-50 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5'
                       } pointer-events-none select-none`}
                     draggable={false}
                   />
@@ -322,8 +322,8 @@ export function FAQCartridge() {
                         type="button"
                         onClick={() => handleVote(faq.id, 'yes')}
                         className={`flex items-center gap-1 px-2 py-0.5 rounded-sm cursor-pointer border transition-colors ${vote === 'yes'
-                            ? 'bg-[#38bdf8]/20 border-[#38bdf8] text-[#38bdf8]'
-                            : 'bg-[#0a0c0e] border-[#38bdf8]/20 hover:bg-[#38bdf8]/10 text-[#9ca3af]'
+                          ? 'bg-[#38bdf8]/20 border-[#38bdf8] text-[#38bdf8]'
+                          : 'bg-[#0a0c0e] border-[#38bdf8]/20 hover:bg-[#38bdf8]/10 text-[#9ca3af]'
                           }`}
                       >
                         <ThumbsUp className="h-3 w-3" />
@@ -333,8 +333,8 @@ export function FAQCartridge() {
                         type="button"
                         onClick={() => handleVote(faq.id, 'no')}
                         className={`flex items-center gap-1 px-2 py-0.5 rounded-sm cursor-pointer border transition-colors ${vote === 'no'
-                            ? 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444]'
-                            : 'bg-[#0a0c0e] border-[#ef4444]/20 hover:bg-[#ef4444]/10 text-[#9ca3af]'
+                          ? 'bg-[#ef4444]/20 border-[#ef4444] text-[#ef4444]'
+                          : 'bg-[#0a0c0e] border-[#ef4444]/20 hover:bg-[#ef4444]/10 text-[#9ca3af]'
                           }`}
                       >
                         <ThumbsDown className="h-3 w-3" />
