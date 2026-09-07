@@ -43,11 +43,9 @@ import {
   Eye,
   X,
   Download,
-  Utensils,
   ExternalLink,
 } from 'lucide-react';
-import { FoodCouponsTabScreen } from '../FoodCouponsTabScreen';
-import { MealType, isIemUemMember, isIemUemAllStudentTeam } from '../../types';
+import { isIemUemMember, isIemUemAllStudentTeam } from '../../types';
 import { downloadTicketPdf, printTicketPdf } from '../../utils/ticketPdfGenerator';
 
 const AVAILABLE_TRACKS = [
@@ -101,11 +99,12 @@ interface RegistrationCartridgeProps {
 
 const EMPTY_TRACK_PREFS = ['', '', '', '', ''];
 
-type TeamDashboardTab = 'rsvp' | 'fee_payment' | 'phase2_status' | 'team';
+type TeamDashboardTab = 'rsvp' | 'fee_payment' | 'payment_pending' | 'phase2_status' | 'team';
 
 const TAB_ORDER: TeamDashboardTab[] = [
   'rsvp',
   'fee_payment',
+  'payment_pending',
   'phase2_status',
 ];
 
@@ -117,7 +116,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [isLoginMode, setIsLoginMode] = useState<boolean>(true);
   const [showTeamRosterModal, setShowTeamRosterModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TeamDashboardTab>('rsvp');
-  const [ticketSubTab, setTicketSubTab] = useState<'pass' | 'food_coupons' | 'problem_statement'>('pass');
+  const [ticketSubTab, setTicketSubTab] = useState<'pass' | 'problem_statement'>('pass');
 
   const [trackPreferences, setTrackPreferences] = useState<string[]>(EMPTY_TRACK_PREFS);
   const [feeUtrId, setFeeUtrId] = useState<string>('');
@@ -126,15 +125,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [isSubmittingFee, setIsSubmittingFee] = useState<boolean>(false);
   const [feeMessage, setFeeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
-  const [activeMealSession, setActiveMealSession] = useState<MealType | 'none'>('none');
-  const [showFoodPassModal, setShowFoodPassModal] = useState<boolean>(false);
-
-  useEffect(() => {
-    const unsubscribe = firebaseService.subscribeToMealSession((session) => {
-      setActiveMealSession(session);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (activeLeadTeam) {
@@ -160,11 +150,15 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       if (activeLeadTeam.phase2PaymentStatus === 'payment_verified' && activeLeadTeam.ticketPassId) {
         setActiveTab('phase2_status');
       }
-      // 2. Else if RSVP is confirmed and not waitlisted -> Move to fee_payment
+      // 2. Else if Phase 2 Payment is submitted and pending admin verification -> Lock strictly to payment_pending
+      else if (activeLeadTeam.phase2PaymentStatus === 'payment_pending' || activeLeadTeam.paymentStatus === 'payment_pending') {
+        setActiveTab('payment_pending');
+      }
+      // 3. Else if RSVP is confirmed and not waitlisted -> Move to fee_payment
       else if (activeLeadTeam.rsvpConfirmed && activeLeadTeam.phase2Status !== 'waitlisted') {
         setActiveTab('fee_payment');
       }
-      // 3. Else -> Start at rsvp (Step 1 RSVP Confirmation Page)
+      // 4. Else -> Start at rsvp (Step 1 RSVP Confirmation Page)
       else {
         setActiveTab('rsvp');
       }
@@ -569,6 +563,12 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
       setActiveTab('team');
       return;
     }
+    if (activeLeadTeam?.phase2PaymentStatus === 'payment_pending' || activeLeadTeam?.paymentStatus === 'payment_pending') {
+      sound.playBlip(300);
+      alert('⚠️ VERIFICATION PENDING: Your Phase 2 payment is currently under review by Admin. Navigation is locked until payment is verified.');
+      setActiveTab('payment_pending');
+      return;
+    }
     if (members.length < 2) {
       sound.playBlip(300);
       alert('⚠️ MINIMUM 2 MEMBERS REQUIRED: Your team must add at least 1 more member (2 to 4 members per team) before proceeding.');
@@ -616,9 +616,10 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
     if (res.success && res.team) {
       setActiveLeadTeam(res.team);
+      setActiveTab('payment_pending');
       setFeeMessage({
         type: 'success',
-        text: '₹200 Phase 2 Payment details submitted successfully! Status marked VERIFICATION PENDING BY ADMIN.',
+        text: '₹200 Phase 2 Payment details submitted successfully! Redirected to Payment Verification Pending page.',
       });
     } else {
       setFeeMessage({ type: 'error', text: 'Payment submission failed. Please try again.' });
@@ -1093,10 +1094,13 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
             <Users size={11} /> ROSTER
           </button>
 
-          {/* Step Back / Previous Button - Hidden once tracks are locked or ticket pass is verified */}
+          {/* Step Back / Previous Button - Hidden once tracks are locked, ticket pass is verified, or payment is pending */}
           {TAB_ORDER.indexOf(activeTab) > 0 &&
             !activeLeadTeam.isTrackLocked &&
-            activeLeadTeam.phase2PaymentStatus !== 'payment_verified' && (
+            activeLeadTeam.phase2PaymentStatus !== 'payment_verified' &&
+            activeLeadTeam.phase2PaymentStatus !== 'payment_pending' &&
+            activeLeadTeam.paymentStatus !== 'payment_pending' &&
+            activeTab !== 'payment_pending' && (
               <button
                 onClick={() => {
                   const currentIdx = TAB_ORDER.indexOf(activeTab);
@@ -1111,10 +1115,13 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               </button>
             )}
 
-          {/* Next Step Button - Hidden once tracks are locked, ticket pass is verified, or team is waitlisted */}
+          {/* Next Step Button - Hidden once tracks are locked, ticket pass is verified, payment is pending, or team is waitlisted */}
           {TAB_ORDER.indexOf(activeTab) < TAB_ORDER.length - 1 &&
             !activeLeadTeam.isTrackLocked &&
             activeLeadTeam.phase2PaymentStatus !== 'payment_verified' &&
+            activeLeadTeam.phase2PaymentStatus !== 'payment_pending' &&
+            activeLeadTeam.paymentStatus !== 'payment_pending' &&
+            activeTab !== 'payment_pending' &&
             activeLeadTeam.phase2Status !== 'waitlisted' && (
               <button
                 onClick={() => {
@@ -1240,7 +1247,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               <h4 className="font-pixel text-[13px] text-[#4ade80]">OFFLINE PARTICIPATION RSVP CONFIRMED!</h4>
               <p className="font-silkscreen text-[10px] text-[#cfe8ff] max-w-md mx-auto">
                 {isIemUemAllStudentTeam(activeLeadTeam.members)
-                  ? 'Your team RSVP is recorded. As a full IEM / UEM Student Team, your ₹0 Free Phase 2 Pass Ticket has been automatically verified and generated!'
+                  ? 'Your team RSVP is recorded. As a full IEM Salt Lake Student Team, your ₹0 Free Phase 2 Pass Ticket has been automatically verified and generated!'
                   : 'Your team RSVP is recorded. You can now proceed to Step 2 to complete fee payment.'}
               </p>
 
@@ -1419,7 +1426,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                         AUTOMATIC FREE VERIFICATION READY:
                       </p>
                       <p className="leading-relaxed text-[#cfe8ff]">
-                        No proof upload or enrollment number verification is required for full IEM / UEM student teams. Simply confirm your Phase 2 Offline Participation RSVP in Step 1 to automatically verify your team and generate your Official Pass Ticket instantly!
+                        No proof upload or enrollment number verification is required for full IEM Salt Lake student teams. Simply confirm your Phase 2 Offline Participation RSVP in Step 1 to automatically verify your team and generate your Official Pass Ticket instantly!
                       </p>
                       <button
                         type="button"
@@ -1703,6 +1710,107 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
 
 
+      {/* TAB: PHASE 2 PAYMENT VERIFICATION PENDING BY ADMIN */}
+      {activeTab === 'payment_pending' && (
+        <div className="space-y-4 grow overflow-y-auto animate-fade-in">
+          {/* Status Header Banner */}
+          <div className="p-4 bg-[#241d14] border-2 border-[#f4c151] rounded-md space-y-3 shadow-[0_0_25px_rgba(244,193,81,0.2)]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#423325] pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-[#382b18] border border-[#594424] text-[#f4c151] rounded-xs shrink-0">
+                  <Clock size={22} className="animate-spin" />
+                </div>
+                <div>
+                  <h3 className="font-pixel text-[13px] sm:text-[15px] text-[#f4c151] uppercase">
+                    PAYMENT VERIFICATION PENDING BY ADMIN
+                  </h3>
+                  <span className="font-silkscreen text-[9px] text-[#8f9396]">
+                    Your Phase 2 entry fee payment has been submitted &amp; logged for admin verification
+                  </span>
+                </div>
+              </div>
+              <span className="bg-[#382b18] text-[#f4c151] border border-[#594424] font-silkscreen text-[9px] px-3 py-1 rounded-xs font-bold shrink-0 text-center">
+                ⏳ UNDER REVIEW
+              </span>
+            </div>
+
+            <p className="font-silkscreen text-[10.5px] text-[#d0d7e0] leading-relaxed">
+              Thank you! Payment details for team <strong className="text-white">{activeLeadTeam.teamName}</strong> have been successfully received. Our Admin team is currently verifying your UTR transaction ID and payment screenshot proof.
+            </p>
+          </div>
+
+          {/* Submission Details Card */}
+          <div className="p-4 bg-[#0e1216] border-2 border-[#2b4466] rounded-md space-y-3.5 shadow-md">
+            <span className="font-pixel text-[11px] text-[#00f0ff] uppercase block border-b border-[#1e2d42] pb-2">
+              📋 SUBMITTED TRANSACTION DETAILS
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-silkscreen text-[9.5px]">
+              <div className="bg-[#14181f] p-3 rounded-xs border border-[#233145] space-y-1">
+                <span className="text-[#8f9396] block text-[8.5px]">TEAM NAME &amp; ID:</span>
+                <span className="font-pixel text-[12px] text-[#f4c151] block">{activeLeadTeam.teamName}</span>
+                <span className="font-mono text-[9px] text-[#6fb3d9]">ID: {activeLeadTeam.id}</span>
+              </div>
+
+              <div className="bg-[#14181f] p-3 rounded-xs border border-[#233145] space-y-1">
+                <span className="text-[#8f9396] block text-[8.5px]">SUBMITTED UTR / TRANSACTION REF ID:</span>
+                <span className="font-mono font-bold text-[12px] text-[#4ade80] block">
+                  {activeLeadTeam.phase2PaymentTransactionId || activeLeadTeam.paymentTransactionId || 'Logged'}
+                </span>
+                <span className="text-[8px] text-[#8f9396]">12-Digit UPI Transaction ID</span>
+              </div>
+            </div>
+
+            {/* Submitted Payment Proof Image Preview */}
+            {(activeLeadTeam.phase2PaymentScreenshotUrl || activeLeadTeam.paymentScreenshotUrl) && (
+              <div className="bg-[#14181f] p-3 rounded-xs border border-[#233145] space-y-2">
+                <div className="flex items-center justify-between font-silkscreen text-[8.5px] text-[#a7d38a]">
+                  <span>📷 SUBMITTED PAYMENT RECEIPT PROOF:</span>
+                  <span className="text-[#8f9396] text-[8px]">VERIFIED ATTACHMENT</span>
+                </div>
+                <div
+                  className="border border-[#2b2e30] rounded-xs overflow-hidden h-36 bg-black flex items-center justify-center cursor-pointer group"
+                  onClick={() => {
+                    sound.playBlip(500);
+                    setPreviewImageModal({
+                      url: activeLeadTeam.phase2PaymentScreenshotUrl || activeLeadTeam.paymentScreenshotUrl || '',
+                      title: `Submitted Payment Receipt - Team ${activeLeadTeam.teamName}`,
+                    });
+                  }}
+                >
+                  <img
+                    src={activeLeadTeam.phase2PaymentScreenshotUrl || activeLeadTeam.paymentScreenshotUrl}
+                    alt="Payment Receipt Screenshot"
+                    className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
+                  />
+                </div>
+                <span className="font-mono text-[8px] text-[#00f0ff] block text-center">CLICK IMAGE TO ENLARGE</span>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-[#1e2d42] flex items-center justify-between font-silkscreen text-[8.5px] text-[#8f9396]">
+              <span>SUBMISSION TIMESTAMP:</span>
+              <span className="font-mono text-white">
+                {activeLeadTeam.phase2PaymentSubmittedAt
+                  ? new Date(activeLeadTeam.phase2PaymentSubmittedAt).toLocaleString()
+                  : 'Submitted'}
+              </span>
+            </div>
+          </div>
+
+          {/* Next Steps / Unlock Banner */}
+          <div className="p-4 bg-[#142417] border-2 border-[#25522b] rounded-md space-y-2 text-center shadow-md">
+            <div className="flex items-center justify-center gap-2 text-[#4ade80] font-pixel text-[11.5px] sm:text-[12.5px]">
+              <ShieldCheck size={18} />
+              <span>AUTOMATIC TICKET &amp; TRACK UNLOCK UPON VERIFICATION</span>
+            </div>
+            <p className="font-silkscreen text-[10px] text-[#86efac] max-w-xl mx-auto leading-relaxed">
+              Once Admin verifies your transaction, your official Cognitia 2026 Ticket Pass and Problem Statement Track Selection will automatically unlock right here. You can log out and check back anytime.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* TAB 6: PHASE 2 VERIFY STATUS, OFFICIAL PASS & PROBLEM STATEMENT */}
       {activeTab === 'phase2_status' && (
         <div className="space-y-4 grow overflow-y-auto">
@@ -1722,19 +1830,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               <Ticket size={13} /> 🎟️ OFFICIAL TICKET PASS
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                sound.playBlip(500);
-                setTicketSubTab('food_coupons');
-              }}
-              className={`font-pixel text-[9px] sm:text-[10px] px-3.5 py-2 rounded-xs border transition-all flex items-center gap-1.5 cursor-pointer ${ticketSubTab === 'food_coupons'
-                ? 'bg-[#142417] text-[#4ade80] border-[#4ade80] shadow-[2px_2px_0_0_#000]'
-                : 'bg-[#141618] text-[#8f9396] border-[#2b2e30] hover:text-white'
-                }`}
-            >
-              <Utensils size={13} /> 🍱 FOOD COUPONS
-            </button>
 
             <button
               type="button"
@@ -1908,16 +2003,14 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
 
 
 
-                    {/* Individual Member Pass Badges & Unique Gate QRs */}
+                    {/* Individual Member Pass Badges */}
                     <div className="border-t border-[#2b2e30] pt-3 space-y-2">
                       <span className="font-silkscreen text-[8.5px] text-[#a7d38a] uppercase block tracking-wider">
-                        INDIVIDUAL MEMBER PASS BADGES &amp; UNIQUE GATE SCAN QR CODES ({activeLeadTeam.members.length}):
+                        INDIVIDUAL MEMBER PASS BADGES ({activeLeadTeam.members.length}):
                       </span>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {activeLeadTeam.members.map((m, idx) => {
                           const memberPassId = m.memberPassId || `COG26-M${String(activeLeadTeam.id).slice(-3)}-${idx + 1}`;
-                          const qrContent = `COGNITIA-2026-PASS-MEMBER:${memberPassId}:${activeLeadTeam.id}:${m.name}:${m.enrollmentNo || 'N/A'}`;
-                          const memberQrUrl = m.memberQrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrContent)}`;
 
                           return (
                             <div key={m.id || idx} className="bg-[#0e1215] border-2 border-[#2b4466] p-3 rounded-xs text-[#cfe8ff] space-y-2 relative overflow-hidden">
@@ -1930,45 +2023,24 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                                 </span>
                               </div>
 
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="space-y-1 font-silkscreen text-[8px] grow">
-                                  <p className="font-bold text-white text-[10.5px]">{m.name}</p>
-                                  <p className="text-[#8f9396]">{m.role || 'Participant'}</p>
-                                  {m.enrollmentNo && (
-                                    <p className="text-[#86efac] font-mono font-bold">
-                                      ENROLLMENT: {m.enrollmentNo}
-                                    </p>
-                                  )}
-                                  <p className="text-[#6fb3d9]">{m.email}</p>
-                                  {m.checkInStatus === 'checked_in' ? (
-                                    <span className="inline-flex items-center gap-1 bg-[#182418] text-[#a7d38a] border border-[#25522b] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
-                                      <CheckCircle2 size={9} /> GATE CHECKED IN ({m.checkInTimestamp || 'OK'})
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 bg-[#1c1f24] text-[#8f9396] border border-[#2b2e30] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
-                                      ⚪ NOT CHECKED IN
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Member Unique Gate QR */}
-                                <div
-                                  className="bg-black p-1 rounded-xs border border-[#4ade80] flex flex-col items-center shrink-0 cursor-pointer group"
-                                  onClick={() => {
-                                    sound.playBlip(500);
-                                    setPreviewImageModal({
-                                      url: memberQrUrl,
-                                      title: `Official Pass QR - ${m.name} (${memberPassId})`,
-                                    });
-                                  }}
-                                >
-                                  <img
-                                    src={memberQrUrl}
-                                    alt={`${m.name} Pass QR`}
-                                    className="w-16 h-16 bg-white p-0.5 rounded-xs object-contain group-hover:scale-105 transition-transform"
-                                  />
-                                  <span className="font-mono text-[6px] text-[#4ade80] mt-0.5">CLICK ZOOM</span>
-                                </div>
+                              <div className="space-y-1 font-silkscreen text-[8px]">
+                                <p className="font-bold text-white text-[10.5px]">{m.name}</p>
+                                <p className="text-[#8f9396]">{m.role || 'Participant'}</p>
+                                {m.enrollmentNo && (
+                                  <p className="text-[#86efac] font-mono font-bold">
+                                    ENROLLMENT: {m.enrollmentNo}
+                                  </p>
+                                )}
+                                <p className="text-[#6fb3d9]">{m.email}</p>
+                                {m.checkInStatus === 'checked_in' ? (
+                                  <span className="inline-flex items-center gap-1 bg-[#182418] text-[#a7d38a] border border-[#25522b] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
+                                    <CheckCircle2 size={9} /> GATE CHECKED IN ({m.checkInTimestamp || 'OK'})
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 bg-[#1c1f24] text-[#8f9396] border border-[#2b2e30] text-[7.5px] px-1.5 py-0.5 rounded-xs mt-1">
+                                    ⚪ NOT CHECKED IN
+                                  </span>
+                                )}
                               </div>
                             </div>
                           );
@@ -2024,41 +2096,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
             </div>
           )}
 
-          {/* SUB-TAB 2: FOOD COUPONS & MEAL PASS */}
-          {ticketSubTab === 'food_coupons' && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#0e1216] p-3.5 border-2 border-[#2b4466] rounded-md gap-3 font-silkscreen text-[9px] shadow-[0_0_20px_rgba(74,222,128,0.12)]">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-[#142417] border border-[#25522b] text-[#4ade80] rounded-xs">
-                    <Utensils size={18} />
-                  </div>
-                  <div>
-                    <span className="font-pixel text-[11px] text-[#f4c151] block uppercase">
-                      OFFICIAL TEAM FOOD COUPONS &amp; MEAL PASS
-                    </span>
-                    <span className="text-[#8f9396] text-[8px]">
-                      View your team &amp; member food coupons below or pop out into a new browser tab
-                    </span>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sound.playBoot();
-                      window.open(`/food-coupons?teamId=${activeLeadTeam.id}`, '_blank');
-                    }}
-                    className="bg-[#1c2836] hover:bg-[#25374d] text-[#00f0ff] border border-[#00f0ff]/40 font-pixel text-[8.5px] uppercase px-3 py-1.5 rounded-xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
-                  >
-                    <ExternalLink size={12} /> OPEN IN NEW TAB ↗
-                  </button>
-                </div>
-              </div>
-
-              <FoodCouponsTabScreen teamIdFromProp={activeLeadTeam.id} />
-            </div>
-          )}
 
           {/* SUB-TAB 3: PROBLEM STATEMENT & TRACK ASSIGNMENT */}
           {ticketSubTab === 'problem_statement' && (
@@ -2352,20 +2390,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
           document.body
         )}
 
-      {/* MODAL: FOOD COUPONS PASS PREVIEW */}
-      {showFoodPassModal && activeLeadTeam &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 animate-fade-in overflow-y-auto">
-            <div className="max-w-4xl w-full my-auto">
-              <FoodCouponsTabScreen
-                teamIdFromProp={activeLeadTeam.id}
-                isModal={true}
-                onCloseModal={() => setShowFoodPassModal(false)}
-              />
-            </div>
-          </div>,
-          document.body
-        )}
     </div>
   );
 };

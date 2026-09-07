@@ -31,31 +31,6 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
     },
   });
 
-  // 2. Pre-generate Individual Member QR Codes
-  const memberQrs: string[] = [];
-  if (team.members && team.members.length > 0) {
-    for (let idx = 0; idx < team.members.length; idx++) {
-      const m = team.members[idx];
-      const memberPassId = m.memberPassId || `${passId}-M${idx + 1}`;
-      const memberQrPayload = `COGNITIA-2026-PASS-MEMBER:${memberPassId}:${team.id}:${m.name}:${m.enrollmentNo || 'N/A'}`;
-      try {
-        const memberQrUrl = await QRCode.toDataURL(memberQrPayload, {
-          margin: 1,
-          width: 200,
-          errorCorrectionLevel: 'M',
-          color: {
-            dark: '#0f172a',
-            light: '#ffffff',
-          },
-        });
-        memberQrs.push(memberQrUrl);
-      } catch (e) {
-        console.warn('[PDF] Failed to generate member QR', e);
-        memberQrs.push('');
-      }
-    }
-  }
-
   // Determine Affiliation
   const isIemTeam = isIemUemAllStudentTeam(team.members);
 
@@ -267,12 +242,12 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
     doc.text(`Admin will assign track based on slot availability when at least 2 team members check in.`, 14, trackY + 19);
   }
 
-  // 8. Team Members Roster Table WITH INDIVIDUAL MEMBER QR CODES
+  // 8. Team Members Roster Table
   const rosterY = 138;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(`ADMITTED TEAM MEMBERS ROSTER (${team.members.length} PARTICIPANTS) — INDIVIDUAL MEMBER PASS QRs`, 10, rosterY);
+  doc.text(`ADMITTED TEAM MEMBERS ROSTER (${team.members.length} PARTICIPANTS)`, 10, rosterY);
 
   // Table Header
   const tableHeaderY = rosterY + 2.5;
@@ -286,8 +261,7 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
   doc.text('CONTACT INFO', 56, tableHeaderY + 4.8);
   doc.text('GITHUB', 96, tableHeaderY + 4.8);
   doc.text('COLLEGE / ENROLLMENT', 123, tableHeaderY + 4.8);
-  doc.text('MEMBER PASS ID', 154, tableHeaderY + 4.8);
-  doc.text('MEMBER QR', 181, tableHeaderY + 4.8);
+  doc.text('MEMBER PASS ID', 160, tableHeaderY + 4.8);
 
   let currentY = tableHeaderY + 7;
   const rowHeight = 15.5;
@@ -345,24 +319,9 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
     // Member Pass ID
     const memberPass = m.memberPassId || `${passId}-M${idx + 1}`;
     doc.setFont('courier', 'bold');
-    doc.setFontSize(6.5);
+    doc.setFontSize(7);
     doc.setTextColor(15, 23, 42);
-    doc.text(memberPass, 154, currentY + 6.5);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(5.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text('SCAN FOR ENTRY', 154, currentY + 11.5);
-
-    // Individual Member QR Code Image (embedded at right side of row)
-    const memberQrUrl = memberQrs[idx];
-    if (memberQrUrl) {
-      doc.setFillColor(255, 255, 255);
-      doc.setDrawColor(203, 213, 225);
-      doc.setLineWidth(0.2);
-      doc.rect(180, currentY + 1, 14, 13.5, 'FD');
-      doc.addImage(memberQrUrl, 'PNG', 180.5, currentY + 1.2, 13, 13);
-    }
+    doc.text(memberPass, 160, currentY + 7.5);
 
     currentY += rowHeight;
   });
@@ -659,296 +618,4 @@ export async function printTicketPdf(team: TeamRegistration): Promise<void> {
   };
 }
 
-/**
- * Generates an official, high-resolution Food Coupons PDF Pass for Cognitia 2026.
- * Contains Team Food QR code and Individual Present Member Food QR codes.
- * Contains NO rules & regulations (pure high-contrast scanning pass).
- */
-export async function createFoodCouponsPdfDoc(
-  team: TeamRegistration,
-  activeMealSession: MealType | 'none' = 'day1_dinner'
-): Promise<jsPDF> {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
 
-  const pageWidth = 210;
-  const margin = 10;
-  const contentWidth = pageWidth - margin * 2; // 190mm
-
-  const mealSession = activeMealSession !== 'none' ? activeMealSession : 'day1_dinner';
-  const mealNameMap: Record<MealType, string> = {
-    day1_dinner: 'DAY 1 DINNER',
-    day1_snacks: 'DAY 1 LATE NIGHT SNACKS',
-    day2_breakfast: 'DAY 2 BREAKFAST',
-    day2_lunch: 'DAY 2 LUNCH',
-  };
-  const mealName = mealNameMap[mealSession] || 'DAY 1 DINNER';
-
-  const passId = team.ticketPassId || `COGNITIA-2026-PASS-${String(team.id || '').replace(/^team-/, '').toUpperCase()}`;
-  const checkedMembers = (team.members || []).filter((m) => m.checkInStatus === 'checked_in');
-  const absentMembers = (team.members || []).filter((m) => m.checkInStatus !== 'checked_in');
-
-  // 1. Generate Team Food QR Code
-  const teamQrPayload = `COG26-FOOD:${mealSession}:${team.id}`;
-  const teamQrUrl = await QRCode.toDataURL(teamQrPayload, {
-    margin: 1,
-    width: 280,
-    errorCorrectionLevel: 'M',
-    color: { dark: '#0f172a', light: '#ffffff' },
-  });
-
-  // 2. Generate Present Member Food QRs
-  const memberQrs: { member: typeof team.members[0]; qrUrl: string; passId: string }[] = [];
-  for (let idx = 0; idx < checkedMembers.length; idx++) {
-    const m = checkedMembers[idx];
-    const memberPassId = m.memberPassId || `COG26-M${String(team.id).slice(-3)}-${idx + 1}`;
-    const mPayload = `COG26-FOOD:${mealSession}:${team.id}:${m.id}`;
-    try {
-      const qrUrl = await QRCode.toDataURL(mPayload, {
-        margin: 1,
-        width: 220,
-        errorCorrectionLevel: 'M',
-        color: { dark: '#0f172a', light: '#ffffff' },
-      });
-      memberQrs.push({ member: m, qrUrl, passId: memberPassId });
-    } catch {
-      memberQrs.push({ member: m, qrUrl: '', passId: memberPassId });
-    }
-  }
-
-  // 3. Outer Document Borders
-  doc.setDrawColor(15, 23, 42);
-  doc.setLineWidth(0.7);
-  doc.rect(8, 8, 194, 281, 'S');
-
-  doc.setDrawColor(74, 222, 128); // Emerald Green
-  doc.setLineWidth(0.3);
-  doc.rect(9, 9, 192, 279, 'S');
-
-  // 4. Header Banner
-  doc.setFillColor(15, 23, 42);
-  doc.rect(10, 10, contentWidth, 24, 'F');
-
-  doc.setTextColor(245, 158, 11);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('COGNITIA 2026', 15, 20);
-
-  doc.setFontSize(10);
-  doc.setTextColor(74, 222, 128);
-  doc.text('OFFICIAL FOOD & MEAL COUPONS PASS', 15, 27);
-
-  doc.setFontSize(9);
-  doc.setTextColor(255, 255, 255);
-  doc.text(`MEAL SESSION: ${mealName}`, 135, 20);
-  doc.setFontSize(8);
-  doc.setTextColor(148, 163, 184);
-  doc.text(`PASS ID: ${passId}`, 135, 26);
-
-  // 5. Team Overview Info Card
-  let currentY = 38;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.rect(10, currentY, contentWidth, 22, 'FD');
-
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(`TEAM: ${team.teamName.toUpperCase()}`, 14, currentY + 7);
-
-  doc.setFontSize(8.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Team ID: ${team.id}  |  Pass ID: ${passId}`, 14, currentY + 13);
-  doc.text(`Gate Checked In: ${checkedMembers.length} / ${team.members.length} Members  |  Lead Email: ${team.leadEmail}`, 14, currentY + 18);
-
-  // 6. Section 1: Whole Team Food Coupon
-  currentY += 27;
-  doc.setFillColor(15, 23, 42);
-  doc.rect(10, currentY, contentWidth, 7, 'F');
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(245, 158, 11);
-  doc.text('1. WHOLE TEAM FOOD COUPON (FULL TEAM PASS)', 13, currentY + 4.8);
-
-  currentY += 9;
-  doc.setFillColor(241, 245, 249);
-  doc.setDrawColor(203, 213, 225);
-  doc.rect(10, currentY, contentWidth, 38, 'FD');
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(`TEAM MEAL COUPON — ${mealName}`, 14, currentY + 8);
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Valid for full team meal collection at catering desk.`, 14, currentY + 14);
-  doc.text(`Team Name: ${team.teamName}`, 14, currentY + 20);
-  doc.text(`Gate Checked-In Members: ${checkedMembers.length} Present`, 14, currentY + 26);
-
-  const isTeamRedeemed = !!(team.meals?.[mealSession]?.redeemed);
-  if (isTeamRedeemed) {
-    doc.setTextColor(225, 29, 72);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`STATUS: REDEEMED (${team.meals?.[mealSession]?.redeemedAt || 'OK'})`, 14, currentY + 32);
-  } else {
-    doc.setTextColor(22, 163, 74);
-    doc.setFont('helvetica', 'bold');
-    doc.text('STATUS: AVAILABLE FOR SCANNING', 14, currentY + 32);
-  }
-
-  // Embed Team Food QR Image
-  if (teamQrUrl) {
-    doc.addImage(teamQrUrl, 'PNG', 152, currentY + 2, 34, 34);
-    doc.setFontSize(6);
-    doc.setTextColor(100, 116, 139);
-    doc.text('SCAN TEAM FOOD QR', 169, currentY + 37, { align: 'center' });
-  }
-
-  // 7. Section 2: Individual Present Member Food Coupons
-  currentY += 44;
-  doc.setFillColor(15, 23, 42);
-  doc.rect(10, currentY, contentWidth, 7, 'F');
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(74, 222, 128);
-  doc.text(`2. INDIVIDUAL PRESENT MEMBER FOOD COUPONS (${checkedMembers.length} PRESENT)`, 13, currentY + 4.8);
-
-  currentY += 9;
-  if (memberQrs.length === 0) {
-    doc.setFillColor(254, 242, 242);
-    doc.rect(10, currentY, contentWidth, 12, 'FD');
-    doc.setFontSize(8.5);
-    doc.setTextColor(225, 29, 72);
-    doc.text('No team members have gate checked-in yet. Food coupons require gate check-in.', 14, currentY + 7.5);
-    currentY += 16;
-  } else {
-    // Render Present Members Grid (2 per row)
-    for (let idx = 0; idx < memberQrs.length; idx++) {
-      const item = memberQrs[idx];
-      const isCol2 = idx % 2 === 1;
-      const cardX = isCol2 ? 108 : 10;
-      const cardWidth = 92;
-      const cardHeight = 32;
-
-      if (idx > 0 && idx % 2 === 0) {
-        currentY += 35;
-      }
-
-      const isMemRedeemed = !!(item.member.meals?.[mealSession]?.redeemed);
-
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(cardX, currentY, cardWidth, cardHeight, 'FD');
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 23, 42);
-      doc.text(`${idx + 1}. ${item.member.name.toUpperCase()}`, cardX + 3, currentY + 6);
-
-      doc.setFontSize(7.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(71, 85, 105);
-      doc.text(`Role: ${item.member.role || 'Member'} | Pass: ${item.passId}`, cardX + 3, currentY + 11);
-      if (item.member.enrollmentNo) {
-        doc.text(`Roll: ${item.member.enrollmentNo}`, cardX + 3, currentY + 16);
-      }
-
-      if (isMemRedeemed) {
-        doc.setTextColor(225, 29, 72);
-        doc.setFont('helvetica', 'bold');
-        doc.text('STATUS: REDEEMED', cardX + 3, currentY + 23);
-      } else {
-        doc.setTextColor(22, 163, 74);
-        doc.setFont('helvetica', 'bold');
-        doc.text('STATUS: READY FOR SCAN', cardX + 3, currentY + 23);
-      }
-
-      if (item.qrUrl) {
-        doc.addImage(item.qrUrl, 'PNG', cardX + cardWidth - 28, currentY + 2, 26, 26);
-      }
-    }
-    currentY += 38;
-  }
-
-  // 8. Section 3: Absent / Unchecked Members Notice (If any)
-  if (absentMembers.length > 0) {
-    currentY += 5;
-    doc.setFillColor(254, 242, 242);
-    doc.setDrawColor(252, 165, 165);
-    doc.rect(10, currentY, contentWidth, 14, 'FD');
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(225, 29, 72);
-    doc.text(`⚠️ ABSENT / UNCHECKED MEMBERS (${absentMembers.length}): FOOD COUPONS WITHHELD`, 13, currentY + 5.5);
-
-    const absentNames = absentMembers.map((m) => `${m.name} (${m.role || 'Member'})`).join(', ');
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Absent: ${absentNames}`, 13, currentY + 10.5);
-  }
-
-  // Footer Watermark
-  doc.setFontSize(6.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(148, 163, 184);
-  doc.text(`Cognitia 2026 Official Meal Pass  |  Team ID: ${team.id}  |  Generated: ${new Date().toLocaleString()}`, contentWidth / 2 + 10, 285, { align: 'center' });
-
-  return doc;
-}
-
-/**
- * Downloads the Food Coupons PDF pass for a team.
- */
-export async function downloadFoodCouponsPdf(
-  team: TeamRegistration,
-  activeMealSession?: MealType | 'none'
-): Promise<void> {
-  const doc = await createFoodCouponsPdfDoc(team, activeMealSession);
-  const cleanTeamName = (team.teamName || 'Team').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const fileName = `Cognitia-2026-FoodPass-${cleanTeamName}.pdf`;
-  doc.save(fileName);
-}
-
-/**
- * Prints the Food Coupons PDF pass for a team directly via iframe dialog.
- */
-export async function printFoodCouponsPdf(
-  team: TeamRegistration,
-  activeMealSession?: MealType | 'none'
-): Promise<void> {
-  const doc = await createFoodCouponsPdfDoc(team, activeMealSession);
-  const blob = doc.output('blob');
-  const blobUrl = URL.createObjectURL(blob);
-
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  iframe.src = blobUrl;
-
-  document.body.appendChild(iframe);
-
-  iframe.onload = () => {
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch {
-      window.open(blobUrl, '_blank');
-    }
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-      URL.revokeObjectURL(blobUrl);
-    }, 60000);
-  };
-}
