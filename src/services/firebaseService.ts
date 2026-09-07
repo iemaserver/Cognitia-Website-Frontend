@@ -203,11 +203,10 @@ class FirebaseService {
             return timeB - timeA;
           });
 
-          if (remoteTeams.length > 0) {
-            this.teams = remoteTeams;
-            this.saveToStorage();
-            this.notifyListeners();
-          }
+          const processedTeams = remoteTeams.map((t) => this.ensureMemberPassIds(t));
+          this.teams = processedTeams;
+          this.saveToStorage();
+          this.notifyListeners();
         },
         (error) => {
           console.warn('[FirebaseService] Firestore real-time listener notice:', error.message);
@@ -215,6 +214,44 @@ class FirebaseService {
       );
     } catch (err) {
       console.warn('[FirebaseService] Error setting up Firestore listener:', err);
+    }
+  }
+
+  public getIsFirestoreConnected(): boolean {
+    return this.isFirestoreConnected;
+  }
+
+  public async syncFromFirestore(): Promise<{ success: boolean; count: number; error?: string }> {
+    if (!db) {
+      return { success: false, count: this.teams.length, error: 'Firestore DB instance not initialized' };
+    }
+
+    try {
+      const teamsRef = collection(db, 'teams');
+      const snapshot = await getDocs(teamsRef);
+      const remoteTeams: TeamRegistration[] = [];
+      snapshot.forEach((docSnap) => {
+        if (docSnap.exists()) {
+          remoteTeams.push(docSnap.data() as TeamRegistration);
+        }
+      });
+
+      remoteTeams.sort((a, b) => {
+        const timeA = new Date(a.registeredAt || 0).getTime();
+        const timeB = new Date(b.registeredAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      const processedTeams = remoteTeams.map((t) => this.ensureMemberPassIds(t));
+      this.teams = processedTeams;
+      this.isFirestoreConnected = true;
+      this.saveToStorage();
+      this.notifyListeners();
+
+      return { success: true, count: processedTeams.length };
+    } catch (err: any) {
+      console.error('[FirebaseService] Manual Firestore fetch error:', err);
+      return { success: false, count: this.teams.length, error: err.message || 'Firestore sync failed' };
     }
   }
 

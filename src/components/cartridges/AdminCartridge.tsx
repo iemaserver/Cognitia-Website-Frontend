@@ -95,6 +95,7 @@ export const AdminCartridge: React.FC = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const scanLockRef = useRef<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
 
 
@@ -290,6 +291,34 @@ export const AdminCartridge: React.FC = () => {
     if (isAuthenticated) {
       const unsubscribe = firebaseService.subscribeToTeamsChange((updatedTeams) => {
         setTeams(updatedTeams);
+
+        // Keep active inspection modal in sync with real-time database updates
+        setSelectedTeamModal((prevModal) => {
+          if (!prevModal) return null;
+          const fresh = updatedTeams.find(
+            (t) => t.id === prevModal.id || (t.ticketPassId && t.ticketPassId === prevModal.ticketPassId)
+          );
+          return fresh ? { ...fresh } : prevModal;
+        });
+
+        // Keep active attendance scanner popup modal in sync with real-time database updates
+        setAttendanceModalData((prevAtt) => {
+          if (!prevAtt) return null;
+          const freshTeam = updatedTeams.find(
+            (t) => t.id === prevAtt.matchedTeam.id || (t.ticketPassId && t.ticketPassId === prevAtt.matchedTeam.ticketPassId)
+          );
+          if (!freshTeam) return prevAtt;
+          const freshMember = prevAtt.matchedMember
+            ? freshTeam.members?.find(
+                (m) => m.id === prevAtt.matchedMember?.id || m.memberPassId === prevAtt.matchedMember?.memberPassId
+              )
+            : undefined;
+          return {
+            ...prevAtt,
+            matchedTeam: freshTeam,
+            matchedMember: freshMember || prevAtt.matchedMember,
+          };
+        });
       });
       return () => unsubscribe();
     }
@@ -298,6 +327,24 @@ export const AdminCartridge: React.FC = () => {
   const loadAdminData = () => {
     const data = firebaseService.getAllRegistrations();
     setTeams(data);
+    firebaseService.syncFromFirestore().then((res) => {
+      if (res.success) {
+        setTeams(firebaseService.getAllRegistrations());
+      }
+    });
+  };
+
+  const handleManualLiveRefresh = async () => {
+    sound.playBlip(500);
+    setIsRefreshing(true);
+    const res = await firebaseService.syncFromFirestore();
+    setIsRefreshing(false);
+    if (res.success) {
+      sound.playBoot();
+    } else {
+      sound.playBlip(300);
+      alert(`⚠️ Sync Warning: ${res.error || 'Unable to connect to live database.'}`);
+    }
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -1040,6 +1087,16 @@ Cognitia 2026 Organizing Team`;
         </div>
 
         <div className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={handleManualLiveRefresh}
+            disabled={isRefreshing}
+            className="font-pixel text-[7.5px] xs:text-[8.5px] sm:text-[9px] bg-[#1a2b3c] border border-[#2b4466] text-[#38bdf8] hover:bg-[#253e57] px-1.5 sm:px-3 py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
+            title="Fetch latest team registrations & live updates directly from database"
+          >
+            <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
+            <span className="truncate">{isRefreshing ? 'SYNCING...' : 'LIVE REFRESH'}</span>
+          </button>
           <button
             type="button"
             onClick={() => {
