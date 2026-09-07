@@ -211,6 +211,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [editPhone, setEditPhone] = useState('');
   const [editRole, setEditRole] = useState('');
   const [editGithub, setEditGithub] = useState('');
+  const [editYearOfStudy, setEditYearOfStudy] = useState<string>('');
+  const [editPursuingDegree, setEditPursuingDegree] = useState<string>('');
   const [editIsIemUem, setEditIsIemUem] = useState<boolean>(true);
   const [editCollegeName, setEditCollegeName] = useState<string>('IEM / UEM');
   const [editEnrollmentNo, setEditEnrollmentNo] = useState<string>('');
@@ -409,6 +411,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
     setEditPhone(m.phone);
     setEditRole(m.role || 'Member');
     setEditGithub(m.githubId);
+    setEditYearOfStudy(m.yearOfStudy || '3rd Year');
+    setEditPursuingDegree(m.pursuingDegree || 'B.Tech (CSE / IT / AI-ML)');
   };
 
   const cancelEditingMember = () => {
@@ -465,6 +469,8 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
           phone: editPhone,
           role: editRole || m.role,
           githubId: cleanGithub,
+          yearOfStudy: editYearOfStudy,
+          pursuingDegree: editPursuingDegree,
         };
       }
       return m;
@@ -1347,6 +1353,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                       </div>
                       <span className="font-silkscreen text-[9px] text-[#f4c151] block mt-0.5">{m.role || 'Member'}</span>
                       <div className="mt-1 font-silkscreen text-[9px] text-[#93c5fd] space-y-0.5">
+                        {(m.pursuingDegree || m.yearOfStudy) && (
+                          <p className="text-[#cfe8ff] font-bold">
+                            🎓 {m.pursuingDegree || 'Degree N/A'} &bull; {m.yearOfStudy || 'Year N/A'}
+                          </p>
+                        )}
                         <p className="flex items-center gap-1"><Mail size={10} /> {m.email}</p>
                         <p className="flex items-center gap-1"><Phone size={10} /> {m.phone}</p>
                         <p className="flex items-center gap-1 text-[#6fb3d9] font-mono"><Github size={10} /> @{m.githubId}</p>
@@ -2046,6 +2057,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                               <div className="space-y-1 font-silkscreen text-[8px]">
                                 <p className="font-bold text-white text-[10.5px]">{m.name}</p>
                                 <p className="text-[#8f9396]">{m.role || 'Participant'}</p>
+                                {(m.pursuingDegree || m.yearOfStudy) && (
+                                  <p className="text-[#38bdf8] font-bold text-[8.5px]">
+                                    🎓 {m.pursuingDegree || 'Degree N/A'} ({m.yearOfStudy || 'Year N/A'})
+                                  </p>
+                                )}
                                 {m.enrollmentNo && (
                                   <p className="text-[#86efac] font-mono font-bold">
                                     ENROLLMENT: {m.enrollmentNo}

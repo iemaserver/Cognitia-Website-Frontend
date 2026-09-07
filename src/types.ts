@@ -109,6 +109,8 @@ export interface TeamMember {
   collegeName?: string;
   isIemUemStudent?: boolean;
   enrollmentNo?: string;
+  yearOfStudy?: string;
+  pursuingDegree?: string;
   iemcrpScreenshotUrl?: string;
   // Unique Individual Member Pass & Gate Attendance Fields
   memberPassId?: string;

@@ -653,6 +653,8 @@ export const AdminCartridge: React.FC = () => {
     isIemUemStudent: boolean;
     collegeName: string;
     enrollmentNo: string;
+    yearOfStudy?: string;
+    pursuingDegree?: string;
   } | null>(null);
 
   const handleAdminSaveMemberEdits = async (e: React.FormEvent) => {
@@ -681,6 +683,8 @@ export const AdminCartridge: React.FC = () => {
             ? 'IEM / UEM'
             : (editingMember.collegeName.trim() || 'External'),
           enrollmentNo: isIemUem ? editingMember.enrollmentNo.trim() : '',
+          yearOfStudy: editingMember.yearOfStudy || '',
+          pursuingDegree: editingMember.pursuingDegree || '',
         };
       }
       return m;
@@ -877,6 +881,8 @@ Cognitia 2026 Organizing Team`;
         escapeCSV(m ? m.email || 'N/A' : 'N/A'),
         escapeCSV(m ? m.phone || 'N/A' : 'N/A'),
         escapeCSV(m ? `@${m.githubId}` : 'N/A'),
+        escapeCSV(m ? (m.yearOfStudy || 'N/A') : 'N/A'),
+        escapeCSV(m ? (m.pursuingDegree || 'N/A') : 'N/A'),
         escapeCSV(m ? (m.isIemUemStudent ? 'IEM / UEM' : m.collegeName || 'External') : 'N/A'),
         escapeCSV(m ? (m.isIemUemStudent ? 'YES' : 'NO') : 'N/A'),
         escapeCSV(m ? (m.isIemUemStudent ? m.enrollmentNo || 'N/A' : 'N/A') : 'N/A'),
@@ -1061,181 +1067,405 @@ Cognitia 2026 Organizing Team`;
 
       {/* TEAMS REGISTRATIONS & VENUE ATTENDANCE */}
       <div className="space-y-4 animate-fade-in">
-          {/* QUICK VENUE ATTENDANCE CHECK-IN SCANNER */}
-          <div className="p-3.5 bg-[#141618] border-2 border-[#254225] rounded-md space-y-2">
-            <div className="flex items-center justify-between border-b border-[#254225] pb-1.5">
-              <span className="font-pixel text-[10px] sm:text-[11px] text-[#a7d38a] flex items-center gap-1.5">
-                <UserCheck size={14} /> LIVE VENUE ATTENDANCE SCANNER &amp; SEARCH
-              </span>
-              <span className="font-silkscreen text-[7.5px] text-[#8fa892]">
-                ENTER TICKET PASS ID (e.g. COGNITIA-2026-PASS-XXXX) OR TEAM ID
-              </span>
-            </div>
-
-            {scanMessage && (
-              <div
-                className={`p-2 rounded-xs border font-silkscreen text-[8.5px] flex items-center gap-1.5 ${scanMessage.type === 'success'
-                  ? 'bg-[#142417] border-[#25522b] text-[#86efac]'
-                  : 'bg-[#261414] border-[#522525] text-[#fca5a5]'
-                  }`}
-              >
-                {scanMessage.type === 'success' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                <span>{scanMessage.text}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleAttendanceScanSubmit} className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                placeholder="Scan QR or enter Ticket Pass ID / Team ID (e.g. COGNITIA-2026-PASS-8192)"
-                value={scanQuery}
-                onChange={(e) => setScanQuery(e.target.value)}
-                className="grow bg-[#0c0e10] border border-[#254225] text-[#00f0ff] font-mono text-xs px-3 py-2 sm:py-1.5 rounded-xs focus:border-[#a7d38a] focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="font-pixel text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-4 py-2 sm:py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
-              >
-                <CheckCircle2 size={12} /> MARK PRESENT
-              </button>
-            </form>
+        {/* QUICK VENUE ATTENDANCE CHECK-IN SCANNER */}
+        <div className="p-3.5 bg-[#141618] border-2 border-[#254225] rounded-md space-y-2">
+          <div className="flex items-center justify-between border-b border-[#254225] pb-1.5">
+            <span className="font-pixel text-[10px] sm:text-[11px] text-[#a7d38a] flex items-center gap-1.5">
+              <UserCheck size={14} /> LIVE VENUE ATTENDANCE SCANNER &amp; SEARCH
+            </span>
+            <span className="font-silkscreen text-[7.5px] text-[#8fa892]">
+              ENTER TICKET PASS ID (e.g. COGNITIA-2026-PASS-XXXX) OR TEAM ID
+            </span>
           </div>
 
-          {/* Filters & Search & Insert Team Button */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-[#141618] p-3 border-2 border-[#2b2e30] rounded-md items-center">
-            <div className="sm:col-span-6 relative">
-              <Search size={14} className="absolute left-2.5 top-2.5 text-[#7d8285]" />
-              <input
-                type="text"
-                placeholder="Search teams by name, lead email, ticket pass ID, UTR ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-mono text-xs pl-8 pr-3 py-1.5 rounded-xs focus:border-[#f4c151] focus:outline-none"
-              />
+          {scanMessage && (
+            <div
+              className={`p-2 rounded-xs border font-silkscreen text-[8.5px] flex items-center gap-1.5 ${scanMessage.type === 'success'
+                ? 'bg-[#142417] border-[#25522b] text-[#86efac]'
+                : 'bg-[#261414] border-[#522525] text-[#fca5a5]'
+                }`}
+            >
+              {scanMessage.type === 'success' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+              <span>{scanMessage.text}</span>
             </div>
+          )}
 
-            <div className="sm:col-span-3 flex items-center gap-1.5">
-              <span className="font-silkscreen text-[8px] text-[#8f9396] shrink-0">FILTER:</span>
-              <select
-                value={selectedTrack}
-                onChange={(e) => setSelectedTrack(e.target.value)}
-                className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[8.5px] px-2 py-1.5 rounded-xs w-full focus:border-[#f4c151] focus:outline-none"
-              >
-                <option value="all">ALL TRACKS</option>
-                <option value="AI / Machine Learning">AI / ML</option>
-                <option value="Web3 / Blockchain">Web3 / Blockchain</option>
-                <option value="Cybersecurity">Cybersecurity</option>
-                <option value="Open Innovation">Open Innovation</option>
-              </select>
-            </div>
+          <form onSubmit={handleAttendanceScanSubmit} className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              placeholder="Scan QR or enter Ticket Pass ID / Team ID (e.g. COGNITIA-2026-PASS-8192)"
+              value={scanQuery}
+              onChange={(e) => setScanQuery(e.target.value)}
+              className="grow bg-[#0c0e10] border border-[#254225] text-[#00f0ff] font-mono text-xs px-3 py-2 sm:py-1.5 rounded-xs focus:border-[#a7d38a] focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="font-pixel text-[9px] bg-[#182418] border border-[#254225] text-[#a7d38a] hover:bg-[#203320] px-4 py-2 sm:py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
+            >
+              <CheckCircle2 size={12} /> MARK PRESENT
+            </button>
+          </form>
+        </div>
 
-            <div className="sm:col-span-3 flex justify-end">
-              <button
-                type="button"
-                onClick={handleOpenAddTeamModal}
-                className="w-full bg-[#1b351d] hover:bg-[#254d28] border border-[#34783a] text-[#86efac] font-pixel text-[9.5px] py-1.5 px-3 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer transition-all flex items-center justify-center gap-1.5"
-              >
-                <Sparkles size={12} className="text-[#86efac]" /> ➕ INSERT TEAM CREDENTIALS
-              </button>
-            </div>
+        {/* Filters & Search & Insert Team Button */}
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-[#141618] p-3 border-2 border-[#2b2e30] rounded-md items-center">
+          <div className="sm:col-span-6 relative">
+            <Search size={14} className="absolute left-2.5 top-2.5 text-[#7d8285]" />
+            <input
+              type="text"
+              placeholder="Search teams by name, lead email, ticket pass ID, UTR ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-mono text-xs pl-8 pr-3 py-1.5 rounded-xs focus:border-[#f4c151] focus:outline-none"
+            />
           </div>
 
-          {/* Track Slots Allocation Live FCFS Summary Bar (4 slots / track) */}
-          {(() => {
-            const allocations = calculateFcfsTrackAllocations(teams);
-            const counts: Record<string, number> = {};
-            allocations.forEach((alloc) => {
-              if (alloc.isQualified && alloc.assignedTrackId) {
-                counts[alloc.assignedTrackId] = (counts[alloc.assignedTrackId] || 0) + 1;
-              }
-            });
+          <div className="sm:col-span-3 flex items-center gap-1.5">
+            <span className="font-silkscreen text-[8px] text-[#8f9396] shrink-0">FILTER:</span>
+            <select
+              value={selectedTrack}
+              onChange={(e) => setSelectedTrack(e.target.value)}
+              className="bg-[#0c0e10] border border-[#2b2e30] text-[#cfe8ff] font-silkscreen text-[8.5px] px-2 py-1.5 rounded-xs w-full focus:border-[#f4c151] focus:outline-none"
+            >
+              <option value="all">ALL TRACKS</option>
+              <option value="AI / Machine Learning">AI / ML</option>
+              <option value="Web3 / Blockchain">Web3 / Blockchain</option>
+              <option value="Cybersecurity">Cybersecurity</option>
+              <option value="Open Innovation">Open Innovation</option>
+            </select>
+          </div>
 
-            return (
-              <div className="bg-[#090b0d] border border-[#2b4466] p-2.5 rounded-md space-y-1.5 font-silkscreen text-[8px]">
-                <div className="flex items-center justify-between border-b border-[#1e2d42] pb-1">
-                  <span className="font-pixel text-[9px] text-[#38bdf8] flex items-center gap-1.5">
-                    <Target size={11} /> TRACK SLOTS FCFS ALLOCATION SUMMARY (4 SLOTS PER TRACK MAX)
-                  </span>
-                  <span className="text-[#8f9396] text-[7.5px]">
-                    QUALIFIED GATE TEAMS (2+ PRESENCE): {Array.from(allocations.values()).filter((a) => a.isQualified).length}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-                  {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
-                    const used = counts[ps.trackId] || 0;
-                    const isFull = used >= 4;
-                    return (
-                      <div
-                        key={ps.trackId}
-                        className={`p-1.5 rounded-xs border ${isFull
-                          ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
-                          : used > 0
-                            ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
-                            : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
-                          }`}
-                      >
-                        <span className="font-bold block truncate">{ps.trackName}</span>
-                        <div className="flex items-center justify-between pt-0.5 font-mono text-[7.5px]">
-                          <span>SLOTS: {used} / 4</span>
-                          <span>{isFull ? 'FULL' : `${4 - used} LEFT`}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          <div className="sm:col-span-3 flex justify-end">
+            <button
+              type="button"
+              onClick={handleOpenAddTeamModal}
+              className="w-full bg-[#1b351d] hover:bg-[#254d28] border border-[#34783a] text-[#86efac] font-pixel text-[9.5px] py-1.5 px-3 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer transition-all flex items-center justify-center gap-1.5"
+            >
+              <Sparkles size={12} className="text-[#86efac]" /> ➕ INSERT TEAM CREDENTIALS
+            </button>
+          </div>
+        </div>
+
+        {/* Track Slots Allocation Live FCFS Summary Bar (4 slots / track) */}
+        {(() => {
+          const allocations = calculateFcfsTrackAllocations(teams);
+          const counts: Record<string, number> = {};
+          allocations.forEach((alloc) => {
+            if (alloc.isQualified && alloc.assignedTrackId) {
+              counts[alloc.assignedTrackId] = (counts[alloc.assignedTrackId] || 0) + 1;
+            }
+          });
+
+          return (
+            <div className="bg-[#090b0d] border border-[#2b4466] p-2.5 rounded-md space-y-1.5 font-silkscreen text-[8px]">
+              <div className="flex items-center justify-between border-b border-[#1e2d42] pb-1">
+                <span className="font-pixel text-[9px] text-[#38bdf8] flex items-center gap-1.5">
+                  <Target size={11} /> TRACK SLOTS FCFS ALLOCATION SUMMARY (4 SLOTS PER TRACK MAX)
+                </span>
+                <span className="text-[#8f9396] text-[7.5px]">
+                  QUALIFIED GATE TEAMS (2+ PRESENCE): {Array.from(allocations.values()).filter((a) => a.isQualified).length}
+                </span>
               </div>
-            );
-          })()}
-
-          {/* Teams Data Section */}
-          <div className="space-y-3">
-            {/* MOBILE CARD VIEW FOR TEAMS (PHONE SCREENS < 640px) */}
-            <div className="space-y-3 block sm:hidden">
-              {filteredTeams.length === 0 ? (
-                <div className="bg-[#141618] border-2 border-[#2b2e30] p-6 text-center text-[#8f9396] font-silkscreen text-[10px] rounded-md">
-                  No Phase 2 registrations or teams found.
-                </div>
-              ) : (
-                filteredTeams.map((t) => {
-                  const isIemUemTeam = isIemUemAllStudentTeam(t.members);
-                  const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
-                  const totalMems = (t.members || []).length;
-                  const minReq = Math.min(2, totalMems || 1);
-                  const isQualified = checkedCount >= minReq;
-
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                  const used = counts[ps.trackId] || 0;
+                  const isFull = used >= 4;
                   return (
-                    <div key={t.id} className="bg-[#141618] border-2 border-[#2b2e30] p-3.5 rounded-md space-y-3 font-sans text-xs text-[#cfe8ff]">
-                      {/* Card Header: Team Name, Pass ID & Category Badge */}
-                      <div className="flex items-start justify-between border-b border-[#2b2e30] pb-2 gap-2">
-                        <div>
-                          <span className="text-[15px] font-bold text-white block">{t.teamName}</span>
-                          <span className="text-[#6fb3d9] font-mono text-[11px] block">{t.leadEmail}</span>
-                          {t.ticketPassId && (
-                            <span className="font-mono text-[11px] text-[#86efac] font-bold block mt-0.5">{t.ticketPassId}</span>
-                          )}
+                    <div
+                      key={ps.trackId}
+                      className={`p-1.5 rounded-xs border ${isFull
+                        ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                        : used > 0
+                          ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                          : 'bg-[#141618] text-[#8f9396] border-[#2b2e30]'
+                        }`}
+                    >
+                      <span className="font-bold block truncate">{ps.trackName}</span>
+                      <div className="flex items-center justify-between pt-0.5 font-mono text-[7.5px]">
+                        <span>SLOTS: {used} / 4</span>
+                        <span>{isFull ? 'FULL' : `${4 - used} LEFT`}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Teams Data Section */}
+        <div className="space-y-3">
+          {/* MOBILE CARD VIEW FOR TEAMS (PHONE SCREENS < 640px) */}
+          <div className="space-y-3 block sm:hidden">
+            {filteredTeams.length === 0 ? (
+              <div className="bg-[#141618] border-2 border-[#2b2e30] p-6 text-center text-[#8f9396] font-silkscreen text-[10px] rounded-md">
+                No Phase 2 registrations or teams found.
+              </div>
+            ) : (
+              filteredTeams.map((t) => {
+                const isIemUemTeam = isIemUemAllStudentTeam(t.members);
+                const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                const totalMems = (t.members || []).length;
+                const minReq = Math.min(2, totalMems || 1);
+                const isQualified = checkedCount >= minReq;
+
+                return (
+                  <div key={t.id} className="bg-[#141618] border-2 border-[#2b2e30] p-3.5 rounded-md space-y-3 font-sans text-xs text-[#cfe8ff]">
+                    {/* Card Header: Team Name, Pass ID & Category Badge */}
+                    <div className="flex items-start justify-between border-b border-[#2b2e30] pb-2 gap-2">
+                      <div>
+                        <span className="text-[15px] font-bold text-white block">{t.teamName}</span>
+                        <span className="text-[#6fb3d9] font-mono text-[11px] block">{t.leadEmail}</span>
+                        {t.ticketPassId && (
+                          <span className="font-mono text-[11px] text-[#86efac] font-bold block mt-0.5">{t.ticketPassId}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {isIemUemTeam ? (
+                          <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
+                            🎓 IEM
+                          </span>
+                        ) : (
+                          <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
+                            🏫 EXTERNAL
+                          </span>
+                        )}
+                        {t.iemcrpScreenshotsSubmitted && (
+                          <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
+                            📸 PROOFS SUBMITTED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Controls Stacked Vertically */}
+                    <div className="space-y-2.5 font-silkscreen text-[9.5px]">
+                      {/* 1. Track Assignment */}
+                      <div className="space-y-1 bg-[#090b0d] p-2 rounded-xs border border-[#2b2e30]">
+                        {(() => {
+                          const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                          const isQualified = checkedCount >= 2;
+                          const availability = getTrackSlotAvailability(teams);
+                          const currentAssigned = t.adminTrackOverride || t.selectedTrack || '';
+
+                          return (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <label className="text-[#8f9396] block text-[8.5px] font-bold">TRACK ASSIGNMENT:</label>
+                                {currentAssigned ? (
+                                  <span className="bg-[#182418] text-[#86efac] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#25522b] font-bold">
+                                    🎯 ASSIGNED
+                                  </span>
+                                ) : isQualified ? (
+                                  <span className="bg-[#1c2836] text-[#38bdf8] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
+                                    ⚡ READY
+                                  </span>
+                                ) : (
+                                  <span className="bg-[#241d14] text-[#f2933d] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#423325] font-bold">
+                                    🔒 NEED 2+ PRESENT
+                                  </span>
+                                )}
+                              </div>
+                              <p className={`font-pixel text-[10.5px] font-bold leading-snug ${currentAssigned ? 'text-[#86efac]' : 'text-[#f4c151]'}`}>
+                                {currentAssigned || 'Pending Venue Gate Check-In'}
+                              </p>
+                              <select
+                                disabled={!isQualified && !currentAssigned}
+                                value={currentAssigned}
+                                onChange={(e) => handleTrackOverride(t.id, e.target.value)}
+                                className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${!isQualified && !currentAssigned
+                                  ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
+                                  : currentAssigned
+                                    ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
+                                    : 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                                  }`}
+                                title={
+                                  !isQualified && !currentAssigned
+                                    ? `Requires min 2 members present to assign track (Current: ${checkedCount})`
+                                    : `Select track for ${t.teamName}`
+                                }
+                              >
+                                <option value="">
+                                  {currentAssigned
+                                    ? '❌ UNASSIGN / CLEAR TRACK'
+                                    : !isQualified
+                                      ? `🔒 NEED 2+ PRESENT (${checkedCount})`
+                                      : '-- ASSIGN TRACK --'}
+                                </option>
+                                {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                                  const slotInfo = availability[ps.trackId];
+                                  const remaining = slotInfo ? slotInfo.remainingSlots : 4;
+                                  const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
+
+                                  return (
+                                    <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
+                                      {ps.trackName} {isFull ? '(FULL)' : `(${remaining}/4 Free)`}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      {/* 2. Selection & Registration Fee */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[#8f9396] block text-[9px] font-bold">PHASE 2 SELECTION:</label>
+                          <select
+                            value={t.phase2Status || 'pending'}
+                            onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
+                            className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${t.phase2Status === 'selected'
+                              ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                              : t.phase2Status === 'waitlisted'
+                                ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
+                                : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                              }`}
+                          >
+                            <option value="pending">PENDING</option>
+                            <option value="selected">SELECTED</option>
+                            <option value="waitlisted">WAITLISTED</option>
+                            <option value="not_selected">NOT SELECTED</option>
+                          </select>
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          {isIemUemTeam ? (
-                            <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
-                              🎓 IEM
-                            </span>
-                          ) : (
-                            <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[9px] px-2 py-0.5 rounded-xs font-bold">
-                              🏫 EXTERNAL
-                            </span>
-                          )}
-                          {t.iemcrpScreenshotsSubmitted && (
-                            <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs">
-                              📸 PROOFS SUBMITTED
-                            </span>
-                          )}
+
+                        <div className="space-y-1">
+                          <label className="text-[#8f9396] block text-[9px] font-bold">FEE STATUS:</label>
+                          <select
+                            value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
+                            onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
+                            className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
+                              ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                              : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
+                                ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
+                                : 'bg-[#241818] text-[#eb5147] border-[#422525]'
+                              }`}
+                          >
+                            <option value="unpaid">P2: UNPAID</option>
+                            <option value="payment_pending">P2: PENDING</option>
+                            <option value="payment_verified">P2: VERIFIED</option>
+                          </select>
                         </div>
                       </div>
 
-                      {/* Controls Stacked Vertically */}
-                      <div className="space-y-2.5 font-silkscreen text-[9.5px]">
-                        {/* 1. Track Assignment */}
-                        <div className="space-y-1 bg-[#090b0d] p-2 rounded-xs border border-[#2b2e30]">
+                      {/* 3. Venue Gate Attendance */}
+                      <div className="space-y-1 pt-1">
+                        <label className="text-[#8f9396] block text-[9px] font-bold">VENUE GATE ATTENDANCE:</label>
+                        <button
+                          onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
+                          className={`font-silkscreen text-[10px] px-3 py-2 rounded-xs border flex items-center gap-1.5 cursor-pointer w-full justify-center ${isQualified
+                            ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                            : checkedCount > 0
+                              ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                              : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
+                            }`}
+                        >
+                          <UserCheck size={13} />
+                          {isQualified
+                            ? `PRESENT (${checkedCount}/${totalMems})`
+                            : checkedCount > 0
+                              ? `PARTIAL (${checkedCount}/${totalMems})`
+                              : 'MARK PRESENT'}
+                        </button>
+
+                        {checkedCount > 0 && (
+                          <div className="space-y-1 font-mono text-[9.5px] text-[#8f9396] bg-[#090b0d] p-2 rounded-xs border border-[#1e2d42] mt-1">
+                            {(t.members || []).map((m, mIdx) => (
+                              <button
+                                key={mIdx}
+                                type="button"
+                                onClick={() => handleToggleAttendanceStatus(m.memberPassId || m.id, m.checkInStatus)}
+                                className="w-full flex items-center justify-between gap-1 hover:bg-[#1a2332] p-1 rounded-xs cursor-pointer text-left transition-colors"
+                                title={`Click to ${m.checkInStatus === 'checked_in' ? 'mark ABSENT' : 'mark PRESENT'} for ${m.name}`}
+                              >
+                                <span className="text-[#cfe8ff] font-semibold">{m.name} ({m.isLead ? 'L' : `M${mIdx + 1}`})</span>
+                                <span className={`px-1.5 py-0.5 rounded-xs text-[8.5px] font-bold ${m.checkInStatus === 'checked_in' ? 'bg-[#1e4620] text-[#86efac] border border-[#34783a]' : 'text-[#8f9396] bg-[#141618] border border-[#2b2e30]'}`}>
+                                  {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || '✓ PRESENT') : '❌ ABSENT'}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. Action Buttons */}
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2b2e30]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sound.playBlip(500);
+                            setCopiedTemplate(false);
+                            setCreatedCredentialsModal({
+                              teamId: t.id,
+                              teamName: t.teamName,
+                              leadName: t.members?.find((m) => m.isLead)?.name || t.members?.[0]?.name || 'Team Lead',
+                              leadEmail: t.leadEmail,
+                              password: t.leadPasswordHash || 'Cognitia2026',
+                            });
+                          }}
+                          className="bg-[#182418] border border-[#254225] text-[#86efac] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
+                        >
+                          🔑 CREDS
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sound.playBlip(600);
+                            setSelectedTeamModal(t);
+                          }}
+                          className="bg-[#1e2329] border border-[#3a4149] text-[#f4c151] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
+                        >
+                          🔍 INSPECT
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* DESKTOP TABLE VIEW FOR TEAMS (DESKTOP & TABLET SCREENS ≥ 640px) */}
+          <div className="hidden sm:block bg-[#141618] border-2 border-[#2b2e30] rounded-md w-full max-w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[960px]">
+              <thead>
+                <tr className="bg-[#1c1f24] border-b-2 border-[#2b2e30] font-pixel text-[10px] sm:text-[10.5px] text-[#8f9396] uppercase whitespace-nowrap">
+                  <th className="py-2.5 px-2.5 min-w-[130px]">Team Name</th>
+                  <th className="py-2.5 px-2.5 min-w-[130px]">Lead Email</th>
+                  <th className="py-2.5 px-2.5 min-w-[185px]">Track Assignment</th>
+                  <th className="py-2.5 px-2.5 min-w-[110px]">Phase 2 Selection</th>
+                  <th className="py-2.5 px-2.5 min-w-[115px]">IEM Status</th>
+                  <th className="py-2.5 px-2.5 min-w-[140px]">Registration Fee</th>
+                  <th className="py-2.5 px-2.5 min-w-[140px]">Gate Attendance</th>
+                  <th className="py-2.5 px-2.5 min-w-[95px] text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#2b2e30] font-sans text-xs text-[#cfe8ff]">
+                {filteredTeams.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-[#8f9396] font-silkscreen text-[10px]">
+                      No Phase 2 registrations or teams found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTeams.map((t) => {
+                    const isIemUemTeam = isIemUemAllStudentTeam(t.members);
+
+                    return (
+                      <tr key={t.id} className="hover:bg-[#1b1f24]">
+                        <td className="py-2.5 px-2.5 font-semibold text-[#cfe8ff]">
+                          <span className="text-[12.5px] sm:text-[13.5px] font-bold block leading-tight">{t.teamName}</span>
+                          {t.ticketPassId && (
+                            <span className="block font-mono text-[10px] text-[#86efac] font-bold mt-0.5">{t.ticketPassId}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2.5 text-[#6fb3d9] font-mono text-[11px] truncate max-w-[130px]" title={t.leadEmail}>
+                          {t.leadEmail}
+                        </td>
+
+                        {/* Track Assignment (Admin Assignment upon 2+ Members Present) */}
+                        <td className="py-2.5 px-2.5">
                           {(() => {
                             const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
                             const isQualified = checkedCount >= 2;
@@ -1243,35 +1473,42 @@ Cognitia 2026 Organizing Team`;
                             const currentAssigned = t.adminTrackOverride || t.selectedTrack || '';
 
                             return (
-                              <>
-                                <div className="flex items-center justify-between">
-                                  <label className="text-[#8f9396] block text-[8.5px] font-bold">TRACK ASSIGNMENT:</label>
+                              <div className="space-y-1 max-w-[190px]">
+                                {/* Assigned Track Name Display */}
+                                <span
+                                  className={`text-[11px] font-bold block leading-tight ${currentAssigned ? 'text-[#86efac]' : 'text-[#f4c151]'}`}
+                                  title={currentAssigned || 'Pending Venue Check-In'}
+                                >
+                                  {currentAssigned || 'Pending Venue Check-In'}
+                                </span>
+
+                                {/* Track Status Badge */}
+                                <div className="flex items-center gap-1 text-[8px] font-silkscreen">
                                   {currentAssigned ? (
-                                    <span className="bg-[#182418] text-[#86efac] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#25522b] font-bold">
-                                      🎯 ASSIGNED
+                                    <span className="bg-[#182418] text-[#86efac] px-1.5 py-0.5 rounded-xs border border-[#25522b] font-bold">
+                                      🎯 TRACK ASSIGNED
                                     </span>
                                   ) : isQualified ? (
-                                    <span className="bg-[#1c2836] text-[#38bdf8] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
-                                      ⚡ READY
+                                    <span className="bg-[#1c2836] text-[#38bdf8] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
+                                      ⚡ READY TO ASSIGN
                                     </span>
                                   ) : (
-                                    <span className="bg-[#241d14] text-[#f2933d] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#423325] font-bold">
+                                    <span className="bg-[#241d14] text-[#f2933d] px-1.5 py-0.5 rounded-xs border border-[#423325] font-bold">
                                       🔒 NEED 2+ PRESENT
                                     </span>
                                   )}
                                 </div>
-                                <p className={`font-pixel text-[10.5px] font-bold leading-snug ${currentAssigned ? 'text-[#86efac]' : 'text-[#f4c151]'}`}>
-                                  {currentAssigned || 'Pending Venue Gate Check-In'}
-                                </p>
+
+                                {/* Admin Track Selection Control */}
                                 <select
                                   disabled={!isQualified && !currentAssigned}
                                   value={currentAssigned}
                                   onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                                  className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${!isQualified && !currentAssigned
-                                      ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
-                                      : currentAssigned
-                                        ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
-                                        : 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                                  className={`font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs border cursor-pointer w-full truncate ${!isQualified && !currentAssigned
+                                    ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
+                                    : currentAssigned
+                                      ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
+                                      : 'bg-[#292218] text-[#f4c151] border-[#594424]'
                                     }`}
                                   title={
                                     !isQualified && !currentAssigned
@@ -1298,394 +1535,163 @@ Cognitia 2026 Organizing Team`;
                                     );
                                   })}
                                 </select>
-                              </>
+                              </div>
                             );
                           })()}
-                        </div>
+                        </td>
 
-                        {/* 2. Selection & Registration Fee */}
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[#8f9396] block text-[9px] font-bold">PHASE 2 SELECTION:</label>
-                            <select
-                              value={t.phase2Status || 'pending'}
-                              onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
-                              className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${t.phase2Status === 'selected'
-                                ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
-                                : t.phase2Status === 'waitlisted'
-                                  ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
-                                  : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
-                                }`}
-                            >
-                              <option value="pending">PENDING</option>
-                              <option value="selected">SELECTED</option>
-                              <option value="waitlisted">WAITLISTED</option>
-                              <option value="not_selected">NOT SELECTED</option>
-                            </select>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[#8f9396] block text-[9px] font-bold">FEE STATUS:</label>
-                            <select
-                              value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
-                              onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
-                              className={`font-silkscreen text-[10px] px-2 py-1.5 rounded-xs border cursor-pointer w-full ${t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
-                                ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                                : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
-                                  ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
-                                  : 'bg-[#241818] text-[#eb5147] border-[#422525]'
-                                }`}
-                            >
-                              <option value="unpaid">P2: UNPAID</option>
-                              <option value="payment_pending">P2: PENDING</option>
-                              <option value="payment_verified">P2: VERIFIED</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* 3. Venue Gate Attendance */}
-                        <div className="space-y-1 pt-1">
-                          <label className="text-[#8f9396] block text-[9px] font-bold">VENUE GATE ATTENDANCE:</label>
-                          <button
-                            onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
-                            className={`font-silkscreen text-[10px] px-3 py-2 rounded-xs border flex items-center gap-1.5 cursor-pointer w-full justify-center ${isQualified
-                              ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                              : checkedCount > 0
-                                ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                        {/* Phase 2 Selection Status */}
+                        <td className="py-2.5 px-2.5">
+                          <select
+                            value={t.phase2Status || 'pending'}
+                            onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
+                            className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${t.phase2Status === 'selected'
+                              ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                              : t.phase2Status === 'waitlisted'
+                                ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
                                 : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
                               }`}
                           >
-                            <UserCheck size={13} />
-                            {isQualified
-                              ? `PRESENT (${checkedCount}/${totalMems})`
-                              : checkedCount > 0
-                                ? `PARTIAL (${checkedCount}/${totalMems})`
-                                : 'MARK PRESENT'}
-                          </button>
+                            <option value="pending">PENDING</option>
+                            <option value="selected">SELECTED</option>
+                            <option value="waitlisted">WAITLISTED</option>
+                            <option value="not_selected">NOT SELECTED</option>
+                          </select>
+                        </td>
 
-                          {checkedCount > 0 && (
-                            <div className="space-y-1 font-mono text-[9.5px] text-[#8f9396] bg-[#090b0d] p-2 rounded-xs border border-[#1e2d42] mt-1">
-                              {(t.members || []).map((m, mIdx) => (
-                                <button
-                                  key={mIdx}
-                                  type="button"
-                                  onClick={() => handleToggleAttendanceStatus(m.memberPassId || m.id, m.checkInStatus)}
-                                  className="w-full flex items-center justify-between gap-1 hover:bg-[#1a2332] p-1 rounded-xs cursor-pointer text-left transition-colors"
-                                  title={`Click to ${m.checkInStatus === 'checked_in' ? 'mark ABSENT' : 'mark PRESENT'} for ${m.name}`}
-                                >
-                                  <span className="text-[#cfe8ff] font-semibold">{m.name} ({m.isLead ? 'L' : `M${mIdx + 1}`})</span>
-                                  <span className={`px-1.5 py-0.5 rounded-xs text-[8.5px] font-bold ${m.checkInStatus === 'checked_in' ? 'bg-[#1e4620] text-[#86efac] border border-[#34783a]' : 'text-[#8f9396] bg-[#141618] border border-[#2b2e30]'}`}>
-                                    {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || '✓ PRESENT') : '❌ ABSENT'}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 4. Action Buttons */}
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2b2e30]">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sound.playBlip(500);
-                              setCopiedTemplate(false);
-                              setCreatedCredentialsModal({
-                                teamId: t.id,
-                                teamName: t.teamName,
-                                leadName: t.members?.find((m) => m.isLead)?.name || t.members?.[0]?.name || 'Team Lead',
-                                leadEmail: t.leadEmail,
-                                password: t.leadPasswordHash || 'Cognitia2026',
-                              });
-                            }}
-                            className="bg-[#182418] border border-[#254225] text-[#86efac] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            🔑 CREDS
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sound.playBlip(600);
-                              setSelectedTeamModal(t);
-                            }}
-                            className="bg-[#1e2329] border border-[#3a4149] text-[#f4c151] font-pixel text-[10.5px] py-2 px-2 rounded-xs cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            🔍 INSPECT
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* DESKTOP TABLE VIEW FOR TEAMS (DESKTOP & TABLET SCREENS ≥ 640px) */}
-            <div className="hidden sm:block bg-[#141618] border-2 border-[#2b2e30] rounded-md w-full max-w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[960px]">
-                <thead>
-                  <tr className="bg-[#1c1f24] border-b-2 border-[#2b2e30] font-pixel text-[10px] sm:text-[10.5px] text-[#8f9396] uppercase whitespace-nowrap">
-                    <th className="py-2.5 px-2.5 min-w-[130px]">Team Name</th>
-                    <th className="py-2.5 px-2.5 min-w-[130px]">Lead Email</th>
-                    <th className="py-2.5 px-2.5 min-w-[185px]">Track Assignment</th>
-                    <th className="py-2.5 px-2.5 min-w-[110px]">Phase 2 Selection</th>
-                    <th className="py-2.5 px-2.5 min-w-[115px]">IEM Status</th>
-                    <th className="py-2.5 px-2.5 min-w-[140px]">Registration Fee</th>
-                    <th className="py-2.5 px-2.5 min-w-[140px]">Gate Attendance</th>
-                    <th className="py-2.5 px-2.5 min-w-[95px] text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#2b2e30] font-sans text-xs text-[#cfe8ff]">
-                  {filteredTeams.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="p-6 text-center text-[#8f9396] font-silkscreen text-[10px]">
-                        No Phase 2 registrations or teams found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredTeams.map((t) => {
-                      const isIemUemTeam = isIemUemAllStudentTeam(t.members);
-
-                      return (
-                        <tr key={t.id} className="hover:bg-[#1b1f24]">
-                          <td className="py-2.5 px-2.5 font-semibold text-[#cfe8ff]">
-                            <span className="text-[12.5px] sm:text-[13.5px] font-bold block leading-tight">{t.teamName}</span>
-                            {t.ticketPassId && (
-                              <span className="block font-mono text-[10px] text-[#86efac] font-bold mt-0.5">{t.ticketPassId}</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-2.5 text-[#6fb3d9] font-mono text-[11px] truncate max-w-[130px]" title={t.leadEmail}>
-                            {t.leadEmail}
-                          </td>
-
-                          {/* Track Assignment (Admin Assignment upon 2+ Members Present) */}
-                          <td className="py-2.5 px-2.5">
-                            {(() => {
-                              const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
-                              const isQualified = checkedCount >= 2;
-                              const availability = getTrackSlotAvailability(teams);
-                              const currentAssigned = t.adminTrackOverride || t.selectedTrack || '';
-
-                              return (
-                                <div className="space-y-1 max-w-[190px]">
-                                  {/* Assigned Track Name Display */}
-                                  <span
-                                    className={`text-[11px] font-bold block leading-tight ${currentAssigned ? 'text-[#86efac]' : 'text-[#f4c151]'}`}
-                                    title={currentAssigned || 'Pending Venue Check-In'}
-                                  >
-                                    {currentAssigned || 'Pending Venue Check-In'}
-                                  </span>
-
-                                  {/* Track Status Badge */}
-                                  <div className="flex items-center gap-1 text-[8px] font-silkscreen">
-                                    {currentAssigned ? (
-                                      <span className="bg-[#182418] text-[#86efac] px-1.5 py-0.5 rounded-xs border border-[#25522b] font-bold">
-                                        🎯 TRACK ASSIGNED
-                                      </span>
-                                    ) : isQualified ? (
-                                      <span className="bg-[#1c2836] text-[#38bdf8] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
-                                        ⚡ READY TO ASSIGN
-                                      </span>
-                                    ) : (
-                                      <span className="bg-[#241d14] text-[#f2933d] px-1.5 py-0.5 rounded-xs border border-[#423325] font-bold">
-                                        🔒 NEED 2+ PRESENT
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {/* Admin Track Selection Control */}
-                                  <select
-                                    disabled={!isQualified && !currentAssigned}
-                                    value={currentAssigned}
-                                    onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                                    className={`font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs border cursor-pointer w-full truncate ${!isQualified && !currentAssigned
-                                        ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
-                                        : currentAssigned
-                                          ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
-                                          : 'bg-[#292218] text-[#f4c151] border-[#594424]'
-                                      }`}
-                                    title={
-                                      !isQualified && !currentAssigned
-                                        ? `Requires min 2 members present to assign track (Current: ${checkedCount})`
-                                        : `Select track for ${t.teamName}`
-                                    }
-                                  >
-                                    <option value="">
-                                      {currentAssigned
-                                        ? '❌ UNASSIGN / CLEAR TRACK'
-                                        : !isQualified
-                                          ? `🔒 NEED 2+ PRESENT (${checkedCount})`
-                                          : '-- ASSIGN TRACK --'}
-                                    </option>
-                                    {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
-                                      const slotInfo = availability[ps.trackId];
-                                      const remaining = slotInfo ? slotInfo.remainingSlots : 4;
-                                      const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
-
-                                      return (
-                                        <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
-                                          {ps.trackName} {isFull ? '(FULL)' : `(${remaining}/4 Free)`}
-                                        </option>
-                                      );
-                                    })}
-                                  </select>
-                                </div>
-                              );
-                            })()}
-                          </td>
-
-                          {/* Phase 2 Selection Status */}
-                          <td className="py-2.5 px-2.5">
-                            <select
-                              value={t.phase2Status || 'pending'}
-                              onChange={(e) => handlePhase2StatusChange(t.id, e.target.value as Phase2SelectionStatus)}
-                              className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${t.phase2Status === 'selected'
-                                ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
-                                : t.phase2Status === 'waitlisted'
-                                  ? 'bg-[#3b1d14] text-[#f97316] border-[#7c2d12]'
-                                  : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30]'
-                                }`}
-                            >
-                              <option value="pending">PENDING</option>
-                              <option value="selected">SELECTED</option>
-                              <option value="waitlisted">WAITLISTED</option>
-                              <option value="not_selected">NOT SELECTED</option>
-                            </select>
-                          </td>
-
-                          {/* IEM / UEM Affiliation Badge */}
-                          <td className="py-2.5 px-2.5">
-                            {isIemUemTeam ? (
-                              <div className="space-y-1">
-                                <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
-                                  🎓 IEM (FREE)
+                        {/* IEM / UEM Affiliation Badge */}
+                        <td className="py-2.5 px-2.5">
+                          {isIemUemTeam ? (
+                            <div className="space-y-1">
+                              <span className="bg-[#182418] text-[#86efac] border border-[#25522b] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
+                                🎓 IEM (FREE)
+                              </span>
+                              {t.iemcrpScreenshotsSubmitted && (
+                                <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1 py-0.5 rounded-xs block w-fit">
+                                  📸 PROOFS OK
                                 </span>
-                                {t.iemcrpScreenshotsSubmitted && (
-                                  <span className="bg-[#1e3b22] text-[#4ade80] font-silkscreen text-[8px] px-1 py-0.5 rounded-xs block w-fit">
-                                    📸 PROOFS OK
-                                  </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
+                              🏫 EXTERNAL (₹200)
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Phase 2 Fee Status */}
+                        <td className="py-2.5 px-2.5">
+                          <select
+                            value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
+                            onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
+                            className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
+                              ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                              : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
+                                ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
+                                : 'bg-[#241818] text-[#eb5147] border-[#422525]'
+                              }`}
+                          >
+                            <option value="unpaid">P2: UNPAID</option>
+                            <option value="payment_pending">P2: PENDING</option>
+                            <option value="payment_verified">P2: VERIFIED</option>
+                          </select>
+                        </td>
+
+                        {/* Attendance Status */}
+                        <td className="py-2.5 px-2.5">
+                          {(() => {
+                            const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
+                            const totalMems = (t.members || []).length;
+                            const minReq = Math.min(2, totalMems || 1);
+                            const isQualified = checkedCount >= minReq;
+
+                            return (
+                              <div className="space-y-1">
+                                <button
+                                  onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
+                                  className={`font-silkscreen text-[8px] sm:text-[8.5px] px-2 py-1 rounded-xs border flex items-center gap-1 cursor-pointer w-full justify-center ${isQualified
+                                    ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
+                                    : checkedCount > 0
+                                      ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
+                                      : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
+                                    }`}
+                                  title={
+                                    isQualified
+                                      ? `Verified present at venue (${checkedCount}/${totalMems} members)`
+                                      : `Minimum 2 members required (Current: ${checkedCount}/${totalMems})`
+                                  }
+                                >
+                                  <UserCheck size={10} />
+                                  {isQualified
+                                    ? `PRESENT (${checkedCount}/${totalMems})`
+                                    : checkedCount > 0
+                                      ? `PARTIAL (${checkedCount}/${totalMems})`
+                                      : 'MARK PRESENT'}
+                                </button>
+                                {checkedCount > 0 && (
+                                  <div className="space-y-0.5 font-mono text-[8px] text-[#8f9396] bg-[#090b0d] p-1 rounded-xs border border-[#1e2d42]">
+                                    {(t.members || []).map((m, mIdx) => (
+                                      <button
+                                        key={mIdx}
+                                        type="button"
+                                        onClick={() => handleToggleAttendanceStatus(m.memberPassId || m.id, m.checkInStatus)}
+                                        className="w-full flex items-center justify-between gap-1 truncate hover:bg-[#1a2332] p-0.5 rounded-xs cursor-pointer text-left transition-colors"
+                                        title={`Click to ${m.checkInStatus === 'checked_in' ? 'mark ABSENT' : 'mark PRESENT'} for ${m.name}`}
+                                      >
+                                        <span className="truncate text-[#cfe8ff] font-semibold">{m.name.split(' ')[0]} ({m.isLead ? 'L' : `M${mIdx + 1}`})</span>
+                                        <span className={`px-1 py-0.2 rounded-xs text-[7.5px] ${m.checkInStatus === 'checked_in' ? 'bg-[#1e4620] text-[#86efac] border border-[#34783a] font-bold' : 'text-[#8f9396]'}`}>
+                                          {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || '✓ OK') : '❌ ABS'}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
-                            ) : (
-                              <span className="bg-[#241d14] text-[#f2933d] border border-[#423325] font-silkscreen text-[8.5px] px-1.5 py-0.5 rounded-xs flex items-center gap-1 w-fit font-bold">
-                                🏫 EXTERNAL (₹200)
-                              </span>
-                            )}
-                          </td>
+                            );
+                          })()}
+                        </td>
 
-                          {/* Phase 2 Fee Status */}
-                          <td className="py-2.5 px-2.5">
-                            <select
-                              value={t.phase2PaymentStatus || t.paymentStatus || 'unpaid'}
-                              onChange={(e) => handlePhase2PaymentStatusChange(t.id, e.target.value as Phase2PaymentStatus)}
-                              className={`font-silkscreen text-[8.5px] sm:text-[9px] px-1.5 py-1 rounded-xs border cursor-pointer ${t.phase2PaymentStatus === 'payment_verified' || t.paymentStatus === 'payment_verified'
-                                ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                                : t.phase2PaymentStatus === 'payment_pending' || t.paymentStatus === 'payment_pending'
-                                  ? 'bg-[#241d14] text-[#f2933d] border-[#423325]'
-                                  : 'bg-[#241818] text-[#eb5147] border-[#422525]'
-                                }`}
+                        <td className="py-2.5 px-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playBlip(500);
+                                setCopiedTemplate(false);
+                                setCreatedCredentialsModal({
+                                  teamId: t.id,
+                                  teamName: t.teamName,
+                                  leadName: t.members?.find((m) => m.isLead)?.name || t.members?.[0]?.name || 'Team Lead',
+                                  leadEmail: t.leadEmail,
+                                  password: t.leadPasswordHash || 'Cognitia2026',
+                                });
+                              }}
+                              className="bg-[#182418] border border-[#254225] hover:border-[#4ade80] font-pixel text-[8px] sm:text-[8.5px] text-[#86efac] px-2 py-0.5 rounded-xs cursor-pointer"
+                              title="View & Copy Email Credentials Template"
                             >
-                              <option value="unpaid">P2: UNPAID</option>
-                              <option value="payment_pending">P2: PENDING</option>
-                              <option value="payment_verified">P2: VERIFIED</option>
-                            </select>
-                          </td>
-
-                          {/* Attendance Status */}
-                          <td className="py-2.5 px-2.5">
-                            {(() => {
-                              const checkedCount = (t.members || []).filter((m) => m.checkInStatus === 'checked_in').length;
-                              const totalMems = (t.members || []).length;
-                              const minReq = Math.min(2, totalMems || 1);
-                              const isQualified = checkedCount >= minReq;
-
-                              return (
-                                <div className="space-y-1">
-                                  <button
-                                    onClick={() => handleToggleAttendanceStatus(t.id, t.attendanceStatus)}
-                                    className={`font-silkscreen text-[8px] sm:text-[8.5px] px-2 py-1 rounded-xs border flex items-center gap-1 cursor-pointer w-full justify-center ${isQualified
-                                      ? 'bg-[#182418] text-[#a7d38a] border-[#254225]'
-                                      : checkedCount > 0
-                                        ? 'bg-[#292218] text-[#f4c151] border-[#594424]'
-                                        : 'bg-[#1c1f24] text-[#8f9396] border-[#2b2e30] hover:text-[#a7d38a]'
-                                      }`}
-                                    title={
-                                      isQualified
-                                        ? `Verified present at venue (${checkedCount}/${totalMems} members)`
-                                        : `Minimum 2 members required (Current: ${checkedCount}/${totalMems})`
-                                    }
-                                  >
-                                    <UserCheck size={10} />
-                                    {isQualified
-                                      ? `PRESENT (${checkedCount}/${totalMems})`
-                                      : checkedCount > 0
-                                        ? `PARTIAL (${checkedCount}/${totalMems})`
-                                        : 'MARK PRESENT'}
-                                  </button>
-                                  {checkedCount > 0 && (
-                                    <div className="space-y-0.5 font-mono text-[8px] text-[#8f9396] bg-[#090b0d] p-1 rounded-xs border border-[#1e2d42]">
-                                      {(t.members || []).map((m, mIdx) => (
-                                        <button
-                                          key={mIdx}
-                                          type="button"
-                                          onClick={() => handleToggleAttendanceStatus(m.memberPassId || m.id, m.checkInStatus)}
-                                          className="w-full flex items-center justify-between gap-1 truncate hover:bg-[#1a2332] p-0.5 rounded-xs cursor-pointer text-left transition-colors"
-                                          title={`Click to ${m.checkInStatus === 'checked_in' ? 'mark ABSENT' : 'mark PRESENT'} for ${m.name}`}
-                                        >
-                                          <span className="truncate text-[#cfe8ff] font-semibold">{m.name.split(' ')[0]} ({m.isLead ? 'L' : `M${mIdx + 1}`})</span>
-                                          <span className={`px-1 py-0.2 rounded-xs text-[7.5px] ${m.checkInStatus === 'checked_in' ? 'bg-[#1e4620] text-[#86efac] border border-[#34783a] font-bold' : 'text-[#8f9396]'}`}>
-                                            {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || '✓ OK') : '❌ ABS'}
-                                          </span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </td>
-
-                          <td className="py-2.5 px-2.5 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  sound.playBlip(500);
-                                  setCopiedTemplate(false);
-                                  setCreatedCredentialsModal({
-                                    teamId: t.id,
-                                    teamName: t.teamName,
-                                    leadName: t.members?.find((m) => m.isLead)?.name || t.members?.[0]?.name || 'Team Lead',
-                                    leadEmail: t.leadEmail,
-                                    password: t.leadPasswordHash || 'Cognitia2026',
-                                  });
-                                }}
-                                className="bg-[#182418] border border-[#254225] hover:border-[#4ade80] font-pixel text-[8px] sm:text-[8.5px] text-[#86efac] px-2 py-0.5 rounded-xs cursor-pointer"
-                                title="View & Copy Email Credentials Template"
-                              >
-                                🔑 Creds
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  sound.playBlip(600);
-                                  setSelectedTeamModal(t);
-                                }}
-                                className="bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] font-pixel text-[8px] sm:text-[8.5px] text-[#f4c151] px-2 py-0.5 rounded-xs cursor-pointer"
-                              >
-                                INSPECT
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                              🔑 Creds
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playBlip(600);
+                                setSelectedTeamModal(t);
+                              }}
+                              className="bg-[#1e2329] border border-[#3a4149] hover:border-[#f4c151] font-pixel text-[8px] sm:text-[8.5px] text-[#f4c151] px-2 py-0.5 rounded-xs cursor-pointer"
+                            >
+                              INSPECT
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
+      </div>
 
       {/* INSPECTOR MODAL */}
       {selectedTeamModal &&
@@ -1857,6 +1863,8 @@ Cognitia 2026 Organizing Team`;
                                   isIemUemStudent: isIemUemMember(m),
                                   collegeName: m.collegeName || (isIemUemMember(m) ? 'IEM / UEM' : 'External'),
                                   enrollmentNo: m.enrollmentNo || '',
+                                  yearOfStudy: m.yearOfStudy || '',
+                                  pursuingDegree: m.pursuingDegree || '',
                                 });
                               }}
                               className="p-1 px-1.5 bg-[#1e2836] border border-[#38bdf8]/40 hover:border-[#38bdf8] text-[#38bdf8] hover:text-white rounded-xs text-[8px] font-silkscreen flex items-center gap-1 cursor-pointer transition-colors"
@@ -1882,6 +1890,11 @@ Cognitia 2026 Organizing Team`;
                             {m.email && <p className="text-[#cfe8ff] flex items-center gap-1"><Mail size={9} className="text-[#6fb3d9]" /> {m.email}</p>}
                             {m.phone && <p className="text-[#cfe8ff] flex items-center gap-1"><Phone size={9} className="text-[#a7d38a]" /> {m.phone}</p>}
                             {m.githubId && <p className="text-[#6fb3d9] font-mono flex items-center gap-1"><Github size={9} /> @{m.githubId}</p>}
+                            {(m.pursuingDegree || m.yearOfStudy) && (
+                              <p className="text-[#f4c151] font-bold">
+                                🎓 DEGREE &amp; YEAR: {m.pursuingDegree || 'N/A'} ({m.yearOfStudy || 'N/A'})
+                              </p>
+                            )}
                             {m.isIemUemStudent ? (
                               <div className="pt-0.5 space-y-1">
                                 <p className="text-[#86efac] font-mono flex items-center gap-1 font-bold">
@@ -1975,10 +1988,10 @@ Cognitia 2026 Organizing Team`;
                           </p>
                         </div>
                         <span className={`font-silkscreen text-[7.5px] px-2 py-0.5 rounded-xs border font-bold ${currentAssigned
-                            ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
-                            : isQualified
-                              ? 'bg-[#1c2836] text-[#38bdf8] border-[#00f0ff]/30'
-                              : 'bg-[#241d14] text-[#f2933d] border-[#423325]'
+                          ? 'bg-[#182418] text-[#86efac] border-[#25522b]'
+                          : isQualified
+                            ? 'bg-[#1c2836] text-[#38bdf8] border-[#00f0ff]/30'
+                            : 'bg-[#241d14] text-[#f2933d] border-[#423325]'
                           }`}>
                           {currentAssigned
                             ? '🎯 TRACK ASSIGNED'
@@ -3340,6 +3353,33 @@ Cognitia 2026 Organizing Team`;
                       type="text"
                       value={editingMember.githubId}
                       onChange={(e) => setEditingMember({ ...editingMember, githubId: e.target.value })}
+                      className="w-full bg-[#141618] border border-[#2b2e30] text-[#38bdf8] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[#cfe8ff] mb-1">YEAR OF STUDY</label>
+                    <select
+                      value={editingMember.yearOfStudy || '3rd Year'}
+                      onChange={(e) => setEditingMember({ ...editingMember, yearOfStudy: e.target.value })}
+                      className="w-full bg-[#141618] border border-[#2b2e30] text-[#86efac] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#38bdf8] focus:outline-none"
+                    >
+                      <option value="1st Year">1st Year</option>
+                      <option value="2nd Year">2nd Year</option>
+                      <option value="3rd Year">3rd Year</option>
+                      <option value="4th Year">4th Year</option>
+                      <option value="PG / Master's / Other">PG / Master's / Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[#cfe8ff] mb-1">PURSUING DEGREE</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. B.Tech (CSE), BCA, MCA"
+                      value={editingMember.pursuingDegree || ''}
+                      onChange={(e) => setEditingMember({ ...editingMember, pursuingDegree: e.target.value })}
                       className="w-full bg-[#141618] border border-[#2b2e30] text-[#38bdf8] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#38bdf8] focus:outline-none"
                     />
                   </div>

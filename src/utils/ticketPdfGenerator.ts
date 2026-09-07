@@ -301,19 +301,25 @@ export async function createTicketPdfDoc(team: TeamRegistration): Promise<jsPDF>
     doc.setFontSize(7);
     doc.text(m.githubId ? `@${m.githubId}` : 'N/A', 96, currentY + 7.5);
 
-    // College / Enrollment
+    // College / Enrollment / Degree & Year
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     const isMemberIemUem = isIemUemMember(m);
+    const degreeYearStr = [m.pursuingDegree, m.yearOfStudy].filter(Boolean).join(' • ');
     if (isMemberIemUem) {
       doc.setTextColor(21, 128, 61);
-      doc.text('IEM Salt Lake', 123, currentY + 5);
+      doc.text(`IEM Salt Lake ${degreeYearStr ? `(${degreeYearStr})` : ''}`, 123, currentY + 5, { maxWidth: 35 });
       doc.setFont('courier', 'bold');
       doc.setFontSize(6.5);
       doc.text(`Enr: ${m.enrollmentNo || 'Verified'}`, 123, currentY + 10);
     } else {
       doc.setTextColor(71, 85, 105);
-      doc.text(m.collegeName || 'External', 123, currentY + 7.5);
+      doc.text(m.collegeName || 'External', 123, currentY + 4, { maxWidth: 35 });
+      if (degreeYearStr) {
+        doc.setFontSize(5.8);
+        doc.setTextColor(30, 41, 59);
+        doc.text(degreeYearStr, 123, currentY + 9, { maxWidth: 35 });
+      }
     }
 
     // Member Pass ID
