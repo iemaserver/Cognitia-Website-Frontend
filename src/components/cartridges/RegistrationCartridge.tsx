@@ -2142,31 +2142,6 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                        <div className="p-3 bg-[#0d1013] border border-[#2b2e30] rounded-xs space-y-1.5 font-silkscreen text-[8.5px]">
-                          <span className="text-[#6fb3d9] block font-bold">GATE CHECK-IN STATUS:</span>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[#8f9396]">CHECKED-IN MEMBERS:</span>
-                            <span className="font-mono text-[#f4c151] font-bold text-[10px]">
-                              {checkedCount} / {totalCount}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[#8f9396]">MINIMUM REQUIRED:</span>
-                            <span className="font-mono text-[#4ade80] font-bold text-[10px]">
-                              {minReq} MEMBERS
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="p-3 bg-[#0d1013] border border-[#2b2e30] rounded-xs space-y-1.5 font-silkscreen text-[8.5px]">
-                          <span className="text-[#f4c151] block font-bold">PROBLEM STATEMENT STATUS:</span>
-                          <p className="text-[#8f9396] leading-normal text-[7.5px]">
-                            Problem statements remain <strong>TBA</strong> and will be revealed live during the hackathon opening ceremony.
-                          </p>
-                        </div>
-                      </div>
-
                       <div className="border-t border-[#2b2e30] pt-3 space-y-2">
                         <span className="font-silkscreen text-[8.5px] text-[#a7d38a] uppercase block">
                           YOUR SUBMITTED TRACK PREFERENCE ORDER:

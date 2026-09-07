@@ -323,8 +323,8 @@ export const AdminCartridge: React.FC = () => {
           if (!freshTeam) return prevAtt;
           const freshMember = prevAtt.matchedMember
             ? freshTeam.members?.find(
-                (m) => m.id === prevAtt.matchedMember?.id || m.memberPassId === prevAtt.matchedMember?.memberPassId
-              )
+              (m) => m.id === prevAtt.matchedMember?.id || m.memberPassId === prevAtt.matchedMember?.memberPassId
+            )
             : undefined;
           return {
             ...prevAtt,
@@ -1124,11 +1124,10 @@ Cognitia 2026 Organizing Team`;
                 await firebaseService.setPsRevealedStatus(nextState);
               }
             }}
-            className={`font-pixel text-[7.5px] xs:text-[8.5px] sm:text-[9px] px-1.5 sm:px-3 py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer transition-colors border ${
-              isPsRevealed
+            className={`font-pixel text-[7.5px] xs:text-[8.5px] sm:text-[9px] px-1.5 sm:px-3 py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer transition-colors border ${isPsRevealed
                 ? 'bg-[#182418] border-[#4ade80] text-[#86efac]'
                 : 'bg-[#292218] border-[#f4c151] text-[#f4c151]'
-            }`}
+              }`}
             title="Toggle live problem statement reveal on participant team lead dashboards"
           >
             {isPsRevealed ? <Unlock size={12} /> : <Lock size={12} />}
@@ -1372,11 +1371,10 @@ Cognitia 2026 Organizing Team`;
                               <select
                                 value={currentAssigned}
                                 onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                                className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${
-                                  currentAssigned
+                                className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${currentAssigned
                                     ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
                                     : 'bg-[#292218] text-[#f4c151] border-[#594424]'
-                                }`}
+                                  }`}
                                 title={`Select track for ${t.teamName}`}
                               >
                                 <option value="">
