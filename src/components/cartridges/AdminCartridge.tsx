@@ -35,6 +35,7 @@ import {
   RefreshCw,
   Edit2,
   Printer,
+  Unlock,
 } from 'lucide-react';
 import { firebaseService, calculateFcfsTrackAllocations, getTrackSlotAvailability, TRACK_PROBLEM_STATEMENTS } from '../../services/firebaseService';
 import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus, isIemUemMember, isIemUemAllStudentTeam } from '../../types';
@@ -100,6 +101,14 @@ export const AdminCartridge: React.FC = () => {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const scanLockRef = useRef<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isPsRevealed, setIsPsRevealed] = useState<boolean>(false);
+
+  useEffect(() => {
+    const unsub = firebaseService.subscribeToPsReveal((revealed) => {
+      setIsPsRevealed(revealed);
+    });
+    return () => unsub();
+  }, []);
 
 
 
@@ -1102,7 +1111,29 @@ Cognitia 2026 Organizing Team`;
           </div>
         </div>
 
-        <div className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-4 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={async () => {
+              sound.playBoot();
+              const nextState = !isPsRevealed;
+              const confirmMsg = nextState
+                ? '⚠️ REVEAL PROBLEM STATEMENTS LIVE?\n\nAre you sure you want to reveal problem statement details to all participant teams on their dashboards?'
+                : '⚠️ HIDE PROBLEM STATEMENTS?\n\nThis will lock problem statement details back to TBA on all participant team dashboards.';
+              if (window.confirm(confirmMsg)) {
+                await firebaseService.setPsRevealedStatus(nextState);
+              }
+            }}
+            className={`font-pixel text-[7.5px] xs:text-[8.5px] sm:text-[9px] px-1.5 sm:px-3 py-1.5 rounded-xs flex items-center justify-center gap-1 cursor-pointer transition-colors border ${
+              isPsRevealed
+                ? 'bg-[#182418] border-[#4ade80] text-[#86efac]'
+                : 'bg-[#292218] border-[#f4c151] text-[#f4c151]'
+            }`}
+            title="Toggle live problem statement reveal on participant team lead dashboards"
+          >
+            {isPsRevealed ? <Unlock size={12} /> : <Lock size={12} />}
+            <span className="truncate">{isPsRevealed ? 'PS REVEALED ✓' : 'PS REVEAL: TBA'}</span>
+          </button>
           <button
             type="button"
             onClick={handleManualLiveRefresh}
@@ -1329,41 +1360,29 @@ Cognitia 2026 Organizing Team`;
                                   <span className="bg-[#182418] text-[#86efac] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#25522b] font-bold">
                                     🎯 ASSIGNED
                                   </span>
-                                ) : isQualified ? (
-                                  <span className="bg-[#1c2836] text-[#38bdf8] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#00f0ff]/30 font-bold">
-                                    ⚡ READY
-                                  </span>
                                 ) : (
-                                  <span className="bg-[#241d14] text-[#f2933d] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#423325] font-bold">
-                                    🔒 NEED 2+ PRESENT
+                                  <span className="bg-[#292218] text-[#f4c151] font-silkscreen text-[7.5px] px-1.5 py-0.5 rounded-xs border border-[#594424] font-bold">
+                                    ℹ️ UNASSIGNED
                                   </span>
                                 )}
                               </div>
                               <p className={`font-pixel text-[10.5px] font-bold leading-snug ${currentAssigned ? 'text-[#86efac]' : 'text-[#f4c151]'}`}>
-                                {currentAssigned || 'Pending Venue Gate Check-In'}
+                                {currentAssigned || 'Pending Assignment'}
                               </p>
                               <select
-                                disabled={!isQualified && !currentAssigned}
                                 value={currentAssigned}
                                 onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                                className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${!isQualified && !currentAssigned
-                                  ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
-                                  : currentAssigned
+                                className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${
+                                  currentAssigned
                                     ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
                                     : 'bg-[#292218] text-[#f4c151] border-[#594424]'
-                                  }`}
-                                title={
-                                  !isQualified && !currentAssigned
-                                    ? `Requires min 2 members present to assign track (Current: ${checkedCount})`
-                                    : `Select track for ${t.teamName}`
-                                }
+                                }`}
+                                title={`Select track for ${t.teamName}`}
                               >
                                 <option value="">
                                   {currentAssigned
                                     ? '❌ UNASSIGN / CLEAR TRACK'
-                                    : !isQualified
-                                      ? `🔒 NEED 2+ PRESENT (${checkedCount})`
-                                      : '-- ASSIGN TRACK --'}
+                                    : '-- ASSIGN TRACK --'}
                                 </option>
                                 {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
                                   const slotInfo = availability[ps.trackId];
@@ -2102,30 +2121,24 @@ Cognitia 2026 Organizing Team`;
                           </span>
                         </div>
 
-                        {!isQualified && !currentAssigned ? (
-                          <div className="p-2 bg-[#1c1414] border border-[#522525] rounded-xs text-[#fca5a5] text-[8.5px] leading-snug">
-                            ⚠️ Track assignment requires at least 2 team members to be checked in at venue gate (Current: {checkedCount}/{totalMems}).
-                          </div>
-                        ) : (
-                          <select
-                            value={currentAssigned}
-                            onChange={(e) => handleTrackOverride(selectedTeamModal.id, e.target.value)}
-                            className="w-full bg-[#090b0d] border border-[#38bdf8] text-[#cfe8ff] font-sans text-xs p-2 rounded-xs cursor-pointer focus:outline-none focus:border-[#00f0ff]"
-                          >
-                            <option value="">{currentAssigned ? '❌ UNASSIGN / CLEAR TRACK' : '-- Select Track --'}</option>
-                            {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
-                              const slotInfo = availability[ps.trackId];
-                              const remaining = slotInfo ? slotInfo.remainingSlots : 4;
-                              const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
+                        <select
+                          value={currentAssigned}
+                          onChange={(e) => handleTrackOverride(selectedTeamModal.id, e.target.value)}
+                          className="w-full bg-[#090b0d] border border-[#38bdf8] text-[#cfe8ff] font-sans text-xs p-2 rounded-xs cursor-pointer focus:outline-none focus:border-[#00f0ff]"
+                        >
+                          <option value="">{currentAssigned ? '❌ UNASSIGN / CLEAR TRACK' : '-- Select Track (Admin Assignment) --'}</option>
+                          {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                            const slotInfo = availability[ps.trackId];
+                            const remaining = slotInfo ? slotInfo.remainingSlots : 4;
+                            const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
 
-                              return (
-                                <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
-                                  {ps.trackName} {isFull ? '(FULL - 0/4 Free)' : `(${remaining}/4 Free)`}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        )}
+                            return (
+                              <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
+                                {ps.trackName} {isFull ? '(FULL - 0/4 Free)' : `(${remaining}/4 Free)`}
+                              </option>
+                            );
+                          })}
+                        </select>
                       </div>
 
                       {/* Assigned Track Status Display */}
@@ -3198,43 +3211,43 @@ Cognitia 2026 Organizing Team`;
                         <span className="font-pixel text-[10px] text-[#f4c151] flex items-center gap-1.5">
                           <Target size={13} /> HACKATHON TRACK ASSIGNMENT
                         </span>
-                        <span className={`px-2 py-0.5 rounded-xs font-bold ${isQualified ? 'bg-[#182418] text-[#86efac] border border-[#25522b]' : 'bg-[#241d14] text-[#f2933d] border border-[#423325]'}`}>
-                          {isQualified ? `✓ READY (${checkedCount}/${totalMems} PRESENT)` : `🔒 LOCKED (${checkedCount}/${totalMems} PRESENT - MIN 2 REQ)`}
-                        </span>
+                        {currentAssigned ? (
+                          <span className="bg-[#182418] text-[#86efac] border border-[#25522b] px-2 py-0.5 rounded-xs font-bold">
+                            🎯 ASSIGNED
+                          </span>
+                        ) : (
+                          <span className="bg-[#292218] text-[#f4c151] border border-[#594424] px-2 py-0.5 rounded-xs font-bold">
+                            ℹ️ UNASSIGNED
+                          </span>
+                        )}
                       </div>
 
-                      {!isQualified && !currentAssigned ? (
-                        <div className="p-2 bg-[#1c1414] border border-[#522525] rounded-xs text-[#fca5a5] text-[8.5px] leading-snug">
-                          ⚠️ At least 2 team members must check in at the venue gate before an admin can assign a hackathon track to this team. (Current present: {checkedCount}/{totalMems})
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          <label className="block text-[#cfe8ff]">SELECT HACKATHON TRACK FOR TEAM ({t.teamName}):</label>
-                          <select
-                            value={currentAssigned}
-                            onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                            className="w-full bg-[#141618] border border-[#38bdf8]/50 text-white font-sans text-xs px-2.5 py-2 rounded-xs focus:border-[#f4c151] focus:outline-none"
-                          >
-                            <option value="">{currentAssigned ? '❌ UNASSIGN / CLEAR TRACK' : '-- Select Track (Admin Assignment) --'}</option>
-                            {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
-                              const slotInfo = availability[ps.trackId];
-                              const remaining = slotInfo ? slotInfo.remainingSlots : 4;
-                              const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
+                      <div className="space-y-1.5">
+                        <label className="block text-[#cfe8ff]">SELECT HACKATHON TRACK FOR TEAM ({t.teamName}):</label>
+                        <select
+                          value={currentAssigned}
+                          onChange={(e) => handleTrackOverride(t.id, e.target.value)}
+                          className="w-full bg-[#141618] border border-[#38bdf8]/50 text-white font-sans text-xs px-2.5 py-2 rounded-xs focus:border-[#f4c151] focus:outline-none"
+                        >
+                          <option value="">{currentAssigned ? '❌ UNASSIGN / CLEAR TRACK' : '-- Select Track (Admin Assignment) --'}</option>
+                          {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
+                            const slotInfo = availability[ps.trackId];
+                            const remaining = slotInfo ? slotInfo.remainingSlots : 4;
+                            const isFull = remaining <= 0 && currentAssigned !== ps.trackName && currentAssigned !== ps.trackId;
 
-                              return (
-                                <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
-                                  {ps.trackName} {isFull ? '(FULL - 0/4 Free)' : `(${remaining}/4 Slots Free)`}
-                                </option>
-                              );
-                            })}
-                          </select>
-                          {currentAssigned && (
-                            <p className="text-[#86efac] font-bold text-[8.5px]">
-                              🎯 CURRENTLY ASSIGNED: {currentAssigned}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                            return (
+                              <option key={ps.trackId} value={ps.trackName} disabled={isFull}>
+                                {ps.trackName} {isFull ? '(FULL - 0/4 Free)' : `(${remaining}/4 Slots Free)`}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        {currentAssigned && (
+                          <p className="text-[#86efac] font-bold text-[8.5px]">
+                            🎯 CURRENTLY ASSIGNED: {currentAssigned}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}

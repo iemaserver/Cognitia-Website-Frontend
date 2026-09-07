@@ -28,6 +28,7 @@ import {
 const STORAGE_KEY_TEAMS = 'cognitia_firebase_teams_v1';
 const STORAGE_KEY_AUTH = 'cognitia_lead_session_v1';
 const STORAGE_KEY_MEAL_SESSION = 'cognitia_meal_session_v1';
+const STORAGE_KEY_PS_REVEAL = 'cognitia_ps_reveal_v1';
 
 type TeamsChangeListener = (teams: TeamRegistration[]) => void;
 
@@ -37,11 +38,90 @@ class FirebaseService {
   private isFirestoreConnected: boolean = false;
   private activeMealSession: MealType | 'none' = 'none';
   private mealSessionListeners: ((session: MealType | 'none') => void)[] = [];
+  private isPsRevealed: boolean = false;
+  private psRevealListeners: ((isRevealed: boolean) => void)[] = [];
 
   constructor() {
     this.loadFromStorage();
     this.initFirestoreSync();
     this.initMealSessionSync();
+    this.initPsRevealSync();
+  }
+
+  private initPsRevealSync() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_PS_REVEAL);
+      if (stored !== null) {
+        this.isPsRevealed = stored === 'true';
+      }
+    } catch {
+      // Ignore
+    }
+
+    if (!db) return;
+
+    try {
+      const docRef = doc(db, 'system_config', 'ps_reveal');
+      onSnapshot(docRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data && typeof data.isPsRevealed === 'boolean') {
+            this.isPsRevealed = data.isPsRevealed;
+            try {
+              localStorage.setItem(STORAGE_KEY_PS_REVEAL, String(this.isPsRevealed));
+            } catch {
+              // Ignore
+            }
+            this.notifyPsRevealListeners();
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('[FirebaseService] PS reveal sync error:', e);
+    }
+  }
+
+  private notifyPsRevealListeners() {
+    this.psRevealListeners.forEach((l) => {
+      try {
+        l(this.isPsRevealed);
+      } catch (err) {
+        console.error('[FirebaseService] PS reveal listener error:', err);
+      }
+    });
+  }
+
+  public subscribeToPsReveal(listener: (isRevealed: boolean) => void): () => void {
+    this.psRevealListeners.push(listener);
+    listener(this.isPsRevealed);
+    return () => {
+      this.psRevealListeners = this.psRevealListeners.filter((l) => l !== listener);
+    };
+  }
+
+  public getIsPsRevealed(): boolean {
+    return this.isPsRevealed;
+  }
+
+  public async setPsRevealedStatus(revealed: boolean): Promise<{ success: boolean; isPsRevealed: boolean }> {
+    this.isPsRevealed = revealed;
+    try {
+      localStorage.setItem(STORAGE_KEY_PS_REVEAL, String(revealed));
+    } catch {
+      // Ignore
+    }
+    this.notifyPsRevealListeners();
+
+    if (db) {
+      try {
+        const docRef = doc(db, 'system_config', 'ps_reveal');
+        await setDoc(docRef, { isPsRevealed: revealed, updatedAt: new Date().toISOString() }, { merge: true });
+      } catch (e) {
+        console.warn('[FirebaseService] Failed to sync PS reveal status to Firestore:', e);
+      }
+    }
+
+    return { success: true, isPsRevealed: revealed };
   }
 
   private initMealSessionSync() {

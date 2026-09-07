@@ -125,6 +125,14 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
   const [isSubmittingFee, setIsSubmittingFee] = useState<boolean>(false);
   const [feeMessage, setFeeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
+  const [isPsRevealed, setIsPsRevealed] = useState<boolean>(false);
+
+  useEffect(() => {
+    const unsub = firebaseService.subscribeToPsReveal((revealed) => {
+      setIsPsRevealed(revealed);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (activeLeadTeam) {
@@ -1178,7 +1186,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               )}
             </div>
             <p className="font-silkscreen text-[10.5px] text-[#cfe8ff] leading-relaxed">
-              Cognitia 2026 Phase 2 takes place live at the IEM Campus Auditorium, Kolkata. Please review your team selection status and confirm offline participation RSVP below.
+              Cognitia 2026 Phase 2 takes place live at the IEM Aegis Building Auditorium, College More, Salt Lake Sector V, Kolkata. Please review your team selection status and confirm offline participation RSVP below.
             </p>
           </div>
 
@@ -1230,7 +1238,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
               )}
               <h4 className="font-pixel text-[13px] text-[#b180ff]">CONFIRM OFFLINE ATTENDANCE</h4>
               <p className="font-silkscreen text-[10px] text-[#d0d7e0] max-w-md mx-auto leading-relaxed">
-                By confirming RSVP, team <strong>{activeLeadTeam.teamName}</strong> commits to participating in-person at the IEM Campus Auditorium during event days.
+                By confirming RSVP, team <strong>{activeLeadTeam.teamName}</strong> commits to participating in-person at the IEM Aegis Building Auditorium, College More, Salt Lake Sector V, Kolkata during event days.
               </p>
               <button
                 type="button"
@@ -1943,41 +1951,11 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                           </p>
                         )}
                         <p className="text-[#a7d38a]">
-                          TRACK: {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack || 'Pending Venue Gate Assignment'}
+                          TRACK: {activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack || 'Pending Assignment'}
                         </p>
                         <p className="text-[#8f9396]">
                           VENUE: IEM Aegis Building, College More, Salt Lake Sector V, Kolkata
                         </p>
-
-                        {/* Venue Gate Check-In & FCFS Track Allocation Rule Banner */}
-                        {(() => {
-                          const members = activeLeadTeam.members || [];
-                          const checkedCount = members.filter((m) => m.checkInStatus === 'checked_in').length;
-                          const totalCount = members.length;
-                          const minReq = Math.min(2, totalCount || 1);
-                          const isQualified = checkedCount >= minReq;
-
-                          return (
-                            <div className={`mt-2 p-2 rounded-xs border font-silkscreen text-[7.5px] space-y-1 ${isQualified
-                              ? 'bg-[#122314] text-[#86efac] border-[#27662c]'
-                              : 'bg-[#241d14] text-[#f4c151] border-[#423325]'
-                              }`}>
-                              <div className="flex items-center gap-1 font-bold">
-                                <AlertTriangle size={11} className={isQualified ? 'text-[#4ade80]' : 'text-[#f4c151]'} />
-                                <span>FCFS TRACK ALLOCATION GATE RULE (4 SLOTS/TRACK)</span>
-                              </div>
-                              <p className="leading-normal text-[#cfe8ff]">
-                                At least <strong>2 members of your team</strong> must check in at the venue gate on event day to qualify for First-Come-First-Serve (FCFS) track distribution (4 slots/track).
-                              </p>
-                              <div className="pt-0.5 flex items-center justify-between text-[7px] font-mono">
-                                <span>GATE CHECKED IN: <strong>{checkedCount} / {totalCount} MEMBERS</strong></span>
-                                <span className={isQualified ? 'text-[#4ade80] font-bold' : 'text-[#f4c151] font-bold'}>
-                                  {isQualified ? '✓ TRACK ALLOCATION READY' : `⚠️ PENDING (${checkedCount}/${totalCount} - MIN 2 REQUIRED)`}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
                       </div>
 
                       {/* Venue Check-In QR */}
@@ -2026,7 +2004,7 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                           </span>
                         ) : (
                           <span className="text-[#f4c151] bg-[#241d14] px-2 py-1 border border-[#423325] rounded-xs flex items-center gap-1">
-                            ℹ️ PENDING VENUE GATE CHECK-IN (Admin assigns track upon 2+ members present)
+                            ℹ️ PENDING TRACK ASSIGNMENT BY ADMIN
                           </span>
                         )}
                       </div>
@@ -2144,30 +2122,23 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                 const minReq = Math.min(2, totalCount || 1);
                 const isQualified = checkedCount >= minReq;
 
-                // Determine team allocated track & problem statement using FCFS allocation logic
-                const rawTrack = activeLeadTeam.selectedTrack || activeLeadTeam.trackPreferences?.[0] || 'nlp-cv';
-                const psData =
-                  Object.values(TRACK_PROBLEM_STATEMENTS).find(
-                    (p) =>
-                      p.trackId.toLowerCase() === rawTrack.toLowerCase() ||
-                      p.trackName.toLowerCase().includes(rawTrack.toLowerCase()) ||
-                      rawTrack.toLowerCase().includes(p.trackId.toLowerCase())
-                  ) || Object.values(TRACK_PROBLEM_STATEMENTS)[0];
+                const assignedTrackName = activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack;
+                const isTrackAssigned = Boolean(assignedTrackName);
 
-                if (!isQualified) {
+                if (!isTrackAssigned) {
                   return (
                     <div className="p-5 bg-[#17130c] border-2 border-[#f4c151] rounded-md space-y-4">
                       <div className="flex items-center gap-2 text-[#f4c151] font-pixel text-[12px] border-b border-[#423325] pb-2">
                         <Lock size={18} className="text-[#f4c151]" />
-                        <span>🔒 PROBLEM STATEMENT &amp; TRACK ASSIGNMENT LOCKED</span>
+                        <span>🔒 HACKATHON TRACK &amp; PROBLEM STATEMENT: TBA</span>
                       </div>
 
                       <div className="p-3.5 bg-[#241c10] border border-[#544122] rounded-xs space-y-2 font-silkscreen text-[9px] text-[#fed7aa]">
                         <p className="font-bold text-[#f4c151]">
-                          ⚠️ VENUE GATE CHECK-IN REQUIRED (MINIMUM 2 MEMBERS)
+                          ⚠️ TRACK ASSIGNMENT &amp; PROBLEM STATEMENT PENDING
                         </p>
                         <p className="leading-relaxed">
-                          Problem statements and track allocations will be revealed on hackathon day upon physical venue arrival. At least <strong>2 members of your team</strong> must check in at the venue registration desk to unlock your team's assigned track and problem statement.
+                          Problem statements and track allocations are currently <strong>TBA (To Be Announced)</strong>. Track assignment will be finalized by Event Administrators at venue check-in on hackathon day.
                         </p>
                       </div>
 
@@ -2189,9 +2160,9 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                         </div>
 
                         <div className="p-3 bg-[#0d1013] border border-[#2b2e30] rounded-xs space-y-1.5 font-silkscreen text-[8.5px]">
-                          <span className="text-[#f4c151] block font-bold">FCFS ALLOCATION RULE:</span>
+                          <span className="text-[#f4c151] block font-bold">PROBLEM STATEMENT STATUS:</span>
                           <p className="text-[#8f9396] leading-normal text-[7.5px]">
-                            Each track has a hard limit of <strong>4 team slots</strong>. Slot allocation is determined strictly on First-Come-First-Serve (FCFS) order based on the timestamp when your 2nd team member completes venue gate check-in.
+                            Problem statements remain <strong>TBA</strong> and will be revealed live during the hackathon opening ceremony.
                           </p>
                         </div>
                       </div>
@@ -2224,65 +2195,44 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                       <div className="flex items-center gap-2">
                         <Unlock size={18} className="text-[#38bdf8]" />
                         <span className="font-pixel text-[13px] sm:text-[14px] text-[#38bdf8]">
-                          🔓 OFFICIAL PROBLEM STATEMENT &amp; TRACK ASSIGNED
+                          🔓 OFFICIAL HACKATHON TRACK ASSIGNED
                         </span>
                       </div>
                       <span className="bg-[#102a45] text-[#38bdf8] border border-[#2563eb] font-silkscreen text-[9px] sm:text-[9.5px] px-2.5 py-1 rounded-xs font-bold self-start sm:self-auto">
-                        FCFS SLOT CONFIRMED (SLOT #{activeLeadTeam.fcfsQueuePosition || 1})
+                        TRACK ASSIGNED
                       </span>
                     </div>
 
-                    {/* Track Header Card */}
+                    {/* Allocated Track Card */}
                     <div className="p-4 bg-[#0f1d2e] border border-[#2563eb] rounded-xs space-y-2.5 font-silkscreen">
                       <div className="flex items-center justify-between">
                         <span className="text-[#86efac] text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider">
                           ALLOCATED HACKATHON TRACK:
                         </span>
                         <span className="bg-[#143419] text-[#4ade80] border border-[#22542a] text-[9px] px-2 py-0.5 rounded-xs font-mono">
-                          MAX 4 TEAMS ALLOCATED
+                          CONFIRMED TRACK
                         </span>
                       </div>
                       <h3 className="font-pixel text-[16px] sm:text-[18px] text-[#f4c151] leading-tight">
-                        {psData.trackName} ({psData.trackId.toUpperCase()})
+                        🎯 {assignedTrackName}
                       </h3>
-                      <p className="text-[#cfe8ff] text-[10.5px] sm:text-[11.5px] leading-relaxed">
-                        {psData.trackDescription || psData.tagline}
-                      </p>
                     </div>
 
-                    {/* Problem Statement Detail */}
-                    <div className="p-4 sm:p-5 bg-[#090b0d] border border-[#2b2e30] rounded-xs space-y-4 font-silkscreen">
-                      <div className="border-b border-[#2b2e30] pb-2.5">
-                        <span className="text-[#8f9396] text-[9px] sm:text-[9.5px] block mb-1">CHALLENGE TITLE</span>
-                        <h4 className="font-pixel text-[15px] sm:text-[17px] text-[#38bdf8] leading-snug">
-                          PS-{psData.trackId.toUpperCase()}: {psData.title}
-                        </h4>
+                    {/* Problem Statement TBA Box */}
+                    <div className="p-4 sm:p-5 bg-[#090b0d] border border-[#2b2e30] rounded-xs space-y-3 font-silkscreen text-center">
+                      <div className="flex items-center justify-center gap-2 text-[#f4c151] border-b border-[#2b2e30] pb-2.5">
+                        <Lock size={16} />
+                        <span className="font-pixel text-[13px] sm:text-[14px]">
+                          PROBLEM STATEMENT: TBA (TO BE ANNOUNCED)
+                        </span>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <span className="text-[#f4c151] font-bold block text-[10.5px] sm:text-[11.5px]">CHALLENGE OVERVIEW &amp; CONTEXT:</span>
-                        <p className="text-[#d1d5db] text-[10.5px] sm:text-[11.5px] leading-relaxed">{psData.description || psData.detailedDescription}</p>
-                      </div>
+                      <p className="text-[#cfe8ff] text-[10.5px] sm:text-[11.5px] leading-relaxed max-w-xl mx-auto py-2">
+                        Your team has been assigned to the track <strong className="text-[#f4c151]">{assignedTrackName}</strong>. The detailed problem statement, specific challenge objectives, and deliverables will be revealed live at the venue during the Hackathon Opening Ceremony.
+                      </p>
 
-                      <div className="space-y-1.5">
-                        <span className="text-[#4ade80] font-bold block text-[10.5px] sm:text-[11.5px]">KEY OBJECTIVES &amp; REQUIREMENTS:</span>
-                        <ul className="list-disc list-inside space-y-1.5 text-[#cfe8ff] text-[10.5px] sm:text-[11.5px] leading-relaxed">
-                          {psData.requirements.map((req, i) => (
-                            <li key={i}>{req}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <span className="text-[#b180ff] font-bold block font-mono text-[10.5px] sm:text-[11.5px]">EXPECTED TECHNICAL DELIVERABLES:</span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                          {psData.deliverables.map((deliv, i) => (
-                            <div key={i} className="bg-[#141618] p-2.5 border border-[#26282a] rounded-xs text-[#86efac] font-mono text-[9.5px] sm:text-[10.5px] flex items-start gap-2 leading-snug">
-                              <span className="text-[#f4c151] font-bold shrink-0">✓</span>
-                              <span>{deliv}</span>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="inline-block bg-[#141618] border border-[#f4c151]/40 px-3 py-1.5 rounded-xs text-[#f4c151] font-mono text-[9px]">
+                        🔒 FULL PROBLEM STATEMENT REVEAL: LIVE AT HACKATHON VENUE
                       </div>
                     </div>
                   </div>
