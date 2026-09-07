@@ -34,11 +34,12 @@ import {
   Upload,
   RefreshCw,
   Edit2,
+  Printer,
 } from 'lucide-react';
 import { firebaseService, calculateFcfsTrackAllocations, getTrackSlotAvailability, TRACK_PROBLEM_STATEMENTS } from '../../services/firebaseService';
 import { TeamRegistration, TeamMember, Phase2SelectionStatus, Phase2PaymentStatus, AttendanceStatus, isIemUemMember, isIemUemAllStudentTeam } from '../../types';
 import { sound } from '../../utils/audio';
-import { downloadTicketPdf } from '../../utils/ticketPdfGenerator';
+import { downloadTicketPdf, printTicketPdf } from '../../utils/ticketPdfGenerator';
 
 export const AdminCartridge: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -1263,23 +1264,27 @@ Cognitia 2026 Organizing Team`;
                                   {currentAssigned || 'Pending Venue Gate Check-In'}
                                 </p>
                                 <select
-                                  disabled={!isQualified}
+                                  disabled={!isQualified && !currentAssigned}
                                   value={currentAssigned}
                                   onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                                  className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${!isQualified
+                                  className={`font-silkscreen text-[8.5px] px-2 py-1 rounded-xs border cursor-pointer w-full mt-1 ${!isQualified && !currentAssigned
                                       ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
                                       : currentAssigned
                                         ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
                                         : 'bg-[#292218] text-[#f4c151] border-[#594424]'
                                     }`}
                                   title={
-                                    !isQualified
+                                    !isQualified && !currentAssigned
                                       ? `Requires min 2 members present to assign track (Current: ${checkedCount})`
                                       : `Select track for ${t.teamName}`
                                   }
                                 >
                                   <option value="">
-                                    {!isQualified ? `🔒 NEED 2+ PRESENT (${checkedCount})` : '-- ASSIGN TRACK --'}
+                                    {currentAssigned
+                                      ? '❌ UNASSIGN / CLEAR TRACK'
+                                      : !isQualified
+                                        ? `🔒 NEED 2+ PRESENT (${checkedCount})`
+                                        : '-- ASSIGN TRACK --'}
                                   </option>
                                   {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
                                     const slotInfo = availability[ps.trackId];
@@ -1361,12 +1366,18 @@ Cognitia 2026 Organizing Team`;
                           {checkedCount > 0 && (
                             <div className="space-y-1 font-mono text-[9.5px] text-[#8f9396] bg-[#090b0d] p-2 rounded-xs border border-[#1e2d42] mt-1">
                               {(t.members || []).map((m, mIdx) => (
-                                <div key={mIdx} className="flex items-center justify-between gap-1">
+                                <button
+                                  key={mIdx}
+                                  type="button"
+                                  onClick={() => handleToggleAttendanceStatus(m.memberPassId || m.id, m.checkInStatus)}
+                                  className="w-full flex items-center justify-between gap-1 hover:bg-[#1a2332] p-1 rounded-xs cursor-pointer text-left transition-colors"
+                                  title={`Click to ${m.checkInStatus === 'checked_in' ? 'mark ABSENT' : 'mark PRESENT'} for ${m.name}`}
+                                >
                                   <span className="text-[#cfe8ff] font-semibold">{m.name} ({m.isLead ? 'L' : `M${mIdx + 1}`})</span>
-                                  <span className={m.checkInStatus === 'checked_in' ? 'text-[#86efac] font-bold' : 'text-[#525866]'}>
-                                    {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || 'Checked In') : '—'}
+                                  <span className={`px-1.5 py-0.5 rounded-xs text-[8.5px] font-bold ${m.checkInStatus === 'checked_in' ? 'bg-[#1e4620] text-[#86efac] border border-[#34783a]' : 'text-[#8f9396] bg-[#141618] border border-[#2b2e30]'}`}>
+                                    {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || '✓ PRESENT') : '❌ ABSENT'}
                                   </span>
-                                </div>
+                                </button>
                               ))}
                             </div>
                           )}
@@ -1484,23 +1495,27 @@ Cognitia 2026 Organizing Team`;
 
                                   {/* Admin Track Selection Control */}
                                   <select
-                                    disabled={!isQualified}
+                                    disabled={!isQualified && !currentAssigned}
                                     value={currentAssigned}
                                     onChange={(e) => handleTrackOverride(t.id, e.target.value)}
-                                    className={`font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs border cursor-pointer w-full truncate ${!isQualified
+                                    className={`font-silkscreen text-[8px] px-1.5 py-0.5 rounded-xs border cursor-pointer w-full truncate ${!isQualified && !currentAssigned
                                         ? 'bg-[#1c1414] text-[#6b7280] border-[#374151] cursor-not-allowed'
                                         : currentAssigned
                                           ? 'bg-[#182418] text-[#86efac] border-[#25522b] font-bold'
                                           : 'bg-[#292218] text-[#f4c151] border-[#594424]'
                                       }`}
                                     title={
-                                      !isQualified
+                                      !isQualified && !currentAssigned
                                         ? `Requires min 2 members present to assign track (Current: ${checkedCount})`
                                         : `Select track for ${t.teamName}`
                                     }
                                   >
                                     <option value="">
-                                      {!isQualified ? `🔒 NEED 2+ PRESENT (${checkedCount})` : '-- ASSIGN TRACK --'}
+                                      {currentAssigned
+                                        ? '❌ UNASSIGN / CLEAR TRACK'
+                                        : !isQualified
+                                          ? `🔒 NEED 2+ PRESENT (${checkedCount})`
+                                          : '-- ASSIGN TRACK --'}
                                     </option>
                                     {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
                                       const slotInfo = availability[ps.trackId];
@@ -1610,12 +1625,18 @@ Cognitia 2026 Organizing Team`;
                                   {checkedCount > 0 && (
                                     <div className="space-y-0.5 font-mono text-[8px] text-[#8f9396] bg-[#090b0d] p-1 rounded-xs border border-[#1e2d42]">
                                       {(t.members || []).map((m, mIdx) => (
-                                        <div key={mIdx} className="flex items-center justify-between gap-1 truncate">
+                                        <button
+                                          key={mIdx}
+                                          type="button"
+                                          onClick={() => handleToggleAttendanceStatus(m.memberPassId || m.id, m.checkInStatus)}
+                                          className="w-full flex items-center justify-between gap-1 truncate hover:bg-[#1a2332] p-0.5 rounded-xs cursor-pointer text-left transition-colors"
+                                          title={`Click to ${m.checkInStatus === 'checked_in' ? 'mark ABSENT' : 'mark PRESENT'} for ${m.name}`}
+                                        >
                                           <span className="truncate text-[#cfe8ff] font-semibold">{m.name.split(' ')[0]} ({m.isLead ? 'L' : `M${mIdx + 1}`})</span>
-                                          <span className={m.checkInStatus === 'checked_in' ? 'text-[#86efac] font-bold' : 'text-[#525866]'}>
-                                            {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || 'OK') : '—'}
+                                          <span className={`px-1 py-0.2 rounded-xs text-[7.5px] ${m.checkInStatus === 'checked_in' ? 'bg-[#1e4620] text-[#86efac] border border-[#34783a] font-bold' : 'text-[#8f9396]'}`}>
+                                            {m.checkInStatus === 'checked_in' ? (m.checkInTimestamp || '✓ OK') : '❌ ABS'}
                                           </span>
-                                        </div>
+                                        </button>
                                       ))}
                                     </div>
                                   )}
@@ -1973,19 +1994,10 @@ Cognitia 2026 Organizing Team`;
                           <span className="text-[#38bdf8] font-bold">
                             🛠️ ADMIN TRACK ASSIGNMENT CONTROL:
                           </span>
-                          {currentAssigned && (
-                            <button
-                              type="button"
-                              onClick={() => handleTrackOverride(selectedTeamModal.id, '')}
-                              className="text-[#f87171] hover:underline text-[7px] cursor-pointer"
-                            >
-                              CLEAR ASSIGNMENT
-                            </button>
-                          )}
                         </div>
 
-                        {!isQualified ? (
-                          <div className="p-2 bg-[#1c1414] border border-[#522525] rounded-xs text-[#fca5a5] text-[8px]">
+                        {!isQualified && !currentAssigned ? (
+                          <div className="p-2 bg-[#1c1414] border border-[#522525] rounded-xs text-[#fca5a5] text-[8.5px] leading-snug">
                             ⚠️ Track assignment requires at least 2 team members to be checked in at venue gate (Current: {checkedCount}/{totalMems}).
                           </div>
                         ) : (
@@ -1994,7 +2006,7 @@ Cognitia 2026 Organizing Team`;
                             onChange={(e) => handleTrackOverride(selectedTeamModal.id, e.target.value)}
                             className="w-full bg-[#090b0d] border border-[#38bdf8] text-[#cfe8ff] font-sans text-xs p-2 rounded-xs cursor-pointer focus:outline-none focus:border-[#00f0ff]"
                           >
-                            <option value="">-- Select Track --</option>
+                            <option value="">{currentAssigned ? '❌ UNASSIGN / CLEAR TRACK' : '-- Select Track --'}</option>
                             {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
                               const slotInfo = availability[ps.trackId];
                               const remaining = slotInfo ? slotInfo.remainingSlots : 4;
@@ -2181,17 +2193,30 @@ Cognitia 2026 Organizing Team`;
                     <div>
                       OFFICIAL TICKET PASS ID: <span className="font-mono text-white font-bold">{selectedTeamModal.ticketPassId}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        sound.playBlip(700);
-                        await downloadTicketPdf(selectedTeamModal);
-                      }}
-                      className="bg-[#1e4620] hover:bg-[#275c2a] text-[#86efac] border border-[#4ade80] font-pixel text-[8px] px-2.5 py-1 rounded-xs flex items-center gap-1 cursor-pointer shadow-[1px_1px_0_0_#000] transition-colors"
-                      title="Download official PDF ticket pass"
-                    >
-                      <Download size={11} /> DOWNLOAD PASS (PDF)
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          sound.playBlip(700);
+                          await downloadTicketPdf(selectedTeamModal);
+                        }}
+                        className="bg-[#1e4620] hover:bg-[#275c2a] text-[#86efac] border border-[#4ade80] font-pixel text-[8px] px-2.5 py-1 rounded-xs flex items-center gap-1 cursor-pointer shadow-[1px_1px_0_0_#000] transition-colors"
+                        title="Download official PDF ticket pass"
+                      >
+                        <Download size={11} /> DOWNLOAD PASS (PDF)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          sound.playBlip(700);
+                          await printTicketPdf(selectedTeamModal);
+                        }}
+                        className="bg-[#182330] hover:bg-[#203042] text-[#38bdf8] border border-[#38bdf8] font-pixel text-[8px] px-2.5 py-1 rounded-xs flex items-center gap-1 cursor-pointer shadow-[1px_1px_0_0_#000] transition-colors"
+                        title="Print official PDF ticket pass"
+                      >
+                        <Printer size={11} /> PRINT PASS
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -3008,7 +3033,7 @@ Cognitia 2026 Organizing Team`;
                         </span>
                       </div>
 
-                      {!isQualified ? (
+                      {!isQualified && !currentAssigned ? (
                         <div className="p-2 bg-[#1c1414] border border-[#522525] rounded-xs text-[#fca5a5] text-[8.5px] leading-snug">
                           ⚠️ At least 2 team members must check in at the venue gate before an admin can assign a hackathon track to this team. (Current present: {checkedCount}/{totalMems})
                         </div>
@@ -3020,7 +3045,7 @@ Cognitia 2026 Organizing Team`;
                             onChange={(e) => handleTrackOverride(t.id, e.target.value)}
                             className="w-full bg-[#141618] border border-[#38bdf8]/50 text-white font-sans text-xs px-2.5 py-2 rounded-xs focus:border-[#f4c151] focus:outline-none"
                           >
-                            <option value="">-- Select Track (Admin Assignment) --</option>
+                            <option value="">{currentAssigned ? '❌ UNASSIGN / CLEAR TRACK' : '-- Select Track (Admin Assignment) --'}</option>
                             {Object.values(TRACK_PROBLEM_STATEMENTS).map((ps) => {
                               const slotInfo = availability[ps.trackId];
                               const remaining = slotInfo ? slotInfo.remainingSlots : 4;

@@ -1865,6 +1865,26 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                     Congratulations! Your Phase 2 offline entry fee payment (₹200) has been verified by the Cognitia Admin team. Your official Offline Pass Ticket is generated below.
                   </p>
 
+                  {/* PDF DOWNLOAD & PRINT ACTION BUTTONS */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+                    <button
+                      type="button"
+                      onClick={handleDownloadPdf}
+                      disabled={isGeneratingPdf}
+                      className="bg-[#1e4620] hover:bg-[#275c2a] text-[#86efac] border-2 border-[#4ade80] font-pixel text-[10px] sm:text-[11px] py-2 px-3.5 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+                    >
+                      <Download size={14} /> {isGeneratingPdf ? 'GENERATING PDF...' : '📥 DOWNLOAD TICKET PDF'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrintTicket}
+                      disabled={isGeneratingPdf}
+                      className="bg-[#182330] hover:bg-[#203042] text-[#38bdf8] border-2 border-[#38bdf8] font-pixel text-[10px] sm:text-[11px] py-2 px-3.5 rounded-xs shadow-[2px_2px_0_0_#000] cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+                    >
+                      <Printer size={14} /> 🖨️ PRINT TICKET PASS
+                    </button>
+                  </div>
+
                   {/* TICKET PASS DISPLAY */}
                   <div
                     ref={ticketRef}
