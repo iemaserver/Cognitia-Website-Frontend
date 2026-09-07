@@ -2104,16 +2104,22 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                 const assignedTrackName = activeLeadTeam.adminTrackOverride || activeLeadTeam.selectedTrack;
                 const isTrackAssigned = Boolean(assignedTrackName);
 
+                const matchedPs = Object.values(TRACK_PROBLEM_STATEMENTS).find(
+                  (p) =>
+                    p.trackName.toLowerCase() === (assignedTrackName || '').toLowerCase() ||
+                    p.trackId.toLowerCase() === (assignedTrackName || '').toLowerCase()
+                ) || Object.values(TRACK_PROBLEM_STATEMENTS)[0];
+
                 if (!isTrackAssigned) {
                   return (
-                    <div className="p-5 bg-[#17130c] border-2 border-[#f4c151] rounded-md space-y-4">
-                      <div className="flex items-center gap-2 text-[#f4c151] font-pixel text-[12px] border-b border-[#423325] pb-2">
-                        <Lock size={18} className="text-[#f4c151]" />
+                    <div className="p-5 sm:p-6 bg-[#17130c] border-2 border-[#f4c151] rounded-md space-y-4 shadow-[0_0_20px_rgba(244,193,81,0.1)]">
+                      <div className="flex items-center gap-2 text-[#f4c151] font-pixel text-[15px] sm:text-[16px] border-b border-[#423325] pb-3">
+                        <Lock size={20} className="text-[#f4c151]" />
                         <span>🔒 HACKATHON TRACK &amp; PROBLEM STATEMENT: TBA</span>
                       </div>
 
-                      <div className="p-3.5 bg-[#241c10] border border-[#544122] rounded-xs space-y-2 font-silkscreen text-[9px] text-[#fed7aa]">
-                        <p className="font-bold text-[#f4c151]">
+                      <div className="p-4 bg-[#241c10] border border-[#544122] rounded-xs space-y-2 font-silkscreen text-[12px] sm:text-[13.5px] text-[#fed7aa]">
+                        <p className="font-bold text-[#f4c151] text-[13px] sm:text-[14.5px]">
                           ⚠️ TRACK ASSIGNMENT &amp; PROBLEM STATEMENT PENDING
                         </p>
                         <p className="leading-relaxed">
@@ -2121,19 +2127,19 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                         </p>
                       </div>
 
-                      <div className="border-t border-[#2b2e30] pt-3 space-y-2">
-                        <span className="font-silkscreen text-[8.5px] text-[#a7d38a] uppercase block">
+                      <div className="border-t border-[#2b2e30] pt-3.5 space-y-2.5">
+                        <span className="font-silkscreen text-[11px] sm:text-[12px] text-[#a7d38a] uppercase block tracking-wider font-bold">
                           YOUR SUBMITTED TRACK PREFERENCE ORDER:
                         </span>
-                        <div className="flex flex-wrap gap-1.5 font-silkscreen text-[8px]">
+                        <div className="flex flex-wrap gap-2 font-silkscreen text-[11px] sm:text-[12px]">
                           {activeLeadTeam.trackPreferences && activeLeadTeam.trackPreferences.filter(Boolean).length > 0 ? (
                             activeLeadTeam.trackPreferences.filter(Boolean).map((t, idx) => (
-                              <span key={idx} className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-2.5 py-1 rounded-xs flex items-center gap-1">
+                              <span key={idx} className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-3 py-1.5 rounded-xs flex items-center gap-1.5">
                                 <span className="text-[#f4c151] font-bold">#{idx + 1}:</span> {t}
                               </span>
                             ))
                           ) : (
-                            <span className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-2.5 py-1 rounded-xs">
+                            <span className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] px-3 py-1.5 rounded-xs">
                               {activeLeadTeam.selectedTrack || 'General Track'}
                             </span>
                           )}
@@ -2144,15 +2150,15 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                 }
 
                 return (
-                  <div className="p-5 bg-[#0a1118] border-2 border-[#38bdf8] rounded-md space-y-4 shadow-[0_0_30px_rgba(56,189,248,0.15)]">
+                  <div className="p-5 sm:p-6 bg-[#0a1118] border-2 border-[#38bdf8] rounded-md space-y-4 shadow-[0_0_30px_rgba(56,189,248,0.15)]">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1e3a5f] pb-3">
                       <div className="flex items-center gap-2">
-                        <Unlock size={18} className="text-[#38bdf8]" />
-                        <span className="font-pixel text-[13px] sm:text-[14px] text-[#38bdf8]">
+                        <Unlock size={20} className="text-[#38bdf8]" />
+                        <span className="font-pixel text-[15px] sm:text-[16px] text-[#38bdf8]">
                           🔓 OFFICIAL HACKATHON TRACK ASSIGNED
                         </span>
                       </div>
-                      <span className="bg-[#102a45] text-[#38bdf8] border border-[#2563eb] font-silkscreen text-[9px] sm:text-[9.5px] px-2.5 py-1 rounded-xs font-bold self-start sm:self-auto">
+                      <span className="bg-[#102a45] text-[#38bdf8] border border-[#2563eb] font-silkscreen text-[10.5px] sm:text-[11.5px] px-3 py-1 rounded-xs font-bold self-start sm:self-auto">
                         TRACK ASSIGNED
                       </span>
                     </div>
@@ -2160,35 +2166,112 @@ export const RegistrationCartridge: React.FC<RegistrationCartridgeProps> = ({
                     {/* Allocated Track Card */}
                     <div className="p-4 bg-[#0f1d2e] border border-[#2563eb] rounded-xs space-y-2.5 font-silkscreen">
                       <div className="flex items-center justify-between">
-                        <span className="text-[#86efac] text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider">
+                        <span className="text-[#86efac] text-[11.5px] sm:text-[12.5px] font-bold uppercase tracking-wider">
                           ALLOCATED HACKATHON TRACK:
                         </span>
-                        <span className="bg-[#143419] text-[#4ade80] border border-[#22542a] text-[9px] px-2 py-0.5 rounded-xs font-mono">
+                        <span className="bg-[#143419] text-[#4ade80] border border-[#22542a] text-[10.5px] sm:text-[11.5px] px-2.5 py-0.5 rounded-xs font-mono">
                           CONFIRMED TRACK
                         </span>
                       </div>
-                      <h3 className="font-pixel text-[16px] sm:text-[18px] text-[#f4c151] leading-tight">
+                      <h3 className="font-pixel text-[18px] sm:text-[21px] text-[#f4c151] leading-tight">
                         🎯 {assignedTrackName}
                       </h3>
                     </div>
 
-                    {/* Problem Statement TBA Box */}
-                    <div className="p-4 sm:p-5 bg-[#090b0d] border border-[#2b2e30] rounded-xs space-y-3 font-silkscreen text-center">
-                      <div className="flex items-center justify-center gap-2 text-[#f4c151] border-b border-[#2b2e30] pb-2.5">
-                        <Lock size={16} />
-                        <span className="font-pixel text-[13px] sm:text-[14px]">
-                          PROBLEM STATEMENT: TBA (TO BE ANNOUNCED)
-                        </span>
-                      </div>
+                    {!isPsRevealed ? (
+                      /* Problem Statement TBA Box */
+                      <div className="p-5 sm:p-6 bg-[#090b0d] border border-[#2b2e30] rounded-xs space-y-4 font-silkscreen text-center">
+                        <div className="flex items-center justify-center gap-2 text-[#f4c151] border-b border-[#2b2e30] pb-3">
+                          <Lock size={18} />
+                          <span className="font-pixel text-[16px] sm:text-[18px]">
+                            PROBLEM STATEMENT: TBA (TO BE ANNOUNCED)
+                          </span>
+                        </div>
 
-                      <p className="text-[#cfe8ff] text-[10.5px] sm:text-[11.5px] leading-relaxed max-w-xl mx-auto py-2">
-                        Your team has been assigned to the track <strong className="text-[#f4c151]">{assignedTrackName}</strong>. The detailed problem statement, specific challenge objectives, and deliverables will be revealed live at the venue during the Hackathon Opening Ceremony.
-                      </p>
+                        <p className="text-[#cfe8ff] text-[13px] sm:text-[14.5px] leading-relaxed max-w-2xl mx-auto py-2">
+                          Your team has been assigned to the track <strong className="text-[#f4c151]">{assignedTrackName}</strong>. The detailed problem statement, specific challenge objectives, and deliverables will be revealed live at the venue during the Hackathon Opening Ceremony.
+                        </p>
 
-                      <div className="inline-block bg-[#141618] border border-[#f4c151]/40 px-3 py-1.5 rounded-xs text-[#f4c151] font-mono text-[9px]">
-                        🔒 FULL PROBLEM STATEMENT REVEAL: LIVE AT HACKATHON VENUE
+                        <div className="inline-block bg-[#141618] border border-[#f4c151]/40 px-3.5 py-2 rounded-xs text-[#f4c151] font-mono text-[11px] sm:text-[12px] font-bold">
+                          🔒 FULL PROBLEM STATEMENT REVEAL: LIVE AT HACKATHON VENUE
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      /* Problem Statement REVEALED Box */
+                      <div className="p-5 bg-[#091512] border-2 border-[#4ade80] rounded-xs space-y-4 font-silkscreen shadow-[0_0_20px_rgba(74,222,128,0.15)]">
+                        <div className="flex items-center justify-between border-b border-[#1b3e24] pb-3">
+                          <div className="flex items-center gap-2 text-[#4ade80]">
+                            <Unlock size={20} />
+                            <span className="font-pixel text-[15px] sm:text-[16px]">
+                              🔓 OFFICIAL PROBLEM STATEMENT UNLOCKED
+                            </span>
+                          </div>
+                          <span className="bg-[#142417] text-[#4ade80] border border-[#25522b] text-[11px] sm:text-[12px] px-3 py-1 rounded-xs font-mono font-bold">
+                            {matchedPs.psCode}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <span className="text-[#86efac] text-[11.5px] sm:text-[12.5px] font-bold uppercase tracking-wider block">
+                            CHALLENGE TITLE &amp; OVERVIEW:
+                          </span>
+                          <h3 className="font-pixel text-[18px] sm:text-[21px] text-[#f4c151] leading-snug">
+                            {matchedPs.title}
+                          </h3>
+                          <p className="text-[#cfe8ff] text-[12.5px] sm:text-[14px] leading-relaxed pt-1">
+                            {matchedPs.objective}
+                          </p>
+                        </div>
+
+                        {matchedPs.detailedDescription && (
+                          <div className="p-4 bg-[#0e1f18] border border-[#1e4d30] rounded-xs space-y-2 text-[#bbf7d0]">
+                            <span className="font-bold text-[#4ade80] uppercase text-[11px] sm:text-[12px] block">DETAILED CHALLENGE SCOPE:</span>
+                            <p className="leading-relaxed text-[#dcfce7] text-[12px] sm:text-[13.5px]">{matchedPs.detailedDescription}</p>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                          {matchedPs.requirements && matchedPs.requirements.length > 0 && (
+                            <div className="p-4 bg-[#0e1f18] border border-[#1e4d30] rounded-xs space-y-2.5">
+                              <span className="text-[#4ade80] text-[11.5px] sm:text-[12.5px] font-bold uppercase block border-b border-[#1e4d30] pb-1.5">
+                                📋 KEY TECHNICAL REQUIREMENTS:
+                              </span>
+                              <ul className="space-y-2 text-[11.5px] sm:text-[13px] text-[#dcfce7]">
+                                {matchedPs.requirements.map((req, idx) => (
+                                  <li key={idx} className="flex items-start gap-2">
+                                    <span className="text-[#4ade80] font-mono shrink-0">▸</span>
+                                    <span>{req}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {matchedPs.deliverables && matchedPs.deliverables.length > 0 && (
+                            <div className="p-4 bg-[#0e1f18] border border-[#1e4d30] rounded-xs space-y-2.5">
+                              <span className="text-[#4ade80] text-[11.5px] sm:text-[12.5px] font-bold uppercase block border-b border-[#1e4d30] pb-1.5">
+                                📦 MANDATORY DELIVERABLES:
+                              </span>
+                              <ul className="space-y-2 text-[11.5px] sm:text-[13px] text-[#dcfce7]">
+                                {matchedPs.deliverables.map((del, idx) => (
+                                  <li key={idx} className="flex items-start gap-2">
+                                    <span className="text-[#4ade80] font-mono shrink-0">✓</span>
+                                    <span>{del}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-3 bg-[#142417] border border-[#25522b] rounded-xs flex items-center justify-between text-[11px] sm:text-[12px] text-[#86efac]">
+                          <span className="flex items-center gap-2">
+                            <Sparkles size={14} className="text-[#4ade80]" /> OFFICIAL TRACK PROBLEM STATEMENT REVEALED
+                          </span>
+                          <span className="font-mono text-[#f4c151] font-bold text-[12px] sm:text-[13px]">{matchedPs.bounty || '₹2,000 Special Bounty'}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
