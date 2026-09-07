@@ -60,6 +60,8 @@ export const AdminCartridge: React.FC = () => {
   const [newLeadEmail, setNewLeadEmail] = useState<string>('');
   const [newLeadPhone, setNewLeadPhone] = useState<string>('');
   const [newLeadGithub, setNewLeadGithub] = useState<string>('');
+  const [newLeadYearOfStudy, setNewLeadYearOfStudy] = useState<string>('3rd Year');
+  const [newLeadPursuingDegree, setNewLeadPursuingDegree] = useState<string>('');
   const [newLeadIsIemUem, setNewLeadIsIemUem] = useState<boolean>(true);
   const [newLeadCollegeName, setNewLeadCollegeName] = useState<string>('IEM / UEM');
   const [newLeadEnrollmentNo, setNewLeadEnrollmentNo] = useState<string>('');
@@ -72,6 +74,8 @@ export const AdminCartridge: React.FC = () => {
     isIemUemStudent: boolean;
     collegeName: string;
     enrollmentNo: string;
+    yearOfStudy?: string;
+    pursuingDegree?: string;
   }[]>([]);
   const [newPassword, setNewPassword] = useState<string>('');
   const [createdCredentialsModal, setCreatedCredentialsModal] = useState<{ teamId?: string; teamName: string; leadName: string; leadEmail: string; password: string } | null>(null);
@@ -606,6 +610,8 @@ export const AdminCartridge: React.FC = () => {
     setNewLeadEmail('');
     setNewLeadPhone('');
     setNewLeadGithub('');
+    setNewLeadYearOfStudy('3rd Year');
+    setNewLeadPursuingDegree('');
     setNewLeadIsIemUem(true);
     setNewLeadCollegeName('IEM / UEM');
     setNewLeadEnrollmentNo('');
@@ -635,6 +641,8 @@ export const AdminCartridge: React.FC = () => {
       collegeName: newLeadIsIemUem ? 'IEM / UEM' : (newLeadCollegeName.trim() || 'External'),
       isIemUemStudent: newLeadIsIemUem,
       enrollmentNo: '',
+      yearOfStudy: newLeadYearOfStudy || '3rd Year',
+      pursuingDegree: newLeadPursuingDegree.trim(),
     };
 
     const extraMembersFormatted: TeamMember[] = newExtraMembers.map((m, idx) => ({
@@ -648,6 +656,8 @@ export const AdminCartridge: React.FC = () => {
       collegeName: m.isIemUemStudent ? 'IEM / UEM' : (m.collegeName === 'IEM / UEM' ? 'External' : (m.collegeName.trim() || 'External')),
       isIemUemStudent: m.isIemUemStudent,
       enrollmentNo: '',
+      yearOfStudy: m.yearOfStudy || '3rd Year',
+      pursuingDegree: (m.pursuingDegree || '').trim(),
     })).filter(m => m.name || m.email);
 
     const allMembers = [leadMember, ...extraMembersFormatted];
@@ -686,6 +696,8 @@ export const AdminCartridge: React.FC = () => {
   const [adminMemRole, setAdminMemRole] = useState<string>('Developer');
   const [adminMemGithub, setAdminMemGithub] = useState<string>('');
   const [adminMemEnrollment, setAdminMemEnrollment] = useState<string>('');
+  const [adminMemYearOfStudy, setAdminMemYearOfStudy] = useState<string>('3rd Year');
+  const [adminMemPursuingDegree, setAdminMemPursuingDegree] = useState<string>('');
   const [adminMemIsIemUem, setAdminMemIsIemUem] = useState<boolean>(true);
   const [adminMemCollegeName, setAdminMemCollegeName] = useState<string>('');
 
@@ -768,6 +780,8 @@ export const AdminCartridge: React.FC = () => {
       isIemUemStudent: adminMemIsIemUem,
       collegeName: adminMemIsIemUem ? 'IEM / UEM' : (adminMemCollegeName.trim() || 'External'),
       enrollmentNo: '',
+      yearOfStudy: adminMemYearOfStudy || '3rd Year',
+      pursuingDegree: adminMemPursuingDegree.trim(),
     };
 
     const updatedMembers = [...(selectedTeamModal.members || []), newMember];
@@ -782,6 +796,8 @@ export const AdminCartridge: React.FC = () => {
       setAdminMemPhone('');
       setAdminMemGithub('');
       setAdminMemEnrollment('');
+      setAdminMemYearOfStudy('3rd Year');
+      setAdminMemPursuingDegree('');
       setAdminMemCollegeName('');
     } else {
       alert(res.message || 'Failed to add member.');
@@ -1851,6 +1867,26 @@ Cognitia 2026 Organizing Team`;
                         onChange={(e) => setAdminMemGithub(e.target.value)}
                         className="bg-[#090b0d] border border-[#2b2e30] text-[#cfe8ff] p-1.5 rounded-xs font-mono"
                       />
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <select
+                          value={adminMemYearOfStudy}
+                          onChange={(e) => setAdminMemYearOfStudy(e.target.value)}
+                          className="bg-[#090b0d] border border-[#2b2e30] text-[#86efac] font-mono text-[9px] p-1.5 rounded-xs"
+                        >
+                          <option value="1st Year">1st Year</option>
+                          <option value="2nd Year">2nd Year</option>
+                          <option value="3rd Year">3rd Year</option>
+                          <option value="4th Year">4th Year</option>
+                          <option value="PG / Master's / Other">PG / Master's / Other</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Pursuing Degree (e.g. B.Tech)"
+                          value={adminMemPursuingDegree}
+                          onChange={(e) => setAdminMemPursuingDegree(e.target.value)}
+                          className="bg-[#090b0d] border border-[#2b2e30] text-[#38bdf8] p-1.5 rounded-xs font-mono text-[9px]"
+                        />
+                      </div>
                       <div className="flex flex-col gap-1">
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
@@ -2412,6 +2448,33 @@ Cognitia 2026 Organizing Team`;
                   />
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[#cfe8ff] mb-1">LEAD YEAR OF STUDY</label>
+                    <select
+                      value={newLeadYearOfStudy}
+                      onChange={(e) => setNewLeadYearOfStudy(e.target.value)}
+                      className="w-full bg-[#141618] border border-[#2b2e30] text-[#86efac] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#4ade80] focus:outline-none"
+                    >
+                      <option value="1st Year">1st Year</option>
+                      <option value="2nd Year">2nd Year</option>
+                      <option value="3rd Year">3rd Year</option>
+                      <option value="4th Year">4th Year</option>
+                      <option value="PG / Master's / Other">PG / Master's / Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[#cfe8ff] mb-1">LEAD PURSUING DEGREE</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. B.Tech (CSE), BCA, MCA"
+                      value={newLeadPursuingDegree}
+                      onChange={(e) => setNewLeadPursuingDegree(e.target.value)}
+                      className="w-full bg-[#141618] border border-[#2b2e30] text-[#38bdf8] font-mono text-xs px-2.5 py-1.5 rounded-xs focus:border-[#4ade80] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
                 {/* Lead Institution & Verification Status */}
                 <div className="p-2.5 bg-[#141618] border border-[#2b2e30] rounded-xs space-y-2">
                   <label className="block text-[#86efac] font-bold">LEAD INSTITUTION &amp; CATEGORY</label>
@@ -2471,6 +2534,8 @@ Cognitia 2026 Organizing Team`;
                               isIemUemStudent: true,
                               collegeName: 'IEM / UEM',
                               enrollmentNo: '',
+                              yearOfStudy: '3rd Year',
+                              pursuingDegree: '',
                             },
                           ]);
                         }}
@@ -2539,6 +2604,41 @@ Cognitia 2026 Organizing Team`;
                           }}
                           className="bg-[#0c0e10] border border-[#2b2e30] text-[#38bdf8] font-mono text-[9.5px] px-2 py-1 rounded-xs"
                         />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[7.5px] text-[#cfe8ff] mb-0.5">YEAR OF STUDY</label>
+                          <select
+                            value={mem.yearOfStudy || '3rd Year'}
+                            onChange={(e) => {
+                              const updated = [...newExtraMembers];
+                              updated[idx].yearOfStudy = e.target.value;
+                              setNewExtraMembers(updated);
+                            }}
+                            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#86efac] font-mono text-[9.5px] px-2 py-1 rounded-xs"
+                          >
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                            <option value="PG / Master's / Other">PG / Master's / Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[7.5px] text-[#cfe8ff] mb-0.5">PURSUING DEGREE</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. B.Tech (CSE)"
+                            value={mem.pursuingDegree || ''}
+                            onChange={(e) => {
+                              const updated = [...newExtraMembers];
+                              updated[idx].pursuingDegree = e.target.value;
+                              setNewExtraMembers(updated);
+                            }}
+                            className="w-full bg-[#0c0e10] border border-[#2b2e30] text-[#38bdf8] font-mono text-[9.5px] px-2 py-1 rounded-xs"
+                          />
+                        </div>
                       </div>
 
                       {/* IEM / UEM Member Category Selection */}
