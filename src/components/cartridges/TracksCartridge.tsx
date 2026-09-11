@@ -589,19 +589,17 @@ export function TracksCartridge({ onNavigate }: TracksCartridgeProps) {
                     key={ps.psCode}
                     type="button"
                     onClick={() => setActivePsTab(ps.psNumber)}
-                    className={`p-2.5 rounded-md border text-left transition-all cursor-pointer flex flex-col justify-between gap-1 break-words ${
-                      isActive
+                    className={`p-2.5 rounded-md border text-left transition-all cursor-pointer flex flex-col justify-between gap-1 break-words ${isActive
                         ? 'bg-[#0f1d2e] border-[#38bdf8] text-white shadow-[0_0_15px_rgba(56,189,248,0.2)]'
                         : 'bg-[#0a0c0e]/50 border-[#2b2e30] text-[#8f9396] hover:border-[#38bdf8]/40 hover:text-[#cfe8ff]'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between w-full">
                       <span
-                        className={`font-pixel text-[9px] sm:text-[10px] px-2 py-0.5 rounded-xs font-bold ${
-                          isActive
+                        className={`font-pixel text-[9px] sm:text-[10px] px-2 py-0.5 rounded-xs font-bold ${isActive
                             ? 'bg-[#38bdf8] text-[#090c10]'
                             : 'bg-[#141618] text-[#8f9396] border border-[#2b2e30]'
-                        }`}
+                          }`}
                       >
                         {ps.psNumber} · {ps.psCode}
                       </span>
